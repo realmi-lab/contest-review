@@ -3,7 +3,7 @@ import { shownRefs } from "./reading-edition.mjs";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 import { execFile, spawn } from "node:child_process";
-import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
+import { readFile, writeFile, mkdir, mkdtemp, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,7 +20,7 @@ import {
   placeLabel, readEvaluations, readOneDrive, readResponses, rootOf, shareState, storageRoots, workFolder,
 } from "./forms-intake.mjs";
 import { readSite, writeSite } from "./deploy/site.mjs";
-import { attachmentPages } from "./attachment-pages.mjs";
+import { attachmentPages, pageKind } from "./attachment-pages.mjs";
 import { macAddress, nasServer, publicOrigin } from "./deploy/nas-access.mjs";
 import { readAccess, verifyCode } from "./deploy/access-code.mjs";
 import { ai, aiSettings, haiku, haikuEffortNote, haikuLabel, matches, saveConnection, savedKey, saveKey, ticket, usageReport, validTicket, verifyKey, withHaiku } from "./claude-summary.mjs";
@@ -261,8 +261,18 @@ async function intakeView(config, errors = {}) {
   };
 }
 
-// MS Forms 첨부를 캡처로 자동 접수한다(그림은 그대로, PDF·Word·PowerPoint·Excel은 쪽마다, attachment-pages.mjs).
-// 파일마다 결과를 source.read에 남긴다: { pages } 또는 { error }. 못 읽은 파일은 심사자가 직접 캡처한다.
+// 파일 하나를 쪽 이미지로 바꿔 캡처로 접수하고 쪽수를 돌려준다(그림은 그대로, PDF·Word·PowerPoint·Excel은 쪽마다).
+async function addPages(wid, name, file) {
+  const pages = await attachmentPages(file);
+  for (const [i, bytes] of pages.entries())
+    await addImage(wid, { document: name, page: i + 1, total: pages.length }, bytes).catch((e) => {
+      if (e.status !== 409) throw e; // 이미 접수한 같은 쪽
+    });
+  return pages.length;
+}
+
+// MS Forms 첨부를 캡처로 자동 접수한다. 파일마다 결과를 source.read에 남긴다: { pages } 또는 { error }.
+// 못 읽은 파일은 심사자가 직접 캡처한다.
 function ingestAttachments(config, w) {
   const key = "ingest-" + w.id;
   const todo = w.source.files.filter((n) => !w.source.missing.includes(n) && !w.source.read?.[n]);
@@ -272,12 +282,7 @@ function ingestAttachments(config, w) {
       progress(name + " · 열어서 캡처하는 중");
       let result;
       try {
-        const pages = await attachmentPages(path.join(config.reviewDir, "작품", w.source.folder, name));
-        for (const [i, bytes] of pages.entries())
-          await addImage(w.id, { document: name, page: i + 1, total: pages.length }, bytes).catch((e) => {
-            if (e.status !== 409) throw e; // 이미 접수한 같은 쪽
-          });
-        result = { pages: pages.length };
+        result = { pages: await addPages(w.id, name, path.join(config.reviewDir, "작품", w.source.folder, name)) };
       } catch (e) {
         result = { error: String(e.message).slice(0, 300) };
       }
@@ -483,7 +488,7 @@ async function body(req) {
   let n = 0;
   for await (const b of req) {
     n += b.length;
-    if (n > 20 * 1024 * 1024) err("요청 용량 초과", 413);
+    if (n > 64 * 1024 * 1024) err("요청 용량 초과", 413); // 문서 올리기(40MB)의 base64까지
     parts.push(b);
   }
   try {
@@ -841,6 +846,23 @@ async function handleRequest(req, res) {
       w.similar = marks;
       save(w);
       return json({ ok: true });
+    }
+    // 문서 올리기: 받은 파일을 임시 폴더에 두고 쪽마다 캡처로 접수한다(Office 앱·PDFKit을 쓰므로 차례로 처리).
+    if (pathname === "/api/upload-document") {
+      const name = path.basename(bounded(b.name ?? "", 200));
+      if (!pageKind(name) || pageKind(name) === "image") err("PDF·Word·PowerPoint·Excel 문서를 올리세요.");
+      const bytes = Buffer.from(b.data || "", "base64");
+      if (!bytes.length || bytes.length > 40 * 1024 * 1024) err("문서는 40MB 이하만 올릴 수 있습니다.");
+      const dir = await mkdtemp(path.join(os.tmpdir(), "upload-"));
+      await writeFile(path.join(dir, name), bytes);
+      schedule("doc-" + randomUUID(), w.id, name + " · 열어서 캡처하는 중", async () => {
+        try {
+          await addPages(w.id, name, path.join(dir, name));
+        } finally {
+          await rm(dir, { recursive: true, force: true });
+        }
+      });
+      return json({ queued: true }, 202);
     }
     if (pathname === "/api/upload") {
       return json(

@@ -901,10 +901,10 @@ function intakePane() {
         ${field("문서 또는 시트 이름", input("document", docFields.document, "text", 'maxlength="100"'))}
       </div>
       <label id="drop" class="drop">
-        <span><strong>캡처 이미지를 끌어 놓거나 붙여넣으세요</strong>
-        <span class="small muted">PNG·JPG·WebP, 여러 장은 선택한 순서대로 접수합니다.</span></span>
+        <span><strong>캡처나 문서 파일을 끌어 놓거나 붙여넣으세요</strong>
+        <span class="small muted">PNG·JPG·WebP 그림, PDF·Word·PowerPoint·Excel 문서(쪽마다 캡처로 접수). 여러 개는 선택한 순서대로 접수합니다.</span></span>
         <span class="pick">파일 선택</span>
-        <input id="files" class="sr" type="file" accept="image/png,image/jpeg,image/webp" multiple>
+        <input id="files" class="sr" type="file" accept="${UPLOAD_TYPES}" multiple>
       </label>
       <div class="actions">${button("screen", "문서 창에서 캡처")}</div>
     </section>`;
@@ -1620,12 +1620,39 @@ function asBase64(file) {
   });
 }
 
+// 올릴 수 있는 파일: 그림은 바로 캡처로, 문서는 서버가 열어 쪽마다 캡처로 접수한다(attachment-pages.mjs).
+const DOCUMENT_EXT = /\.(pdf|docx?|pptx?|xlsx?)$/i;
+const UPLOAD_TYPES = "image/png,image/jpeg,image/webp,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx";
+async function uploadDocuments(id, documents) {
+  const failed = [];
+  for (const file of documents) {
+    try {
+      if (file.size > MAX_DOCUMENT_BYTES) throw Error("문서는 40MB 이하만 올릴 수 있습니다.");
+      await api("upload-document", { id, name: file.name, data: await asBase64(file) });
+    } catch (e) {
+      failed.push(`${file.name}: ${e.message}`);
+    }
+  }
+  if (failed.length) notify(`문서 ${failed.length}개 실패 · ${failed.slice(0, 3).join(" / ")}`, true);
+  else notify(`문서 ${documents.length}개를 쪽마다 캡처로 접수하는 중입니다.`);
+}
+const MAX_DOCUMENT_BYTES = 40 * 1024 * 1024;
+
 async function upload(files, fromWindow = false) {
+  const documents = files.filter((f) => DOCUMENT_EXT.test(f.name || ""));
   const images = files.filter((f) => f.type.startsWith("image/"));
-  if (files.length && !images.length)
-    throw Error("PNG·JPG·WebP 이미지 파일만 추가할 수 있습니다.");
+  if (files.length && !images.length && !documents.length)
+    throw Error("PNG·JPG·WebP 그림이나 PDF·Word·PowerPoint·Excel 문서만 올릴 수 있습니다.");
   const id = selected; // 올리는 도중 다른 작품을 골라도 처음 작품에 저장
-  if (!id || !images.length || uploading) return;
+  if (!id || uploading) return;
+  if (documents.length) {
+    await uploadDocuments(id, documents);
+    if (!images.length) {
+      if ($("files")) $("files").value = "";
+      return sync(true);
+    }
+  }
+  if (!images.length) return;
   rememberFields();
   const fields = { ...docFields };
   uploading = true;
