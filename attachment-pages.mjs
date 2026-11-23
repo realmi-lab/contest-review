@@ -3,7 +3,8 @@
 //   PDF: 맥 PDFKit으로 쪽마다 PNG
 //   Word·PowerPoint·Excel: 맥의 Office 앱이 회사 계정으로 열어(MIP 보호 문서 포함) 쪽마다 화면 캡처
 import { execFile } from "node:child_process";
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 
@@ -49,9 +50,10 @@ async function pdfPages(pdf) {
   }
 }
 
-// Office 문서: 앱으로 열어 쪽(슬라이드·시트)마다 화면을 캡처한다. MIP로 보호된 문서는 PDF로 내보내도 암호화되어
-// 읽을 수 없으므로 화면으로 받는다. 이 서버를 띄운 터미널에 '화면 기록'과 Office '제어' 권한이 있어야 한다.
-// PowerPoint는 슬라이드 쇼로 전체 화면을, Word는 '한 쪽 전체' 배율로 창을, Excel은 시트마다 창을 캡처한다.
+// Office 문서: 앱으로 열어 쪽(슬라이드·시트)마다 받는다. MIP로 보호된 문서는 PDF로 내보내도 암호화되어
+// 읽을 수 없으므로, PowerPoint는 슬라이드를 PNG로 내보내고(화면을 쓰지 않음, 막혀 있으면 슬라이드 쇼 캡처),
+// Word는 '한 쪽 전체' 배율로, Excel은 시트마다 창을 캡처한다. 창은 앞으로 가져오지 않는다(가려져도 창 번호로 캡처).
+// 이 서버를 띄운 터미널에 Office '제어'와 '화면 기록' 권한이 있어야 한다.
 const STEPS = {
   powerpoint: {
     app: "Microsoft PowerPoint",
@@ -70,8 +72,7 @@ const STEPS = {
   },
   word: {
     app: "Microsoft Word",
-    open: `activate
-      open f
+    open: `open f
       delay 2
       set view type of view of active window to print view
       set page fit of zoom of view of active window to page fit full page
@@ -83,8 +84,7 @@ const STEPS = {
   },
   excel: {
     app: "Microsoft Excel",
-    open: `activate
-      open f
+    open: `open f
       delay 2
       return count of worksheets of active workbook`,
     go: `activate object worksheet i of active workbook
@@ -114,11 +114,38 @@ const capture = (out, windowId) =>
   new Promise((resolve, reject) =>
     execFile("screencapture", ["-x", "-o", ...(windowId ? ["-l" + windowId] : []), out], { timeout: 30_000 }, (e) =>
       e ? reject(new Error("화면을 캡처하지 못했습니다. 시스템 설정 > 개인정보 보호 및 보안 > 화면 기록에서 터미널을 허용하세요.")) : resolve()));
+// PowerPoint 슬라이드를 PNG로 내보낸다. Office 앱은 샌드박스라 Office 공용 폴더(Group Containers)에만 바로 쓸 수 있다.
+async function slideImages(file) {
+  const dir = path.join(os.homedir(), "Library", "Group Containers", "UBF8T346G9.Office", "contest-review", randomUUID());
+  await mkdir(dir, { recursive: true });
+  try {
+    await osa(["-e", `on run argv
+  set f to POSIX file (item 1 of argv)
+  set target to (POSIX file (item 2 of argv)) as text
+  tell application "Microsoft PowerPoint"
+    open f
+    set p to active presentation
+    save p in target as save as PNG
+    close p saving no
+  end tell
+end run`, file, path.join(dir, "slides")], "PowerPoint 슬라이드 내보내기");
+    const names = (await readdir(dir, { recursive: true })).filter((n) => /\.png$/i.test(n))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    return await Promise.all(names.slice(0, 60).map((n) => readFile(path.join(dir, n))));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 // 앱이 없으면 AppleScript가 '앱 찾기' 창을 띄우므로 먼저 확인한다.
 const installed = (app) => new Promise((resolve) => execFile("open", ["-Ra", app], (e) => resolve(!e)));
 async function officeCaptures(kind, file) {
   const step = STEPS[kind];
   if (!(await installed(step.app))) throw new Error(`이 맥에 ${step.app} 앱이 없습니다. 회사 뷰어로 열어 캡처해 올려 주세요.`);
+  if (kind === "powerpoint") {
+    const slides = await slideImages(file).catch(() => []); // 내보내기가 막힌 보호 문서는 슬라이드 쇼로 캡처
+    if (slides.length) return slides;
+  }
   const out = await mkdtemp(path.join(os.tmpdir(), "office-"));
   try {
     const count = Math.min(Number(await tell(step, step.open, file)) || 0, 60);
