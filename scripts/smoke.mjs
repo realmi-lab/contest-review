@@ -41,6 +41,15 @@ const post = async (route, data) => {
   return { status: res.status, body: await res.json().catch(() => ({})) };
 };
 const work = (id) => get("/api/work/" + id).then((r) => r.json());
+// 글자 인식이 끝날 때까지 기다리고, 실패했으면 그 이유를 보여 준다
+async function recognized(id, what) {
+  const w = await until(what, 180, async () => {
+    const x = await work(id);
+    return x.captures.length && x.captures.every((c) => c.status !== "queued") && x;
+  });
+  for (const c of w.captures) assert.equal(c.status, "ready", `${c.label}: ${c.ocrError}`);
+  return w;
+}
 // 조건이 될 때까지(최대 seconds초) 기다린다
 async function until(what, seconds, check) {
   for (let i = 0; i < seconds * 2; i++) {
@@ -83,7 +92,7 @@ try {
     assert.ok(id);
     const up = await post("upload", { id, document: "제안서", data: (await slide("Regression 12345")).toString("base64") });
     assert.equal(up.status, 201);
-    capture = await until("글자 인식", 180, async () => (await work(id)).captures.find((c) => c.status === "ready"));
+    [capture] = (await recognized(id, "글자 인식")).captures;
     assert.match(capture.lines.map((l) => l.text).join(" "), /12345/);
   });
   await step("캡처 그림과 작은 그림을 내려 준다", async () => {
@@ -110,10 +119,7 @@ try {
     const state = await get("/api/state").then((r) => r.json());
     const form = state.works.find((w) => w.formId === "1");
     assert.deepEqual([form.name, form.receivedOn, form.intakeTeam, form.submitterName], ["공유 우산", "2026-11-23", "운영팀", "홍길동"]);
-    const ready = await until("첨부 자동 접수와 글자 인식", 180, async () => {
-      const w = await work(form.id);
-      return w.captures.length && w.captures.every((c) => c.status === "ready") && w;
-    });
+    const ready = await recognized(form.id, "첨부 자동 접수와 글자 인식");
     assert.deepEqual(ready.source.read, { "제안서_홍길동.png": { pages: 1 } });
     assert.equal(ready.source.email, "gildong@example.com");
     assert.match(ready.captures[0].lines.map((l) => l.text).join(" "), /2,500,000/);
