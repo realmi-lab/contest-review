@@ -11,7 +11,7 @@ import { readSheet, writeWorkbook } from "./xlsx.mjs";
 
 // 응답 엑셀에서 읽는 값. 설정의 columns에 회사 엑셀의 실제 열 이름을 적는다(id·title은 필수).
 export const FIELDS = {
-  id: "응답 번호", submittedAt: "인입일", title: "작품명", description: "간략 설명", team: "접수 팀명", submitter: "접수자", email: "이메일",
+  id: "응답 번호", submittedAt: "인입일", title: "작품명", description: "간략 설명", team: "팀", submitter: "접수자", email: "이메일",
   files: "첨부 파일",
 }; // 응답 엑셀에서 읽는 항목. 분야(category)는 site.json에 적었을 때만 읽는다(심사자 분야별 배정용).
 export const REQUIRED = ["id", "title", "files"];

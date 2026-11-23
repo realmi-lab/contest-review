@@ -480,11 +480,11 @@ function intakeInputs(record, isNew = false) {
   const prefix = isNew ? "new-" : "edit-";
   return `
     ${field("인입 날짜", input(prefix + "date", record.receivedOn, "date", 'name="receivedOn"' + (isNew ? " required" : "")))}
-    ${field("접수 팀명", input(prefix + "team", record.intakeTeam, "text", 'name="intakeTeam" maxlength="80"'))}
+    ${field("팀", input(prefix + "team", record.intakeTeam, "text", 'name="intakeTeam" maxlength="80"'))}
     ${field("접수자 이름", input(prefix + "submitter", record.submitterName, "text", 'name="submitterName" maxlength="80"'))}`;
 }
 
-const intakeHeadings = ["인입일", "접수 팀명", "접수자"];
+const intakeHeadings = ["인입일", "팀", "접수자"];
 const columnHeaders = (names) => join(names, (label) => `<th scope="col">${esc(label)}</th>`);
 
 // 접수 정보 세 값(intakeHeadings 순서). 목록 표와 작품 머리에서 함께 쓴다.
@@ -1816,7 +1816,7 @@ async function openFormsSettings() {
     ${info.error && !info.check ? `<p class="warn-text small">${esc(info.error)}</p>` : ""}
     ${source("workbook", "MS Forms 응답 엑셀", info.workbook, info.check?.workbook)}
     ${source("attachments", "첨부 파일 폴더", info.attachments, info.check?.attachments)}
-    <p class="small muted">찾아보기를 누르면 서버 맥 화면에 선택 창이 열립니다. 엑셀의 인입일·접수 팀명·접수자·이메일·간략 설명·첨부 파일명은 열 위치로 자동으로 읽습니다.</p>
+    <p class="small muted">찾아보기를 누르면 서버 맥 화면에 선택 창이 열립니다. 엑셀의 인입일·팀·접수자·이메일·간략 설명·첨부 파일명은 열 위치로 자동으로 읽습니다.</p>
     <div class="actions"><button class="primary">설정 저장</button></div>
   </form>`);
 }

@@ -118,7 +118,7 @@ export function stalled(followup, today) {
 // 작품마다 기준이 다를 수 있어 항목 점수는 기준 이름으로 열을 맞춘다.
 export function scoreRows(works, criteria) {
   const names = [...new Set([...criteria, ...works.flatMap((w) => w.rubric?.criteria ?? [])].map((c) => c.name))];
-  const head = ["작품명", "분야", "인입일", "접수 팀명", "접수자", ...names, "총점", "실행 규모", "1차 결정",
+  const head = ["작품명", "분야", "인입일", "팀", "접수자", ...names, "총점", "실행 규모", "1차 결정",
     "사전 확인", "이관 부서", "제안자 의견", "심사 메모", "평가자", "확정 시각", "심사자 평가 수", "심사자 평균", "심사자별 총점",
     "실행 단계", "실행 담당 부서", "실행 담당자", "실행 예정일", "실행 효과"];
   const rank = (w) => [w.final?.score ?? -1, evaluationSummary(w).average ?? -1];

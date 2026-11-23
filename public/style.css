@@ -765,9 +765,9 @@ main {
 .works-table td { color: var(--text-2); overflow-wrap: anywhere; }
 .works-table td small { display: block; }
 .works-table td:nth-child(6), .works-table thead th:nth-child(6) { white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; } /* 캡처 장수 */
-/* 접수 팀명·접수자는 낱말 중간에서 꺾지 않고, 길면 말줄임 */
+/* 팀·접수자는 낱말 중간에서 꺾지 않고, 길면 말줄임 */
 .works-table td:nth-child(2), .works-table td:nth-child(3) { max-width: 9em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.works-table td:nth-child(2) { max-width: 18em; } /* 접수 팀명: 두 배 */
+.works-table td:nth-child(2) { max-width: 18em; } /* 팀: 두 배 */
 .works-table time, .intake-meta time { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .workrow { cursor: pointer; }
 .workrow:hover, .workrow:focus-within { background: var(--fill); }

@@ -121,7 +121,7 @@ test("채점 결과 표는 채점한 작품을 총점 순으로 먼저 두고 �
   ];
   works[0].evaluations = { "a@x.com": { name: "박심사", complete: true, score: 6.5 }, "b@x.com": { name: "최심사", complete: false, score: null } };
   const [head, ...rows] = scoreRows(works, [{ name: "문제 정의" }, { name: "효과 크기" }]);
-  assert.deepEqual(head.slice(0, 8), ["작품명", "분야", "인입일", "접수 팀명", "접수자", "문제 정의", "효과 크기", "총점"]);
+  assert.deepEqual(head.slice(0, 8), ["작품명", "분야", "인입일", "팀", "접수자", "문제 정의", "효과 크기", "총점"]);
   assert.deepEqual(rows.map((r) => r[0]), ["높은 점수", "낮은 점수", "미채점 작품"]);
   assert.deepEqual(rows[1].slice(5, 8), [2, 1, 3]); // 순서가 다른 기준도 이름으로 맞춘다
   assert.deepEqual(rows[0].slice(head.indexOf("평가자"), head.indexOf("평가자") + 2), ["이평가", "2026-11-22 11:00"]); // 서울 시간
