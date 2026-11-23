@@ -177,7 +177,7 @@ export async function fromOneDrive(file, action, waitMs = 1000, tries = 10) {
 export const readOneDrive = (file) => fromOneDrive(file, () => readFile(file));
 
 // MIP(민감도 레이블)로 암호화된 엑셀은 zip(PK…)이 아닌 암호화 파일이라 직접 풀 수 없다. 맥의 Excel 앱이 회사 계정으로
-// 열어 값을 넘겨 준다(처음 한 번 macOS가 'Excel 제어 허용'을 묻는다). 이미 열려 있던 통합 문서는 닫지 않는다.
+// 열어 값을 넘겨 준다(처음 한 번 macOS가 'Excel 제어 허용'을 묻는다). 이미 열려 있던 통합 문서는 닫지 않고, 다른 문서가 없으면 Excel도 끈다.
 const EXCEL_READER = `function run([file, sheetName]) {
   const excel = Application("Microsoft Excel");
   const name = file.split("/").pop();
@@ -191,7 +191,10 @@ const EXCEL_READER = `function run([file, sheetName]) {
   const cell = (v) => Object.prototype.toString.call(v) === "[object Date]"
     ? v.getFullYear() + "-" + two(v.getMonth() + 1) + "-" + two(v.getDate()) + " " + two(v.getHours()) + ":" + two(v.getMinutes())
     : v ?? "";
-  if (!opened) book.close({ saving: "no" });
+  if (!opened) {
+    book.close({ saving: "no" });
+    if (!excel.workbooks().length) excel.quit(); // 읽으려고 켠 Excel은 다시 끈다
+  }
   return JSON.stringify(rows.map((r) => (Array.isArray(r) ? r : [r]).map(cell)));
 }`;
 export const isEncrypted = (buffer) => !(buffer[0] === 0x50 && buffer[1] === 0x4b);

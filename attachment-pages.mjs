@@ -134,6 +134,10 @@ async function tellFirst(step, bodies, file, i = 0) {
 async function tellEach(step, bodies, file) {
   for (const body of bodies) await tell(step, body, file).catch(() => {});
 }
+// 문서를 닫고, 열려 있는 다른 문서가 없으면 앱도 끈다(쓰던 문서가 있으면 그대로 둔다).
+async function finish(step, file, close = step.close) {
+  await tellEach(step, [...close, `if (count of every ${step.doc}) is 0 then quit`], file);
+}
 // 앱에서 문서가 열릴 때까지(최대 90초) 기다린다. 보호 문서는 회사 계정 확인에 시간이 걸린다.
 async function openInApp(step, file) {
   await new Promise((resolve, reject) =>
@@ -189,7 +193,7 @@ async function officeCaptures(kind, file) {
   if (kind === "powerpoint") {
     const slides = await slideImages(file); // 내보내기가 막힌 보호 문서는 슬라이드 쇼로 캡처
     if (slides.length) {
-      await tellEach(step, step.close.slice(-1), file);
+      await finish(step, file, step.close.slice(-1));
       return slides;
     }
   }
@@ -218,7 +222,7 @@ async function officeCaptures(kind, file) {
     if (!pages.length) throw new Error("문서에서 캡처할 쪽을 찾지 못했습니다.");
     return pages;
   } finally {
-    await tellEach(step, step.close, file);
+    await finish(step, file);
     await rm(out, { recursive: true, force: true });
   }
 }

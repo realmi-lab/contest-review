@@ -301,7 +301,10 @@ function syncIntake() {
       intake.error = "";
       if (intake.config) {
         await importResponses(intake.config).catch((e) => (intake.error = e.message)); // 응답에 문제가 있어도 평가표는 읽는다
-        for (const w of formWorks()) ingestAttachments(intake.config, w);
+        for (const w of formWorks()) {
+          ingestAttachments(intake.config, w);
+          await autoSummarize(w.id).catch(() => {}); // 서버가 꺼졌다 켜져 이어지지 못한 작품
+        }
         errors = await collectEvaluations(intake.config);
       }
     } catch (e) {
@@ -335,6 +338,7 @@ function schedule(key, work, label, fn, lane = "local") {
         save(w);
       } finally {
         tasks.delete(key);
+        autoSummarize(work).catch(() => {}); // 지워진 작품·키 없음 등은 넘어간다
       }
     })
     .catch((e) => console.error("작업 처리 오류", e.name));
@@ -599,6 +603,98 @@ async function health() {
   if (!healthValue) await healthCheck; // 서버 시작 직후 한 번만 기다린다
   return healthValue;
 }
+// 요약(이어서 사실·논리 점검) 또는 점검만 대기열에 넣는다. 요청 처리(/api/summarize·check-logic)와 자동 진행이 함께 쓴다.
+function startSummary(w, check, cloud, key) {
+  const readingField = cloud ? "cloudReading" : "reading";
+  const logicField = cloud ? "cloudLogic" : "logic";
+  const reading = w[readingField];
+  if (!w.captures.length || w.captures.some((c) => c.status === "queued"))
+    err("캡처의 문자 인식이 완료되어야 합니다.");
+  if (check && (!reading || reading.rev !== w.rev))
+    err("현재 자료로 먼저 내용을 요약하세요.");
+  if ([...tasks.values()].some((t) => t.work === w.id))
+    err("현재 작품의 작업을 완료한 뒤 실행하세요.", 409);
+  schedule(
+    (check ? "logic-" : "summary-") + w.id,
+    w.id,
+    (cloud ? haikuLabel + " · " : "로컬 · ") + (check ? "사실·논리 점검 준비" : "요약 준비"),
+    // 과정: (OCR →) AI 요약 → AI 사실·논리 점검. 요약을 만들면 점검까지 이어서 한다.
+    async (progress) => {
+      if (load(w.id).rev !== w.rev) throw Error("대기 중 자료가 변경되었습니다. 새 자료로 실행하세요.");
+      // 한 단계를 실행한다. Haiku면 단계마다 사용량을 따로 기록한다.
+      const step = async (kind, run, readingId) => {
+        if (!cloud) return run();
+        const usage = newHaikuUsage(randomUUID());
+        if (readingId) usage.readingId = readingId;
+        const startedAt = new Date().toISOString();
+        const persist = () => {
+          const snapshot = JSON.stringify(usageSnapshot(usage));
+          saveUsage.run(w.id, kind, w.rev, snapshot);
+          saveRun.run(usage.runId, w.id, kind, startedAt, snapshot);
+        };
+        persist();
+        const output = await withHaiku(key, run, (responseUsage) => {
+          recordHaikuUsage(usage, responseUsage);
+          persist();
+        });
+        output.usage = usageSnapshot(usage, true);
+        return output;
+      };
+      // 결과를 저장한다. 그 사이 자료가 바뀌었으면 버린다.
+      const store = (apply) => {
+        const latest = load(w.id);
+        if (latest.rev !== w.rev) throw Error("작업 중 자료가 변경되었습니다. 새 자료로 실행하세요.");
+        apply(latest);
+        latest.error = "";
+        save(latest);
+      };
+      const provider = cloud ? "haiku" : "local";
+      let current = reading;
+      if (!check) {
+        const output = await step("summary", () => summarize({ ...w, reading }, image, progress));
+        current = { ...output, rev: w.rev, provider, ...(cloud ? { effort: haikuEffortNote } : {}) };
+        store((latest) => {
+          latest[readingField] = current;
+          latest[logicField] = null;
+        });
+      }
+      // 점검 끝에 'AI가 본 이 아이디어'(idea-opinion.mjs)를 쓴다. Haiku로만 쓰고, 실패해도 점검 결과는 남긴다.
+      const logic = await step("logic", async () => {
+        const result = await checkLogic(current, w.captures, progress);
+        if (!cloud) return result;
+        progress("AI가 본 이 아이디어 쓰기");
+        try {
+          result.opinion = await ideaOpinion(current, result.issues.filter((x) => x.status !== "참고"));
+        } catch (e) {
+          result.opinion = { error: e.message };
+        }
+        return result;
+      }, current.id);
+      store((latest) => {
+        if (latest[readingField]?.id !== current.id) throw Error("작업 중 자료가 변경되었습니다. 새 자료로 실행하세요.");
+        latest[logicField] = { ...logic, provider };
+      });
+    },
+    cloud ? "cloud" : "local",
+  );
+  w.error = "";
+  save(w);
+}
+
+// MS Forms로 들어온 아이디어는 첨부 캡처와 글자 인식이 끝나면 요약 → 사실·논리 점검까지 알아서 이어 간다.
+// 같은 자료(rev)로는 한 번만 시도한다(실패해도 되풀이해 비용을 쓰지 않게). 못 읽은 첨부가 있으면 사람이 올린 뒤 직접 실행한다.
+async function autoSummarize(wid) {
+  const w = load(wid), s = w.source;
+  if (!s?.formId || s.autoRev === w.rev || !w.captures.length || w.cloudReading?.rev === w.rev) return;
+  if (s.missing.length || !s.files.every((n) => s.read?.[n]?.pages)) return;
+  if (w.captures.some((c) => c.status === "queued") || [...tasks.values()].some((t) => t.work === wid)) return;
+  const key = await savedKey();
+  if (!key) return;
+  s.autoRev = w.rev;
+  save(w);
+  startSummary(w, false, true, key);
+}
+
 async function handleRequest(req, res) {
   function json(data, status = 200) {
     res.writeHead(status, {
@@ -961,81 +1057,7 @@ async function handleRequest(req, res) {
       return json({ ok: true });
     }
     if (summaryRequest) {
-      const check = pathname === "/api/check-logic";
-      const readingField = cloud ? "cloudReading" : "reading";
-      const logicField = cloud ? "cloudLogic" : "logic";
-      const reading = w[readingField];
-      if (!w.captures.length || w.captures.some((c) => c.status === "queued"))
-        err("캡처의 문자 인식이 완료되어야 합니다.");
-      if (check && (!reading || reading.rev !== w.rev))
-        err("현재 자료로 먼저 내용을 요약하세요.");
-      if ([...tasks.values()].some((t) => t.work === w.id))
-        err("현재 작품의 작업을 완료한 뒤 실행하세요.", 409);
-      schedule(
-        (check ? "logic-" : "summary-") + w.id,
-        w.id,
-        (cloud ? haikuLabel + " · " : "로컬 · ") + (check ? "사실·논리 점검 준비" : "요약 준비"),
-        // 과정: (OCR →) AI 요약 → AI 사실·논리 점검. 요약을 만들면 점검까지 이어서 한다.
-        async (progress) => {
-          if (load(w.id).rev !== w.rev) throw Error("대기 중 자료가 변경되었습니다. 새 자료로 실행하세요.");
-          // 한 단계를 실행한다. Haiku면 단계마다 사용량을 따로 기록한다.
-          const step = async (kind, run, readingId) => {
-            if (!cloud) return run();
-            const usage = newHaikuUsage(randomUUID());
-            if (readingId) usage.readingId = readingId;
-            const startedAt = new Date().toISOString();
-            const persist = () => {
-              const snapshot = JSON.stringify(usageSnapshot(usage));
-              saveUsage.run(w.id, kind, w.rev, snapshot);
-              saveRun.run(usage.runId, w.id, kind, startedAt, snapshot);
-            };
-            persist();
-            const output = await withHaiku(key, run, (responseUsage) => {
-              recordHaikuUsage(usage, responseUsage);
-              persist();
-            });
-            output.usage = usageSnapshot(usage, true);
-            return output;
-          };
-          // 결과를 저장한다. 그 사이 자료가 바뀌었으면 버린다.
-          const store = (apply) => {
-            const latest = load(w.id);
-            if (latest.rev !== w.rev) throw Error("작업 중 자료가 변경되었습니다. 새 자료로 실행하세요.");
-            apply(latest);
-            latest.error = "";
-            save(latest);
-          };
-          const provider = cloud ? "haiku" : "local";
-          let current = reading;
-          if (!check) {
-            const output = await step("summary", () => summarize({ ...w, reading }, image, progress));
-            current = { ...output, rev: w.rev, provider, ...(cloud ? { effort: haikuEffortNote } : {}) };
-            store((latest) => {
-              latest[readingField] = current;
-              latest[logicField] = null;
-            });
-          }
-          // 점검 끝에 'AI가 본 이 아이디어'(idea-opinion.mjs)를 쓴다. Haiku로만 쓰고, 실패해도 점검 결과는 남긴다.
-          const logic = await step("logic", async () => {
-            const result = await checkLogic(current, w.captures, progress);
-            if (!cloud) return result;
-            progress("AI가 본 이 아이디어 쓰기");
-            try {
-              result.opinion = await ideaOpinion(current, result.issues.filter((x) => x.status !== "참고"));
-            } catch (e) {
-              result.opinion = { error: e.message };
-            }
-            return result;
-          }, current.id);
-          store((latest) => {
-            if (latest[readingField]?.id !== current.id) throw Error("작업 중 자료가 변경되었습니다. 새 자료로 실행하세요.");
-            latest[logicField] = { ...logic, provider };
-          });
-        },
-        cloud ? "cloud" : "local",
-      );
-      w.error = "";
-      save(w);
+      startSummary(w, pathname === "/api/check-logic", cloud, key);
       return json({ ok: true }, 202);
     }
     if (pathname === "/api/evaluate") {
