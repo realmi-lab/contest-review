@@ -21,6 +21,8 @@ if not network.get("publicHost") or not network.get("listenAddress"):
 host = network["publicHost"]
 address = network["listenAddress"]
 port = str(network.get("port", 20883))
+# 앞단 프록시가 없으면 브라우저가 이 서버의 포트로 바로 연다.
+url = f"https://{host}/" if network.get("proxyAddresses") else f"https://{host}:{port}/"
 
 
 def prepare_certificate():
@@ -91,7 +93,7 @@ def start():
 if __name__ == "__main__":
     prepare_certificate()
     if "--foreground" in sys.argv:
-        print(f"심사 웹앱을 이 터미널에서 실행합니다. https://{host}/ (끄려면 Ctrl+C)", flush=True)
+        print(f"심사 웹앱을 이 터미널에서 실행합니다. {url} (끄려면 Ctrl+C)", flush=True)
         foreground()
     start()
-    print(f"심사 웹앱을 시작했습니다. https://{host}/ 에서 열 수 있습니다.")
+    print(f"심사 웹앱을 시작했습니다. {url} 에서 열 수 있습니다.")

@@ -10,8 +10,8 @@ cd contest-review
 ./start.sh
 ```
 
-- 처음 실행하면 `deploy/site.json`을 예시(`deploy/site.example.json`)에서 만들고 멈춥니다. `network`(웹 주소·이 서버 IP·포트·앞단 프록시 IP)를 운영망 값으로 고친 뒤 다시 `./start.sh`를 실행합니다. 이 파일은 서버에만 두고 깃에는 올리지 않습니다.
-- Node.js 22.21 이상, python3, openssl이 필요합니다. 서버의 Node가 더 낮으면(예: 20) [nvm](https://github.com/nvm-sh/nvm#installing-and-updating)만 설치해 두세요. `./start.sh`가 `.nvmrc`의 Node 22를 받아 이 앱에만 쓰고, 서버의 기본 Node는 그대로 둡니다. OCR 엔진 패키지 `vendor/kordoc.tgz`는 비공개라 깃에 없으므로 운영 서버의 `vendor/`에 따로 넣습니다(한국어 모델은 `vendor/models`에 들어 있습니다). 패키지는 처음 실행할 때와 `package-lock.json`이 바뀌었을 때 `npm ci`로 설치합니다(회사 프록시는 `HTTPS_PROXY`로 넘깁니다).
+- 처음 실행하면 이 서버의 IP로 바로 여는 `deploy/site.json`을 만들고 `https://<서버 IP>:20883`에서 엽니다(내부 인증서라 처음엔 브라우저 경고가 뜹니다). 앞단 역방향 프록시나 도메인을 쓰면 `network`를 고치고(예시: `deploy/site.example.json`) 다시 `./start.sh`를 실행합니다. 이 파일은 서버에만 두고 깃에는 올리지 않습니다.
+- python3와 openssl만 있으면 나머지는 `./start.sh`가 준비합니다. 서버의 Node가 22.21보다 낮으면(예: 20) nvm을 `~/.nvm`에 설치해 `.nvmrc`의 Node 22를 이 앱에만 쓰고, 서버의 기본 Node와 셸 설정 파일은 그대로 둡니다. OCR 엔진(`vendor/kordoc.tgz`, MIT)과 한국어 모델(`vendor/models`)은 저장소에 들어 있고, 패키지는 처음 실행할 때와 `package-lock.json`이 바뀌었을 때 `npm ci`로 설치합니다. 서버가 nodejs.org·GitHub·npm에 접속할 수 있어야 하며, 회사 프록시는 `HTTPS_PROXY`로 넘깁니다.
 - 맥에서는 로그인하면 자동으로 켜지고 꺼지면 다시 켜지는 서비스로 시작합니다. 코드를 받은 뒤(`git pull`) 다시 `./start.sh`를 실행하면 재시작합니다. 맥이 아니거나 `./start.sh --foreground`로 실행하면 그 터미널에서 바로 돕니다.
 - MS Forms 공모 연동은 웹앱 왼쪽 메뉴의 **공모 연동 설정**에서 응답 엑셀과 첨부 폴더를 고르고, AI 키(회사 LiteLLM 주소 포함)는 **요약 설정**에서 넣습니다. 데이터와 로그는 `~/Library/Application Support/ContestReviewWeb/`에 있습니다.
 

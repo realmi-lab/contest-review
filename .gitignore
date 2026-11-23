@@ -7,8 +7,7 @@ node_modules/
 deploy/site.json
 deploy/site.json.tmp
 deploy/web-access.json
-# 비공개 OCR 엔진 패키지와 이 맥 전용 배포 인증 도구는 공개 저장소에 올리지 않는다
-vendor/kordoc.tgz
+# 이 맥 전용 배포 인증 도구는 저장소에 올리지 않는다
 deploy/배포 인증 등록.command
 
 # 로컬 시험용 가짜 OneDrive(scripts/forms-sample.mjs)와 예전 화면 백업
