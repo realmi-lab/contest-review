@@ -138,6 +138,15 @@ try {
     await click('[data-action="reset-captures"]'); // 확인 창은 자동으로 수락한다
     await until("빈 접수 칸", async () => !!(await page.$("#drop")));
   });
+  await step("접수 정보 수정에서 작품명을 고치면 제목이 바뀐다", async () => {
+    await click('[data-action="edit-intake"]');
+    await until("접수 정보 수정", isOpen);
+    await page.$eval("#edit-name", (el) => (el.value = "이름을 고친 우산"));
+    await page.$eval("#edit-intake", (f) => f.requestSubmit());
+    await until("바뀐 제목", async () => /이름을 고친 우산/.test(await page.$eval("#main", (e) => e.textContent)));
+    const { works } = await state();
+    assert.ok(works.some((w) => w.name === "이름을 고친 우산"));
+  });
   await step("브라우저 오류가 없다", () => assert.deepEqual(errors, []));
 } finally {
   await browser.close();

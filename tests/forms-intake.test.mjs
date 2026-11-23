@@ -79,16 +79,25 @@ test("심사 배포는 분야별 폴더·평가표·공유 요청을 만들고, 
   assert.deepEqual(rows[0].slice(0, 6), ["접수 번호", "작품명", "분야", "제출자", "문제 정의 (1.5)", "효과 크기 (2.5)"]);
   rows[1].splice(4, 10, 1.5, 2, 2, 1.5, 9, "", "과제화", "채택 검토", "좋아요", "");
   await writeFile(file, writeWorkbook([{ name: "평가표", rows }]));
-  let read = readEvaluations(await readFile(file), defaults.criteria, sheet);
+  let read = readEvaluations(readSheet(await readFile(file), "평가표"), defaults.criteria, sheet);
   assert.deepEqual(read.get("1"), { scores: [1.5, 2, 2, 1.5, null], score: null, scale: "과제화", decision: "채택 검토", feedback: "좋아요", note: "", complete: false, problems: ["차별성 점수"] });
 
   // 새 작품이 배정되면 다시 쓰되 적은 값(고칠 값 포함)은 남긴다. 이심사는 새 작품(보안)만 추가된다.
   const again = await distribute(config, [...works].reverse(), defaults.criteria, sheet);
   assert.deepEqual(again, [{ name: "김심사", assigned: 1, added: 0 }, { name: "이심사", assigned: 2, added: 1 }]);
-  read = readEvaluations(await readFile(file), defaults.criteria, sheet);
+  read = readEvaluations(readSheet(await readFile(file), "평가표"), defaults.criteria, sheet);
   assert.equal(read.get("1").scores[4], null);
   const lee = readSheet(await readFile(evaluationFile(config, config.evaluators[1])), "평가표");
   assert.deepEqual(lee.slice(1).map((r) => r[0]), ["1", "2"]); // 접수 번호 순
+
+  // 이미 있는 평가표를 읽지 못하면(손상·보호 파일) 심사자가 적은 값을 잃지 않게 덮어쓰지 않고 그 심사자에 오류를 남긴다.
+  for (const broken of [Buffer.from("PK broken"), Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 1, 2, 3, 4])]) {
+    await writeFile(file, broken);
+    const [kimReport] = await distribute(config, [{ ...works[0], source: { ...works[0].source, formId: "9" } }], defaults.criteria, sheet);
+    assert.equal(kimReport.added, 0);
+    assert.ok(kimReport.error);
+    assert.deepEqual(await readFile(file), broken);
+  }
 
   // Power Automate가 공유한 뒤 요청 파일을 '완료'로 옮긴다.
   await mkdir(path.join(config.reviewDir, "_공유 요청/완료"), { recursive: true });
@@ -109,6 +118,14 @@ test("응답 엑셀에서 그 응답의 칸만 고친다: 빈 칸에도 적고 �
   assert.deepEqual(readSheet(buffer, "메모"), [["그대로"]]);
   assert.deepEqual((await readResponses(withDescription)).map((e) => e.title), ["우산 2호", "알림"]);
   await assert.rejects(writeResponse(withDescription, "9", { title: "x" }), /응답 9을 찾지 못했습니다/);
+});
+
+test("엑셀의 _x000D_ 같은 표기는 글자로 풀어 읽는다", () => {
+  assert.deepEqual(readSheet(writeWorkbook([{ name: "S", rows: [["첫 줄_x000D_\n둘째 줄"]] }])), [["첫 줄\r\n둘째 줄"]]);
+});
+
+test("첨부 이름에 인코딩된 경로가 섞여 있으면 마지막 파일 이름만 쓴다", () => {
+  assert.deepEqual(attachmentNames("%2E%2E%2F%2E%2E%2F%EB%B9%84%EB%B0%80.pdf; a%5Cb.docx"), ["비밀.pdf", "b.docx"]);
 });
 
 test("빈 응답 엑셀은 열 이름을 따지지 않고 응답 0건이다", () => {

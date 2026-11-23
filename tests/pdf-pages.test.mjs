@@ -32,4 +32,5 @@ test("PDF는 쪽마다 PNG가 되고, 한 쪽만 달라고 하면 그 쪽만 준
   assert.equal(pages.length, 3);
   for (const page of pages) assert.equal(page.subarray(1, 4).toString(), "PNG");
   assert.equal((await attachmentPages(file, 2)).length, 1);
+  await assert.rejects(attachmentPages(file, 5), /5쪽을 문서에서 찾지 못했습니다/); // 없는 쪽을 마지막 쪽으로 바꾸지 않는다
 });

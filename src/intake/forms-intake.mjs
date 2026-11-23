@@ -119,7 +119,7 @@ function plainName(s) {
   for (let i = 0; i < 2 && /%[0-9a-f]{2}/i.test(name); i++) {
     try { name = decodeURIComponent(name); } catch { break; }
   }
-  return nfc(name).trim();
+  return nfc(name.split(/[\\/]/).pop()).trim(); // %2F로 감싼 경로가 풀리면 마지막 이름만(폴더 밖을 가리키지 않게)
 }
 export function attachmentNames(cell) {
   const text = String(cell ?? "").trim();
@@ -298,7 +298,7 @@ export async function copyAttachments(names, index, target) {
 export const evaluatorFolder = (config, evaluator) => path.join(config.reviewDir, "심사자", safeName(evaluator.name));
 export const evaluationFile = (config, evaluator) =>
   path.join(evaluatorFolder(config, evaluator), safeName(evaluator.name) + " 평가표.xlsx");
-const SHEET = "평가표";
+export const EVALUATION_SHEET = "평가표";
 const ENTRIES = ["실행 규모", "1차 결정", "제안자 의견", "심사 메모"]; // 점수 다음에 심사자가 적는 칸
 const headerAt = (head) => (label) => head.findIndex((h) => h === label || h.startsWith(label + " ("));
 
@@ -327,7 +327,7 @@ export function evaluationWorkbook(works, criteria, options, entered = new Map()
     ["", "", "점수는 0.1점 단위로 적고, 실행 규모와 1차 결정은 칸의 목록에서 고릅니다."]];
   return writeWorkbook([
     {
-      name: SHEET,
+      name: EVALUATION_SHEET,
       rows: [head, ...rows],
       widths: [10, 40, 16, 12, ...criteria.map(() => 14), 8, 12, 12, 40, 40],
       freeze: true,
@@ -343,10 +343,9 @@ export function evaluationWorkbook(works, criteria, options, entered = new Map()
 
 const tenths = (x) => Math.abs(x * 10 - Math.round(x * 10)) < 1e-6;
 
-// 심사자가 채운 평가표 → 접수 번호별 평가. 아무것도 적지 않은 줄은 뺀다.
+// 심사자가 채운 평가표의 행(workbookRows) → 접수 번호별 평가. 아무것도 적지 않은 줄은 뺀다.
 // complete: 모든 항목 점수(배점 안·0.1점 단위)와 규모·결정을 채웠다. problems: 고쳐야 할 칸.
-export function readEvaluations(buffer, criteria, options) {
-  const rows = readSheet(buffer, SHEET);
+export function readEvaluations(rows, criteria, options) {
   const at = headerAt((rows[0] ?? []).map((h) => nfc(h).trim()));
   const id = at("접수 번호");
   if (id < 0) throw new Error("평가표에 '접수 번호' 열이 없습니다.");
@@ -398,25 +397,37 @@ async function requestShare(config, evaluator) {
 // 심사 배포: 심사자마다 폴더를 만들어 담당 분야 작품의 첨부를 복사하고, 평가표를 만들고, 아직 공유하지 않았으면 공유를 요청한다.
 // 평가표는 새로 배정된 작품이 있을 때만 다시 쓰고(심사자가 여는 중일 수 있어서), 이미 적은 칸과 줄은 그대로 둔다.
 // works는 Forms에서 들어온 작품(source가 있는 것)이다.
+// 이미 있는 평가표를 읽지 못하면(내려받지 않은 파일·손상 등) 심사자가 적은 값을 잃지 않게 다시 쓰지 않고 그 심사자에 오류를 남긴다.
+// 보호(MIP)된 평가표는 Excel 앱으로 읽되, 덮어쓰면 보호가 풀리므로 새 작품을 덧붙이지 않는다.
 export async function distribute(config, works, criteria, options) {
   const report = [];
   for (const evaluator of config.evaluators) {
     const mine = works.filter((w) => evaluator.categories.includes(w.category));
-    const folder = evaluatorFolder(config, evaluator);
-    for (const w of mine) {
-      const source = path.join(config.reviewDir, "작품", w.source.folder);
-      await copyAttachments(w.source.files, await fileIndex(source), path.join(folder, w.source.folder));
+    try {
+      const folder = evaluatorFolder(config, evaluator);
+      for (const w of mine) {
+        const source = path.join(config.reviewDir, "작품", w.source.folder);
+        await copyAttachments(w.source.files, await fileIndex(source), path.join(folder, w.source.folder));
+      }
+      await mkdir(folder, { recursive: true });
+      const file = evaluationFile(config, evaluator);
+      const buffer = await readOneDrive(file).catch((e) => {
+        if (e.code === "ENOENT") return null; // 아직 평가표가 없다
+        throw e;
+      });
+      const entered = buffer ? enteredCells(await rowsOf(buffer, file, EVALUATION_SHEET), criteria) : new Map();
+      const added = mine.filter((w) => !entered.has(w.source.formId)).length;
+      const listed = works // 배정이 바뀌어도 적은 줄은 남기고, 접수 번호 순으로 둔다
+        .filter((w) => mine.includes(w) || entered.has(w.source.formId))
+        .sort((a, b) => a.source.formId.localeCompare(b.source.formId, "ko", { numeric: true }));
+      if (added && buffer && isEncrypted(buffer))
+        throw new Error(`보호된 평가표라 새 작품 ${added}건을 덧붙이지 않았습니다. 평가표의 민감도 레이블 암호화를 빼거나 파일을 옮긴 뒤 다시 배포하세요.`);
+      if (added) await writeFile(file, evaluationWorkbook(listed, criteria, options, entered));
+      await requestShare(config, evaluator);
+      report.push({ name: evaluator.name, assigned: mine.length, added });
+    } catch (e) {
+      report.push({ name: evaluator.name, assigned: mine.length, added: 0, error: e.message });
     }
-    await mkdir(folder, { recursive: true });
-    const file = evaluationFile(config, evaluator);
-    const entered = await readOneDrive(file).then((b) => enteredCells(readSheet(b, SHEET), criteria)).catch(() => new Map());
-    const added = mine.filter((w) => !entered.has(w.source.formId)).length;
-    const listed = works // 배정이 바뀌어도 적은 줄은 남기고, 접수 번호 순으로 둔다
-      .filter((w) => mine.includes(w) || entered.has(w.source.formId))
-      .sort((a, b) => a.source.formId.localeCompare(b.source.formId, "ko", { numeric: true }));
-    if (added) await writeFile(file, evaluationWorkbook(listed, criteria, options, entered));
-    await requestShare(config, evaluator);
-    report.push({ name: evaluator.name, assigned: mine.length, added });
   }
   return report;
 }

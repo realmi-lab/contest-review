@@ -112,6 +112,7 @@ const PDF_PAGES = `ObjC.import("PDFKit"); ObjC.import("AppKit");
 function run([pdf, out, only]) {
   const doc = $.PDFDocument.alloc.initWithURL($.NSURL.fileURLWithPath(pdf));
   if (!doc || doc.isNil() || doc.isLocked) throw new Error("열 수 없는 PDF(암호·보호 문서)");
+  if (Number(only) > doc.pageCount) return "0"; // 없는 쪽
   const n = Math.min(doc.pageCount, Number(only) || 150);
   for (let i = Number(only) ? n - 1 : 0; i < n; i++) {
     const page = doc.pageAtIndex(i), box = page.boundsForBox(0).size;
@@ -534,6 +535,6 @@ export async function attachmentPages(file, only) {
   if (kind === "image") return [await readFile(file)];
   if (process.platform !== "darwin") throw new Error("문서를 쪽 이미지로 바꾸는 기능은 맥에서만 동작합니다. 화면을 캡처해 올려 주세요.");
   const pages = await (kind === "pdf" ? pdfPages(file, only) : officeCaptures(kind, file, only));
-  if (only && !pages.length) throw new Error(only + "쪽을 문서에서 찾지 못했습니다.");
+  if (!pages.length) throw new Error(only ? only + "쪽을 문서에서 찾지 못했습니다." : "문서에서 쪽을 찾지 못했습니다.");
   return pages;
 }

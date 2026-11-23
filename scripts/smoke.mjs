@@ -104,6 +104,7 @@ try {
     const again = await post("capture", { id, rev: w.rev, capture: capture.id, action: "recapture" });
     assert.equal(again.status, 400);
     assert.match(again.body.error, /원본 문서가 없어/);
+    assert.equal((await post("capture", { id, rev: w.rev, capture: capture.id, action: "bogus" })).status, 400); // 모르는 동작은 거절
     assert.equal((await post("capture", { id, rev: w.rev, capture: capture.id, action: "remove" })).status, 200);
     assert.equal((await work(id)).captures.length, 0);
   });

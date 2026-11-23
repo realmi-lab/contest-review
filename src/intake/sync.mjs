@@ -10,7 +10,8 @@ import { defaults, sheet } from "../review/review.mjs";
 import { list, load, newWork, save } from "../store.mjs";
 import { autoSummarize } from "../summary/run.mjs";
 import {
-  copyAttachments, evaluationFile, fileIndex, formsConfig, readEvaluations, readOneDrive, readResponses, shareState, workFolder, writeResponse,
+  copyAttachments, EVALUATION_SHEET, evaluationFile, fileIndex, formsConfig, readEvaluations, readResponses, shareState, workbookRows, workFolder,
+  writeResponse,
 } from "./forms-intake.mjs";
 
 // config: 읽은 설정, responses: 응답 엑셀 캐시(수정 시각으로 확인), seen: 심사자별 평가표 수정 시각, view: 목록 화면용 현황
@@ -44,7 +45,8 @@ async function importResponses(config) {
         w.source = { formId: entry.id, files: entry.files, folder: workFolder(entry), missing: entry.files,
           email: entry.email.slice(0, 200), description: entry.description.slice(0, 4000) };
         save(w);
-      } else if (!sameFiles(w, entry)) { // 첨부 이름 읽는 방식이 바뀐 예전 응답
+      } else if (!sameFiles(w, entry)) { // 첨부 이름 읽는 방식이 바뀐 예전 응답(첨부 목록을 읽는 동안 저장된 내용을 덮지 않게 새로 읽는다)
+        w = load(w.id);
         Object.assign(w.source, { files: entry.files, missing: entry.files, read: {} });
         save(w);
       }
@@ -67,7 +69,7 @@ async function collectEvaluations(config) {
     const info = await stat(file).catch(() => null);
     if (!info || intake.seen.get(evaluator.email) === info.mtimeMs) continue;
     try {
-      const results = readEvaluations(await readOneDrive(file), defaults.criteria, sheet);
+      const results = readEvaluations(await workbookRows(file, EVALUATION_SHEET), defaults.criteria, sheet);
       for (const w of formWorks()) {
         const result = results.get(w.source.formId);
         const next = result ? { name: evaluator.name, ...result, at: info.mtime.toISOString() } : undefined;
@@ -147,9 +149,14 @@ export function syncIntake() {
       intake.error = "";
       if (intake.config) {
         await importResponses(intake.config).catch((e) => (intake.error = e.message)); // 응답에 문제가 있어도 평가표는 읽는다
-        for (const w of formWorks()) {
-          ingestAttachments(intake.config, w);
-          await autoSummarize(w.id).catch(() => {}); // 서버가 꺼졌다 켜져 이어지지 못한 작품
+        // 작품마다 새로 읽는다(앞 작품을 기다리는 동안 글자 인식 등이 저장한 내용을 옛 값으로 덮지 않게)
+        for (const { id } of formWorks()) {
+          try {
+            ingestAttachments(intake.config, load(id));
+          } catch {
+            continue; // 그사이 지워진 작품
+          }
+          await autoSummarize(id).catch(() => {}); // 서버가 꺼졌다 켜져 이어지지 못한 작품
         }
         errors = await collectEvaluations(intake.config);
       }

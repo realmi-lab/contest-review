@@ -78,13 +78,13 @@ export function startSummary(w, check, key) {
 // MS Forms로 들어온 아이디어는 첨부 캡처와 글자 인식이 끝나면 요약 → 사실·논리 점검까지 알아서 이어 간다.
 // 같은 자료(rev)로는 한 번만 시도한다(실패해도 되풀이해 비용을 쓰지 않게). 못 읽은 첨부가 있으면 사람이 올린 뒤 직접 실행한다.
 export async function autoSummarize(wid) {
+  const key = await savedKey(); // 작품을 읽기 전에(읽은 뒤 기다리면 그사이 저장된 캡처를 옛 값으로 덮는다)
+  if (!key) return;
   const w = load(wid),
     s = w.source;
   if (!s?.formId || s.autoRev === w.rev || !w.captures.length || w.cloudReading?.rev === w.rev) return;
   if (s.missing.length || !s.files.every((n) => s.read?.[n]?.pages)) return;
   if (w.captures.some((c) => c.status === "queued") || busy(wid)) return;
-  const key = await savedKey();
-  if (!key) return;
   s.autoRev = w.rev;
   save(w);
   startSummary(w, false, key);

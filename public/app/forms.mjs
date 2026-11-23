@@ -48,7 +48,6 @@ const forms = {
     });
     closeDialog();
     notify(inExcel ? "접수 정보를 저장하고 응답 엑셀도 고쳤습니다." : "접수 정보를 저장했습니다.");
-    await sync(true);
   },
   rubric: async () => {
     const criteria = [...$("criteria").children].map((row) =>
@@ -69,7 +68,8 @@ const forms = {
   distribute: async () => {
     const { report } = await api("distribute", {});
     closeDialog();
-    notify("심사 배포 · " + report.map((r) => `${r.name} ${r.assigned}건${r.added ? `(새 ${r.added}건)` : ""}`).join(" · "));
+    const failed = report.filter((r) => r.error);
+    notify("심사 배포 · " + report.map((r) => r.error ? `${r.name} 실패(${r.error})` : `${r.name} ${r.assigned}건${r.added ? `(새 ${r.added}건)` : ""}`).join(" · "), failed.length > 0);
   },
   followup: async (form) => {
     await api("followup", {

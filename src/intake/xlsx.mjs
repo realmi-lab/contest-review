@@ -71,9 +71,10 @@ const decode = (s) =>
   s.replace(/&(#x[0-9a-f]+|#\d+|\w+);/gi, (m, e) =>
     e[0] !== "#" ? (ENTITIES[e] ?? m) : String.fromCodePoint(e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : Number(e.slice(1))));
 const attr = (tag, name) => new RegExp(`\\s${name}="([^"]*)"`).exec(tag)?.[1];
-// 서식이 섞인 글(<r><t>…</t></r>)은 이어 붙이고, 일본어 발음 표기(<rPh>)는 뺀다.
+// 서식이 섞인 글(<r><t>…</t></r>)은 이어 붙이고, 일본어 발음 표기(<rPh>)는 뺀다. 엑셀이 _x000D_처럼 적은 글자는 푼다.
 const textOf = (xml) =>
-  [...xml.replace(/<rPh\b[\s\S]*?<\/rPh>/g, "").matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => decode(m[1])).join("");
+  [...xml.replace(/<rPh\b[\s\S]*?<\/rPh>/g, "").matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => decode(m[1])).join("")
+    .replace(/_x([0-9a-f]{4})_/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
 const columnIndex = (ref) => [...ref.replace(/\d+$/, "")].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
 
 function sheetPath(files, wanted) {

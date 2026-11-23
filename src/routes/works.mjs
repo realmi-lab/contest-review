@@ -16,7 +16,7 @@ import {
 } from "../store.mjs";
 import { shownRefs } from "../summary/reading-edition.mjs";
 import { costSummary, startSummary } from "../summary/run.mjs";
-import { bounded, err, integer } from "../validate.mjs";
+import { bounded, err } from "../validate.mjs";
 
 // 본문의 id로 작품을 읽고, 화면이 본 자료 번호(rev)가 지금과 같은지 확인한다(그사이 바뀌었으면 거절).
 function current(b) {
@@ -178,7 +178,7 @@ export default {
     json({ ok: true, count: targets.length });
   },
 
-  // 캡처 한 장: 글자 다시 읽기(retry) · 원본에서 다시 캡처(recapture) · 삭제(remove) · 정보 고치기(그 밖)
+  // 캡처 한 장: 글자 다시 읽기(retry) · 원본에서 다시 캡처(recapture) · 삭제(remove)
   "POST /api/capture": async ({ b, json }) => {
     const w = current(b);
     const c = w.captures.find((x) => x.id === b.capture);
@@ -194,7 +194,7 @@ export default {
       const file = await originalFile(w, c);
       if (!file) err("원본 문서가 없어 다시 캡처할 수 없습니다. 화면을 캡처해 올린 뒤 이 캡처를 지우세요.");
       schedule("recapture-" + c.id, w.id, c.label + " · 다시 캡처하는 중", async () => {
-        const [bytes] = await attachmentPages(file, c.page || 1);
+        const [bytes] = await attachmentPages(file, c.page || 1); // 그 쪽이 없으면 attachmentPages가 알린다
         await replaceImage(w.id, c.id, bytes);
       });
     } else if (b.action === "remove") {
@@ -204,17 +204,7 @@ export default {
         save(w);
         deleteImage(c.id);
       });
-    } else {
-      c.issue = bounded(b.issue || "", 300);
-      c.visual = !!b.visual;
-      c.label = bounded(b.label || c.label, 180);
-      c.document = bounded(b.document || c.document, 100);
-      c.page = integer(b.page);
-      c.total = integer(b.total);
-      if (c.page && c.total && c.page > c.total) err("쪽수 범위 오류");
-      changed(w, true);
-      save(w);
-    }
+    } else err("알 수 없는 캡처 동작입니다.");
     json({ ok: true });
   },
 

@@ -56,6 +56,7 @@ async function sendStatic(res, pathname) {
 export function createHandler(routes) {
   return async function handleRequest(req, res) {
     const json = (data, status = 200) => {
+      if (res.headersSent) return res.end(); // 이미 보내기 시작한 응답(그림 등) 뒤의 오류
       res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify(data));
     };
