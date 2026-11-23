@@ -119,8 +119,9 @@ test("K열의 URL 인코딩된 한글 첨부 이름을 풀어 OneDrive에 내려
 
 test("설정 화면에서 고른 절대 경로도 받는다", async () => {
   const { root } = await onedrive();
-  const config = formsConfig({ oneDriveRoot: root, formsWorkbook: "/공유/응답.xlsx", columns, attachmentsDir: path.join(root, "첨부"), reviewDir: "심사" });
-  assert.equal(config.formsWorkbook, "/공유/응답.xlsx");
+  const outside = path.resolve(root, "..", "공유", "응답.xlsx"); // OneDrive 밖의 절대 경로(윈도우면 C:\…)
+  const config = formsConfig({ oneDriveRoot: root, formsWorkbook: outside, columns, attachmentsDir: path.join(root, "첨부"), reviewDir: "심사" });
+  assert.equal(config.formsWorkbook, outside);
   assert.equal(config.attachmentsDir, path.join(root, "첨부"));
 });
 

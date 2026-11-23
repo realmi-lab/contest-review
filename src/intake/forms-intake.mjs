@@ -27,7 +27,7 @@ export const FORMS_DEFAULTS = {
   reviewDir: "아이디어 공모 심사",
   evaluators: [],
 };
-export const homePath = (p) => path.resolve(String(p ?? "").replace(/^~(?=\/|$)/, os.homedir()));
+export const homePath = (p) => path.resolve(String(p ?? "").replace(/^~(?=[/\\]|$)/, os.homedir()));
 
 // site.json의 forms를 확인해 쓸 모양으로 돌려준다. 없으면 null(연동 안 함).
 // 심사 폴더는 OneDrive 폴더 안의 상대 경로, 응답 엑셀·첨부 폴더는 설정 화면에서 고른 절대 경로도 받는다
@@ -41,7 +41,11 @@ export function formsConfig(raw) {
     if (!relative || !full.startsWith(root + path.sep)) throw new Error(`연동 설정의 ${label}는 OneDrive 폴더 안의 상대 경로로 적으세요.`);
     return full;
   };
-  const place = (value, label) => (/^[~/]/.test(String(value ?? "")) ? homePath(value) : inside(value, label));
+  // 절대 경로(설정 화면에서 고른 경로, 윈도우의 C:\… 포함)나 ~/…는 그대로, 나머지는 OneDrive 폴더 안의 상대 경로
+  const place = (value, label) => {
+    const text = String(value ?? "");
+    return path.isAbsolute(text) || /^~(?=[/\\]|$)/.test(text) ? homePath(text) : inside(text, label);
+  };
   const columns = Object.fromEntries([...Object.keys(FIELDS), "category"].map((key) => [key, String(raw.columns?.[key] ?? "").trim()]));
   const unset = REQUIRED.filter((key) => !columns[key]);
   if (unset.length) throw new Error(`연동 설정 columns에 ${unset.map((k) => `${k}(${FIELDS[k]})`).join(", ")} 열 이름을 적으세요.`);
