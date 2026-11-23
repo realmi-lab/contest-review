@@ -204,6 +204,22 @@ export default {
     json({ ok: true });
   },
 
+  // 캡처를 모두 지우고 새로 올리기. 올려 둔 원본 문서도 지운다. MS Forms 첨부는 자동으로 다시 읽지 않는다(사람이 새로 올린다).
+  "POST /api/reset-captures": async ({ b, json }) => {
+    const w = current(b);
+    if (busy(w.id)) err("진행 중인 작업이 끝난 뒤 지우세요.", 409);
+    const ids = w.captures.map((c) => c.id);
+    w.captures = [];
+    if (w.source?.files) w.source.read = Object.fromEntries(w.source.files.map((n) => [n, { manual: true }]));
+    changed(w, true);
+    atomic(() => {
+      for (const id of ids) deleteImage(id);
+      save(w);
+    });
+    await rm(uploadDir(w.id), { recursive: true, force: true });
+    json({ ok: true });
+  },
+
   // AI 요약(이어서 사실·논리 점검)과 점검만 다시 하기
   "POST /api/summarize": ({ b, json }) => runSummary(b, json, false),
   "POST /api/check-logic": ({ b, json }) => runSummary(b, json, true),

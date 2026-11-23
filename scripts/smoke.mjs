@@ -107,6 +107,18 @@ try {
     assert.equal((await post("capture", { id, rev: w.rev, capture: capture.id, action: "remove" })).status, 200);
     assert.equal((await work(id)).captures.length, 0);
   });
+  await step("캡처를 모두 지우고 새로 올릴 수 있다", async () => {
+    for (const [page, text] of [[1, "Reset 1"], [2, "Reset 2"]])
+      assert.equal((await post("upload", { id, document: "제안서", page, data: (await slide(text)).toString("base64") })).status, 201);
+    const w = await recognized(id, "글자 인식");
+    const reset = await post("reset-captures", { id, rev: w.rev });
+    assert.equal(reset.status, 200, reset.body.error);
+    assert.equal((await work(id)).captures.length, 0);
+    assert.equal((await get("/api/image/" + w.captures[0].id)).status, 404);
+    const again = await post("upload", { id, document: "새 제안서", data: (await slide("New 3")).toString("base64") });
+    assert.equal(again.status, 201);
+    await recognized(id, "새 캡처 글자 인식");
+  });
   await step("AI 키가 없으면 요약을 시작하지 않는다", async () => {
     const w = await work(id);
     assert.equal((await post("summarize", { id, rev: w.rev })).status, 503);

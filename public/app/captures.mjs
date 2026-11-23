@@ -72,6 +72,10 @@ export function intakePane() {
         <span><b>제출물이 빠짐없이 캡처되었음을 확인했습니다.</b>
         ${note ? `<small class="warn-text">${esc(note)}</small>` : ""}</span>
       </label>
+      <div class="actions capture-tools">
+        <label class="button">파일 더 올리기<input id="files" class="sr" type="file" accept="${UPLOAD_TYPES}" multiple></label>
+        <span class="spacer"></span>${button("reset-captures", "캡처 모두 지우고 새로 올리기", "danger", true)}
+      </div>
     </section>`;
 }
 

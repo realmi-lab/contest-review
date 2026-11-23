@@ -78,6 +78,14 @@ const actions = {
     await switchTab("자료");
     $("files").click();
   },
+  // 캡처를 모두 지우면 빈 접수 칸(끌어 놓기·파일 선택)이 다시 나온다.
+  "reset-captures": async () => {
+    if (!confirm(`캡처 ${state.work.captures.length}장을 모두 지우고 새로 올립니다.\n지금의 요약·점검·확정 채점표는 새 자료로 다시 만들어야 합니다.`)) return;
+    await api("reset-captures", workRef());
+    closeViewer();
+    await sync(true);
+    notify("캡처를 모두 지웠습니다. 새 파일을 올려 주세요.");
+  },
   "confirm-complete": async () => {
     const missing = pageCoverage()?.missing || [];
     if (

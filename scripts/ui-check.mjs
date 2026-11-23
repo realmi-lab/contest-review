@@ -127,6 +127,13 @@ try {
     await click('[data-action="batch-summary"]');
     await until("일괄 요약", isOpen);
   });
+  await step("캡처를 모두 지우면 빈 접수 칸(끌어 놓기·파일 선택)이 다시 나온다", async () => {
+    const { works } = await state();
+    await page.goto(`${base}/?work=${works[0].id}`, { waitUntil: "networkidle0" });
+    await until("캡처 자료", async () => !!(await page.$('[data-action="reset-captures"]')));
+    await click('[data-action="reset-captures"]'); // 확인 창은 자동으로 수락한다
+    await until("빈 접수 칸", async () => !!(await page.$("#drop")));
+  });
   await step("브라우저 오류가 없다", () => assert.deepEqual(errors, []));
 } finally {
   await browser.close();

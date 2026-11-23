@@ -120,3 +120,6 @@
 .forms-files ul { display: grid; gap: 4px; margin: 8px 0; padding: 0; list-style: none; }
 .forms-files li { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .forms-files li span { font-size: var(--fs-meta); }
+
+/* 캡처 목록 아래: 파일 더 올리기 · 캡처 모두 지우고 새로 올리기 */
+.capture-tools { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
