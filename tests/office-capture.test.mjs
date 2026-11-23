@@ -1,6 +1,6 @@
-// Office 문서·보호 PDF 캡처 흐름(attachment-pages.mjs)을 가짜 Office·Acrobat Reader로 확인한다.
+// Office 문서·보호 PDF 캡처 흐름(attachment-pages.mjs)을 가짜 Office·Edge·Acrobat Reader로 확인한다.
 // osascript·open·screencapture를 흉내 내는 작은 프로그램을 PATH 앞에 두고, 앱을 열고 쪽을 넘기며 창을 캡처한 뒤
-// 문서를 닫고 앱을 끄는 순서를 본다. 실제 Office·Reader의 동작은 회사 맥에서 확인해야 한다.
+// 문서를 닫고 앱을 끄는 순서를 본다. 실제 Office·Edge·Reader의 동작은 회사 맥에서 확인해야 한다.
 import assert from "node:assert/strict";
 import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
@@ -29,6 +29,16 @@ if (tool === "screencapture") {
 }
 const script = args[args.indexOf("-e") + 1], i = Number(args.at(-1));
 if (script.includes("PDFKit")) done("", 1); // 보호 PDF는 PDFKit이 열지 못한다
+if (script.includes('"Microsoft Edge"')) { // Edge: 새 창에 #page=N으로 연다
+  if (script.includes("make new window")) { s.edge = true; done("7"); }
+  if (script.includes("loading of active tab")) done("false");
+  if (script.includes('"#page="')) s.page = Number(args.at(-1));
+  if (script.includes("close window id w")) { s.edge = false; s.log.push("close"); }
+  if (/^ *quit$/m.test(script)) s.log.push("quit"); // 템플릿 글자 안이라 \\s 대신 공백을 쓴다
+  done();
+}
+if (script.includes("CGWindowList") && args.at(-1) === "Microsoft Edge")
+  done(JSON.stringify(s.edge ? [{ id: 50, area: 800, name: "보호 문서.pdf" }] : []));
 if (script.includes("CGWindowList") && args.at(-1).includes("Acrobat"))
   done(JSON.stringify(s.opened && !s.closed ? [{ id: 30, area: 800, name: "보호 문서.pdf" }] : []));
 if (script.includes('"System Events"')) { // Reader는 키보드로 넘긴다
@@ -99,19 +109,32 @@ test("Excel: 다시 캡처(한 쪽만)는 그 시트로 바로 가서 한 장만
   assert.deepEqual(log, ["capture -l10", "close", "quit"]);
 });
 
-test("보호 PDF: Acrobat Reader로 열어 키보드로 넘기며 캡처하고, 같은 화면이 나오면 멈춘 뒤 닫고 끈다", { skip }, async () => {
+test("보호 PDF: Edge 새 창에 쪽마다 열어 캡처하고, 같은 화면이 나오면 멈춘 뒤 그 창을 닫고 Edge를 끈다", { skip }, async () => {
   const { pages, log } = await run("보호 문서.pdf", { lastScreen: 3 });
+  assert.deepEqual(pages, ["page 1", "page 2", "page 3"]);
+  assert.deepEqual(log, ["capture -l50", "capture -l50", "capture -l50", "capture -l50", "close", "quit"]); // 4번째는 3쪽과 같은 화면
+});
+
+test("보호 PDF: Edge로 다시 캡처(한 쪽만)는 그 쪽을 바로 연다", { skip }, async () => {
+  const { pages, log } = await run("보호 문서.pdf", {}, 2);
+  assert.deepEqual(pages, ["page 2"]);
+  assert.deepEqual(log, ["capture -l50", "close", "quit"]);
+});
+
+const noEdge = ["Microsoft Edge"];
+test("보호 PDF: Edge가 없으면 Acrobat Reader로 열어 키보드로 넘기며 캡처하고, 같은 화면이 나오면 멈춘 뒤 닫고 끈다", { skip }, async () => {
+  const { pages, log } = await run("보호 문서.pdf", { lastScreen: 3, missing: noEdge });
   assert.deepEqual(pages, ["page 1", "page 2", "page 3"]);
   assert.deepEqual(log, ["capture -l30", "capture -l30", "capture -l30", "capture -l30", "close", "quit"]); // 4번째는 3쪽과 같은 화면
 });
 
-test("보호 PDF: 다시 캡처(한 쪽만)는 첫 쪽에서 그 쪽까지 넘겨 한 장만 받는다", { skip }, async () => {
-  const { pages } = await run("보호 문서.pdf", {}, 2);
+test("보호 PDF: Reader로 다시 캡처(한 쪽만)는 첫 쪽에서 그 쪽까지 넘겨 한 장만 받는다", { skip }, async () => {
+  const { pages } = await run("보호 문서.pdf", { missing: noEdge }, 2);
   assert.deepEqual(pages, ["page 2"]);
 });
 
-test("보호 PDF: Acrobat Reader가 없으면 설치를 안내한다", { skip }, async () => {
-  await assert.rejects(run("보호 문서.pdf", { missing: ["Adobe Acrobat Reader", "Adobe Acrobat Reader DC", "Adobe Acrobat"] }), /이 맥에 Reader가 없습니다/);
+test("보호 PDF: Edge도 Reader도 없으면 Edge 설치를 안내한다", { skip }, async () => {
+  await assert.rejects(run("보호 문서.pdf", { missing: [...noEdge, "Adobe Acrobat Reader", "Adobe Acrobat Reader DC", "Adobe Acrobat"] }), /이 맥에 Edge가 없습니다/);
 });
 
 test("맥이 아니면 문서는 바꾸지 않고 그림은 그대로 받는다", async () => {

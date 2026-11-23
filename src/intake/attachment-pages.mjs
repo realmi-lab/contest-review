@@ -1,12 +1,14 @@
 // MS Forms 첨부를 캡처(쪽 이미지)로 바꾼다. 문서는 맥에서만 바꾼다.
 //   그림(PNG·JPG·WebP): 그대로 한 장
-//   PDF: 맥 PDFKit으로 쪽마다 PNG. 보호(MIP) PDF는 Adobe Acrobat Reader가 열어 쪽마다 화면 캡처
+//   PDF: 맥 PDFKit으로 쪽마다 PNG. 보호(MIP) PDF는 Microsoft Edge(없으면 Adobe Acrobat Reader)가 열어 쪽마다 화면 캡처
 //   Word·PowerPoint·Excel: 맥의 Office 앱이 회사 계정으로 열어(MIP 보호 문서 포함) 쪽마다 화면 캡처
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
+import sharp from "sharp";
 
 const IMAGES = ["png", "jpg", "jpeg", "webp"];
 const OFFICE = {
@@ -23,6 +25,24 @@ const osa = (args, what) =>
       e ? reject(new Error(`${what}: ${String(errText || e.message).trim()}`)) : resolve(out.trim())));
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// -1743: macOS가 터미널의 앱 제어를 막았다
+const automationHint = (app) => (e) => {
+  throw /-1743/.test(e.message) ? new Error(`터미널이 ${app}를 제어할 수 없습니다. 시스템 설정 > 개인정보 보호 및 보안 > 자동화에서 허용하세요.`) : e;
+};
+// 같은 쪽 화면인가(마지막 쪽을 넘어가면 같은 화면이 다시 나온다). 바이트가 같거나, 원래 크기 그대로 비교해 다른 점이
+// 거의 없으면(깜빡이는 커서 정도, 8점 이하) 같다. 숫자 한 글자만 달라도 수백 점이 달라 다른 쪽으로 본다(쪽을 놓치지 않게).
+async function samePage(a, b) {
+  if (a.equals(b)) return true;
+  const raw = (png) => sharp(png).raw().toBuffer({ resolveWithObject: true });
+  const [x, y] = await Promise.all([raw(a), raw(b)]).catch(() => []);
+  if (!x || !y || x.info.width !== y.info.width || x.info.height !== y.info.height) return false;
+  const step = x.info.channels;
+  let different = 0;
+  for (let i = 0; i < x.data.length && different <= 8; i += step)
+    if (x.data[i] !== y.data[i] || x.data[i + 1] !== y.data[i + 1] || x.data[i + 2] !== y.data[i + 2]) different++;
+  return different <= 8;
+}
+
 // 문서를 앱으로 연다(Launch Services). 앱을 앞으로 가져오지 않고, Office 샌드박스도 파일 접근을 허락받는다.
 const launch = (app, file) =>
   new Promise((resolve, reject) =>
@@ -49,7 +69,7 @@ async function pdfPages(pdf, only) {
     try {
       await osa(["-l", "JavaScript", "-e", PDF_PAGES, pdf, out, String(only || "")], "PDF");
     } catch {
-      return await readerCaptures(pdf, only); // 보호 PDF
+      return await protectedPdf(pdf, only);
     }
     const names = (await readdir(out)).filter((n) => n.endsWith(".png")).sort();
     return Promise.all(names.map((n) => readFile(path.join(out, n))));
@@ -126,10 +146,7 @@ const tell = (step, body, file, i = 0) =>
   tell application "${step.app}"
     ${body}
   end tell
-end run`, path.basename(file), String(i)], `${step.app.replace("Microsoft ", "")} 앱에서 문서를 캡처하지 못했습니다`).catch((e) => {
-    // -1743: macOS가 터미널의 앱 제어를 막았다
-    throw /-1743/.test(e.message) ? new Error(`터미널이 ${step.app}를 제어할 수 없습니다. 시스템 설정 > 개인정보 보호 및 보안 > 자동화에서 허용하세요.`) : e;
-  });
+end run`, path.basename(file), String(i)], `${step.app.replace("Microsoft ", "")} 앱에서 문서를 캡처하지 못했습니다`).catch(automationHint(step.app));
 // 적힌 순서대로 처음 되는 문장의 결과
 async function tellFirst(step, bodies, file, i = 0) {
   let last;
@@ -194,14 +211,78 @@ end run`, path.basename(file), path.join(dir, "slides")], "PowerPoint 슬라이�
 // 앱이 없으면 AppleScript가 '앱 찾기' 창을 띄우므로 먼저 확인한다.
 const installed = (app) => new Promise((resolve) => execFile("open", ["-Ra", app], (e) => resolve(!e)));
 
-// 보호(MIP) PDF: Adobe Acrobat Reader가 회사 계정으로 열면 창을 쪽마다 캡처한다. Reader는 AppleScript로 쪽을 넘기지
-// 못해 키보드로 넘긴다(앞으로 가져와 ⌘0 페이지 맞춤 → Home 첫 쪽 → → 다음 쪽). 같은 화면이 다시 나오면 마지막 쪽이다.
-// 서버를 띄운 터미널에 '화면 기록'과 '손쉬운 사용'(키 입력) 권한이 있어야 한다.
+// 보호(MIP) PDF는 PDFKit이 열지 못한다. 회사 계정으로 로그인한 Microsoft Edge로 열고, Edge가 없으면 Adobe Acrobat Reader로 연다.
+const EDGE = "Microsoft Edge";
 const READERS = ["Adobe Acrobat Reader", "Adobe Acrobat Reader DC", "Adobe Acrobat"];
-async function readerCaptures(file, only) {
-  let app;
-  for (const name of READERS) if (!app && (await installed(name))) app = name;
-  if (!app) throw new Error("보호된 PDF라 Adobe Acrobat Reader로 열어 캡처해야 하는데 이 맥에 Reader가 없습니다. Reader를 설치한 뒤 목록의 '지금 가져오기'를 누르세요.");
+async function protectedPdf(file, only) {
+  if (await installed(EDGE)) return edgeCaptures(file, only);
+  for (const app of READERS) if (await installed(app)) return readerCaptures(app, file, only);
+  throw new Error("보호된 PDF라 Microsoft Edge(회사 계정 로그인)로 열어 캡처해야 하는데 이 맥에 Edge가 없습니다. Edge를 설치한 뒤 목록의 '지금 가져오기'를 누르세요.");
+}
+
+// Edge: 따로 새 창을 열어 PDF를 쪽 번호(#page=N, 쪽 맞춤)로 열고 그 창을 캡처한다. 쓰던 Edge 창·탭은 건드리지 않고,
+// 끝나면 그 창만 닫는다(원래 Edge가 꺼져 있었으면 Edge도 끈다). 쪽마다 빈 화면을 거쳐 새로 열어 그 쪽에서 시작하게 한다.
+// 쪽 수는 알 수 없어 넘기다 같은 화면이 다시 나오면 마지막 쪽으로 본다. 터미널에 Edge 제어(자동화)와 화면 기록 권한이 필요하다.
+async function edgeCaptures(file, only) {
+  const url = pathToFileURL(file).href;
+  const edge = (body, windowId = 0, page = 0) =>
+    osa(["-e", `on run argv
+  set u to item 1 of argv
+  set w to (item 2 of argv) as integer
+  set p to item 3 of argv
+  tell application "${EDGE}"
+    ${body}
+  end tell
+end run`, url, String(windowId), String(page)], "Edge에서 PDF를 캡처하지 못했습니다").catch(automationHint(EDGE));
+  // 다 읽어 들일 때까지(최대 seconds초) 기다리고 그림이 그려질 시간을 조금 더 준다
+  const loaded = async (windowId, seconds) => {
+    for (let t = 0; t < seconds; t++) {
+      if ((await edge(`return (loading of active tab of window id w) as text`, windowId).catch(() => "true")) === "false") break;
+      await wait(1000);
+    }
+    await wait(2500);
+  };
+  const open = (windowId, page) => edge(`set URL of active tab of window id w to "about:blank"
+    delay 0.3
+    set URL of active tab of window id w to u & "#page=" & p & "&view=Fit"
+    set index of window id w to 1
+    activate`, windowId, page);
+  const before = await windows(EDGE).catch(() => []);
+  const windowId = Number(await edge(`set nw to make new window
+    return id of nw`));
+  const out = await mkdtemp(path.join(os.tmpdir(), "edge-"));
+  const pages = [];
+  try {
+    await open(windowId, only || 1);
+    await loaded(windowId, 90); // 보호 문서는 회사 계정 확인에 시간이 걸린다
+    let shot = "";
+    for (let t = 0; t < 10 && !shot; t++) {
+      shot = largest((await windows(EDGE)).filter((w) => !before.some((b) => b.id === w.id)));
+      if (!shot) await wait(500);
+    }
+    for (let i = only || 1; i <= (only || 60); i++) {
+      if (i > (only || 1)) {
+        await open(windowId, i);
+        await loaded(windowId, 30);
+      }
+      const png = path.join(out, i + ".png");
+      await capture(png, shot);
+      const page = await readFile(png);
+      if (pages.length && (await samePage(page, pages.at(-1)))) break; // 더 넘어가지 않는다(마지막 쪽)
+      pages.push(page);
+    }
+    return pages;
+  } finally {
+    await edge(`close window id w`, windowId).catch(() => {});
+    if (!before.length) await edge(`quit`).catch(() => {});
+    await rm(out, { recursive: true, force: true });
+  }
+}
+
+// Acrobat Reader: 창을 쪽마다 캡처한다. Reader는 AppleScript로 쪽을 넘기지 못해 키보드로 넘긴다
+// (앞으로 가져와 ⌘0 페이지 맞춤 → Home 첫 쪽 → → 다음 쪽). 같은 화면이 다시 나오면 마지막 쪽이다.
+// 서버를 띄운 터미널에 '화면 기록'과 '손쉬운 사용'(키 입력) 권한이 있어야 한다.
+async function readerCaptures(app, file, only) {
   const keys = (lines) =>
     osa(["-e", `tell application "${app}" to activate
 delay 0.5
@@ -237,7 +318,7 @@ end tell`], "Acrobat Reader에서 쪽을 넘기지 못했습니다").catch((e) =
       const png = path.join(out, i + ".png");
       await capture(png, windowId);
       const page = await readFile(png);
-      if (pages.length && page.equals(pages.at(-1))) break; // 더 넘어가지 않는다(마지막 쪽)
+      if (pages.length && (await samePage(page, pages.at(-1)))) break; // 더 넘어가지 않는다(마지막 쪽)
       pages.push(page);
     }
     return pages;
