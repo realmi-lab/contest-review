@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, readdir, rename, writeFile } from "node:fs/pr
 import os from "node:os";
 import path from "node:path";
 import {
-  attachmentNames, copyAttachments, dayOf, distribute, evaluationFile, fileIndex, formEntries, formsConfig,
+  attachmentNames, copyAttachments, dayOf, distribute, evaluationFile, fileIndex, formEntries, formsConfig, fromOneDrive,
   readEvaluations, readResponses, safeName, shareState, workFolder,
 } from "../forms-intake.mjs";
 import { readSheet, writeWorkbook } from "../xlsx.mjs";
@@ -132,4 +132,13 @@ test("첨부 파일명 칸에 이어 쌓인 최대 5개를 나눠 읽는다", ()
   assert.deepEqual(attachmentNames(encoded.join("\n")), names);
   assert.deepEqual(attachmentNames(JSON.stringify(encoded.map((name) => ({ name })))), names);
   assert.deepEqual(attachmentNames("예산, 일정.xlsx; 사진.png"), ["예산, 일정.xlsx", "사진.png"]); // 인코딩 안 된 이름의 쉼표는 이름의 일부
+});
+
+test("OneDrive 온라인 전용 파일(EDEADLK -11)은 내려받을 때까지 다시 읽고, 끝내 안 되면 할 일을 알려 준다", async () => {
+  const online = () => Object.assign(new Error("Unknown system error -11"), { errno: -11 });
+  let calls = 0;
+  assert.equal(await fromOneDrive("응답.xlsx", async () => { if (++calls < 3) throw online(); return "읽음"; }, 1), "읽음");
+  assert.equal(calls, 3);
+  await assert.rejects(fromOneDrive("응답.xlsx", async () => { throw online(); }, 1, 3), /항상 이 기기에 유지/);
+  await assert.rejects(fromOneDrive("응답.xlsx", async () => { throw Object.assign(new Error("없음"), { errno: -2 }); }, 1), /없음/);
 });

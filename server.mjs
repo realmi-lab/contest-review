@@ -17,7 +17,7 @@ import { evaluate, compareResults, modelInfo, model } from "./model.mjs";
 import { sampleImage } from "./scripts/sample.mjs";
 import {
   checkSources, copyAttachments, distribute, evaluationFile, fileIndex, FORMS_DEFAULTS, formsConfig, homePath,
-  placeLabel, readEvaluations, readResponses, rootOf, shareState, storageRoots, workFolder,
+  placeLabel, readEvaluations, readOneDrive, readResponses, rootOf, shareState, storageRoots, workFolder,
 } from "./forms-intake.mjs";
 import { readSite, writeSite } from "./deploy/site.mjs";
 import { macAddress, nasServer, publicHost } from "./deploy/nas-access.mjs";
@@ -221,7 +221,7 @@ async function collectEvaluations(config) {
     const info = await stat(file).catch(() => null);
     if (!info || intake.seen.get(evaluator.email) === info.mtimeMs) continue;
     try {
-      const results = readEvaluations(await readFile(file), defaults.criteria, sheet);
+      const results = readEvaluations(await readOneDrive(file), defaults.criteria, sheet);
       for (const w of formWorks()) {
         const result = results.get(w.source.formId);
         const next = result ? { name: evaluator.name, ...result, at: info.mtime.toISOString() } : undefined;

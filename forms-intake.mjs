@@ -155,8 +155,26 @@ export function formEntries(rows, columns) {
     .filter((e) => e.id && e.title);
 }
 
+// OneDrive에서 아직 내려받지 않은(온라인 전용) 파일을 읽으면 macOS가 EDEADLK(-11)를 돌려준다. 읽기 시도가 내려받기를
+// 시작하므로 잠시 기다렸다 다시 읽고, 끝내 안 되면 Finder에서 '항상 이 기기에 유지'를 고르라고 알린다.
+const ONLINE_ONLY = -11;
+export async function fromOneDrive(file, action, waitMs = 1000, tries = 10) {
+  for (let i = 1; ; i++) {
+    try {
+      return await action();
+    } catch (e) {
+      if (e.errno !== ONLINE_ONLY) throw e;
+      if (i >= tries)
+        throw new Error(`OneDrive에서 아직 내려받지 않은 파일이라 읽지 못했습니다: ${nfc(path.basename(file))}. ` +
+          "Finder에서 이 파일(또는 폴더)을 우클릭해 '항상 이 기기에 유지'(Always Keep on This Device)를 고른 뒤 다시 시도하세요.");
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+  }
+}
+export const readOneDrive = (file) => fromOneDrive(file, () => readFile(file));
+
 export async function readResponses(config) {
-  return formEntries(readSheet(await readFile(config.formsWorkbook), config.formsSheet), config.columns);
+  return formEntries(readSheet(await readOneDrive(config.formsWorkbook), config.formsSheet), config.columns);
 }
 
 // OneDrive가 허용하지 않는 글자를 빼고 길이를 줄인 폴더·파일 이름
@@ -187,7 +205,8 @@ export async function copyAttachments(names, index, target) {
   for (const name of names) {
     const source = index.get(nfc(name));
     if (!source) missing.push(name);
-    else if (!(await sameSize(source, path.join(target, name)))) await copyFile(source, path.join(target, name));
+    else if (!(await sameSize(source, path.join(target, name))))
+      await fromOneDrive(source, () => copyFile(source, path.join(target, name)));
   }
   return missing;
 }
@@ -308,7 +327,7 @@ export async function distribute(config, works, criteria, options) {
     }
     await mkdir(folder, { recursive: true });
     const file = evaluationFile(config, evaluator);
-    const entered = await readFile(file).then((b) => enteredCells(readSheet(b, SHEET), criteria)).catch(() => new Map());
+    const entered = await readOneDrive(file).then((b) => enteredCells(readSheet(b, SHEET), criteria)).catch(() => new Map());
     const added = mine.filter((w) => !entered.has(w.source.formId)).length;
     const listed = works // 배정이 바뀌어도 적은 줄은 남기고, 접수 번호 순으로 둔다
       .filter((w) => mine.includes(w) || entered.has(w.source.formId))
