@@ -1,0 +1,66 @@
+# 자동 점검: 맥·윈도우·리눅스에서 단위 테스트와 회귀 점검을 돌리고, 실행 스크립트(start.sh·start.bat)로 서버가 뜨는지 본다.
+name: 점검
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: 테스트 (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: 단위 테스트
+        run: npm test
+      - name: 회귀 점검 (임시 서버로 접수·글자 인식·MS Forms 연동)
+        run: npm run smoke
+      - name: 화면 점검 (헤드리스 Chrome)
+        if: runner.os == 'Linux'
+        run: npm run ui-check
+
+  start:
+    name: 실행 스크립트 (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: ./start.sh로 서버 띄우기
+        if: runner.os != 'Windows'
+        run: |
+          ./start.sh > start.log 2>&1 &
+          for i in $(seq 1 150); do
+            if curl -sf http://localhost:18765/api/state > /dev/null; then up=1; break; fi
+            sleep 2
+          done
+          cat start.log
+          kill %1 || true
+          test "$up" = 1
+      - name: start.bat으로 서버 띄우기
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Start-Process -FilePath cmd.exe -ArgumentList '/c', 'start.bat' -NoNewWindow -RedirectStandardOutput start.log
+          $up = $false
+          for ($i = 0; $i -lt 150 -and -not $up; $i++) {
+            try { $up = (Invoke-WebRequest -UseBasicParsing http://localhost:18765/api/state).StatusCode -eq 200 } catch { Start-Sleep -Seconds 2 }
+          }
+          Get-Content start.log
+          Stop-Process -Name node -Force -ErrorAction SilentlyContinue
+          if (-not $up) { exit 1 }
