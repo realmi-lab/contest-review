@@ -131,7 +131,11 @@ async function pdfKitPages(pdf, only) {
     await rm(out, { recursive: true, force: true });
   }
 }
-const pdfPages = (pdf, only) => pdfKitPages(pdf, only).catch(() => protectedPdf(pdf, only));
+// MIP 보호 PDF는 '보호된 문서' 안내 쪽만 보이는 겉 PDF 안에 암호화된 본문을 담는다. PDFKit은 겉만 열어 안내 쪽을 내놓으므로,
+// 그 표시(EncryptedPayload·MicrosoftIRMServices)가 있으면 PDFKit을 거치지 않고 보호 PDF로 다룬다.
+const wrapped = (pdf) => readFile(pdf).then((b) => b.includes("EncryptedPayload") || b.includes("MicrosoftIRMServices"), () => false);
+const pdfPages = async (pdf, only) =>
+  (await wrapped(pdf)) ? protectedPdf(pdf, only) : pdfKitPages(pdf, only).catch(() => protectedPdf(pdf, only));
 
 // Office 문서: 앱으로 열어 쪽(슬라이드·시트)마다 받는다. MIP로 보호된 문서는 PDF로 내보내도 암호화되어
 // 읽을 수 없으므로, PowerPoint는 슬라이드를 PNG로 내보내고(화면을 쓰지 않음, 막혀 있으면 창 모드 슬라이드 쇼 캡처),

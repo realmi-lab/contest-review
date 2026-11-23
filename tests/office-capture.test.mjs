@@ -149,6 +149,12 @@ test("보호 PDF: Edge가 화면 캡처를 막아 검은 화면만 찍히면 저
   await assert.rejects(run("보호 문서.pdf", { blank: black.toString("base64") }), /화면 캡처를 막았고.*저장하지 못했습니다/s);
 });
 
+test("보호 PDF: PDFKit이 열 수 있는 겉 PDF(안내 쪽)여도 보호 표시가 있으면 Edge로 연다", { skip }, async () => {
+  writeFileSync(path.join(dir, "겉 문서.pdf"), "saved /Type /EncryptedPayload /Subtype /MicrosoftIRMServices"); // 가짜 PDFKit은 'saved'로 시작하면 연다
+  const { pages } = await run("겉 문서.pdf", { lastScreen: 2 });
+  assert.deepEqual(pages, ["page 1", "page 2"]);
+});
+
 const noEdge = ["Microsoft Edge"];
 test("보호 PDF: Edge가 없으면 Acrobat Reader로 열어 키보드로 넘기며 캡처하고, 같은 화면이 나오면 멈춘 뒤 닫고 끈다", { skip }, async () => {
   const { pages, log } = await run("보호 문서.pdf", { lastScreen: 3, missing: noEdge });
