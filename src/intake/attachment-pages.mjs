@@ -1,7 +1,8 @@
 // MS Forms 첨부를 캡처(쪽 이미지)로 바꾼다. 문서는 맥에서만 바꾼다.
 //   그림(PNG·JPG·WebP): 그대로 한 장
-//   PDF: 맥 PDFKit으로 쪽마다 PNG. 보호(MIP) PDF는 Microsoft Edge(없으면 Adobe Acrobat Reader)가 열어 쪽마다 화면 캡처
-//   Word·PowerPoint·Excel: 맥의 Office 앱이 회사 계정으로 열어(MIP 보호 문서 포함) 쪽마다 화면 캡처
+//   PDF: 맥 PDFKit으로 쪽마다 PNG. 보호(MIP) PDF는 Microsoft Edge로 열어 '다른 이름으로 저장'한 사본을 읽고,
+//        안 되면 Edge(없으면 Adobe Acrobat Reader) 창을 쪽마다 화면 캡처
+//   Word·PowerPoint·Excel: 맥의 Office 앱이 회사 계정으로 열어(MIP 보호 문서 포함) 쪽마다 화면 캡처(Word는 쪽만 잘라 낸다)
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
@@ -29,6 +30,13 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const automationHint = (app) => (e) => {
   throw /-1743/.test(e.message) ? new Error(`터미널이 ${app}를 제어할 수 없습니다. 시스템 설정 > 개인정보 보호 및 보안 > 자동화에서 허용하세요.`) : e;
 };
+// -1719·-25211·1002: 터미널에 손쉬운 사용 권한이 없어 키를 보낼 수 없다
+const accessibilityHint = (e) => {
+  throw /-1719|-25211|\(1002\)|assistive access|send keystrokes|보조 접근/i.test(e.message)
+    ? new Error("터미널이 키 입력을 보낼 수 없습니다. 시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 터미널을 허용하세요.") : e;
+};
+// 한 가지 색뿐인 그림인가(앱이 보호 문서의 화면 캡처를 막으면 검은 화면만 찍힌다)
+const blank = (png) => sharp(png).stats().then((s) => s.channels.every((c) => c.stdev < 2), () => false);
 // 같은 쪽 화면인가(마지막 쪽을 넘어가면 같은 화면이 다시 나온다). 바이트가 같거나, 원래 크기 그대로 비교해 다른 점이
 // 거의 없으면(깜빡이는 커서 정도, 8점 이하) 같다. 숫자 한 글자만 달라도 수백 점이 달라 다른 쪽으로 본다(쪽을 놓치지 않게).
 async function samePage(a, b) {
@@ -43,34 +51,51 @@ async function samePage(a, b) {
   return different <= 8;
 }
 
-// 브라우저·뷰어 창 캡처에서 쪽만 잘라 낸다(탭·주소창·도구 막대·회색 여백을 뺀다).
-// 아래쪽 왼·오른 가장자리의 바탕색(뷰어 회색)이 위로 끊기지 않고 이어지는 데까지가 문서 영역이고, 그 안에서 바탕색과
-// 다른 점들을 감싸는 상자가 쪽이다. 쪽이 창 가장자리에 닿는 등 판단하기 어려우면 자르지 않고 그대로 돌려준다.
+// 창 캡처에서 쪽만 잘라 낸다(탭·주소창·리본·눈금자·옆 창·상태 표시줄·회색 바탕을 뺀다).
+// 가운데 가로줄을 양 끝에서 안쪽으로 훑는다. 같은 색(바탕)이 길게 이어지다 끝나고, 끝난 곳의 세로줄이 바탕 아닌 색으로
+// 길게 이어지면 거기가 쪽의 가장자리다. 왼쪽과 오른쪽에서 바탕색이 같은 가장자리 한 쌍을 찾아 그 사이를 남긴다.
+// 그런 쌍이 없으면(쪽이 창 끝에 닿았거나 쪽이 아니면) 자르지 않는다.
 export async function cropToPage(png) {
   try {
     const { data, info } = await sharp(png).removeAlpha().raw().toBuffer({ resolveWithObject: true });
     const { width: w, height: h } = info;
+    const mid = h >> 1;
     const at = (x, y) => (y * w + x) * 3;
-    const inset = Math.round(Math.min(w, h) * 0.012) + 8; // 창의 둥근 모서리를 피한다
-    const leftX = inset, rightX = w - 1 - inset - Math.round(w * 0.02) - 30; // 오른쪽 스크롤 막대를 피한다
-    const bg = at(leftX, h - inset);
-    const like = (i) => Math.abs(data[i] - data[bg]) + Math.abs(data[i + 1] - data[bg + 1]) + Math.abs(data[i + 2] - data[bg + 2]) <= 24;
-    let top = h - inset;
-    while (top > 0 && like(at(leftX, top - 1)) && like(at(rightX, top - 1))) top--;
-    if (top > h * 0.4) return png;
-    let left = w, right = -1, upper = h, lower = -1;
-    for (let y = top; y < h - inset; y += 2)
-      for (let x = leftX; x <= rightX; x += 2)
-        if (!like(at(x, y))) {
-          left = Math.min(left, x); right = Math.max(right, x);
-          upper = Math.min(upper, y); lower = Math.max(lower, y);
+    const near = (i, j) => Math.abs(data[i] - data[j]) + Math.abs(data[i + 1] - data[j + 1]) + Math.abs(data[i + 2] - data[j + 2]) <= 24;
+    // x 세로줄에서 가운데 줄 위아래로 test가 이어지는 범위 [위, 아래]
+    const span = (x, test) => {
+      let top = mid, bottom = mid;
+      while (top > 0 && test(x, top - 1)) top--;
+      while (bottom < h - 1 && test(x, bottom + 1)) bottom++;
+      return [top, bottom];
+    };
+    // from에서 가운데 쪽(step)으로 가며 찾은 쪽 가장자리 후보들. 바탕은 너비의 3% 넘게, 가장자리 세로줄은 높이의 30% 넘게 이어져야 한다
+    // (좁은 눈금자·스크롤 막대, 옆 창의 작은 그림은 건너뛴다). 세로 범위는 바탕이 위아래로 이어지는 문서 영역을 넘지 않는다.
+    const edges = (from, step) => {
+      const found = [];
+      for (let x = from, start = from; (w / 2 - x) * step > 0; x += step) {
+        const bg = at(start, mid);
+        if (near(at(x, mid), bg)) continue;
+        if ((x - start) * step >= w * 0.03) {
+          const [areaTop, areaBottom] = span((start + x) >> 1, (px, py) => near(at(px, py), bg));
+          const [top, bottom] = span(x + 2 * step, (px, py) => py >= areaTop && py <= areaBottom && !near(at(px, py), bg));
+          if (bottom - top >= h * 0.3) found.push({ bg, x, top, bottom });
         }
-    if (right < 0 || (right - left) * (lower - upper) < w * h * 0.1) return png;
-    const margin = 4;
-    left = Math.max(0, left - margin);
-    upper = Math.max(top, upper - margin);
-    const width = Math.min(w, right + margin + 2) - left, height = Math.min(h, lower + margin + 2) - upper;
-    return await sharp(png).extract({ left, top: upper, width, height }).png().toBuffer();
+        start = x;
+      }
+      return found;
+    };
+    const inset = Math.round(Math.min(w, h) * 0.012) + 8; // 창 테두리를 피한다
+    const rights = edges(w - 1 - inset, -1);
+    for (const l of edges(inset, 1))
+      for (const r of rights) {
+        if (!near(l.bg, r.bg) || r.x - l.x < w * 0.1) continue;
+        const margin = 4;
+        const left = Math.max(0, l.x - margin), top = Math.max(0, Math.min(l.top, r.top) - margin);
+        const width = Math.min(w, r.x + margin + 1) - left, height = Math.min(h, Math.max(l.bottom, r.bottom) + margin + 1) - top;
+        return await sharp(png).extract({ left, top, width, height }).png().toBuffer();
+      }
+    return png;
   } catch {
     return png; // 그림이 아니거나 읽지 못하면 그대로
   }
@@ -96,24 +121,22 @@ function run([pdf, out, only]) {
   }
   return String(n);
 }`;
-async function pdfPages(pdf, only) {
+async function pdfKitPages(pdf, only) {
   const out = await mkdtemp(path.join(os.tmpdir(), "pages-"));
   try {
-    try {
-      await osa(["-l", "JavaScript", "-e", PDF_PAGES, pdf, out, String(only || "")], "PDF");
-    } catch {
-      return await protectedPdf(pdf, only);
-    }
+    await osa(["-l", "JavaScript", "-e", PDF_PAGES, pdf, out, String(only || "")], "PDF");
     const names = (await readdir(out)).filter((n) => n.endsWith(".png")).sort();
-    return Promise.all(names.map((n) => readFile(path.join(out, n))));
+    return await Promise.all(names.map((n) => readFile(path.join(out, n))));
   } finally {
     await rm(out, { recursive: true, force: true });
   }
 }
+const pdfPages = (pdf, only) => pdfKitPages(pdf, only).catch(() => protectedPdf(pdf, only));
 
 // Office 문서: 앱으로 열어 쪽(슬라이드·시트)마다 받는다. MIP로 보호된 문서는 PDF로 내보내도 암호화되어
 // 읽을 수 없으므로, PowerPoint는 슬라이드를 PNG로 내보내고(화면을 쓰지 않음, 막혀 있으면 창 모드 슬라이드 쇼 캡처),
-// Word는 '한 쪽 전체' 배율로, Excel은 시트마다 창을 캡처한다. 창은 앞으로 가져오지 않는다(가려져도 창 번호로 캡처).
+// Word는 '한 쪽 전체' 배율로 창을 캡처해 쪽만 잘라 내고(리본·눈금자·상태 표시줄을 뺀다), Excel은 시트마다 창을 캡처한다.
+// 창은 앞으로 가져오지 않는다(가려져도 창 번호로 캡처).
 // 이 서버를 띄운 터미널에 Office '제어'와 '화면 기록' 권한이 있어야 한다.
 // 문서는 Launch Services(open -g -a)로 연다: Office 샌드박스가 파일 접근을 허락받고, 앱을 앞으로 가져오지 않는다.
 // 그 뒤로는 문서 이름(n)으로 다룬다. Office의 AppleScript는 버전마다 받는 문장이 달라, 단계마다 문장을 따로 실행한다:
@@ -160,6 +183,7 @@ const STEPS = {
     ],
     close: [`close document n saving no`],
     window: "largest",
+    crop: true,
   },
   excel: {
     app: "Microsoft Excel",
@@ -220,6 +244,13 @@ const capture = (out, windowId) =>
   new Promise((resolve, reject) =>
     execFile("screencapture", ["-x", "-o", ...(windowId ? ["-l" + windowId] : []), out], { timeout: 30_000 }, (e) =>
       e ? reject(new Error("화면을 캡처하지 못했습니다. 시스템 설정 > 개인정보 보호 및 보안 > 화면 기록에서 터미널을 허용하세요.")) : resolve()));
+// 창을 캡처한 그림(crop이면 쪽만 잘라서)
+async function shot(dir, i, windowId, crop = true) {
+  const png = path.join(dir, i + ".png");
+  await capture(png, windowId);
+  const image = await readFile(png);
+  return crop ? cropToPage(image) : image;
+}
 // PowerPoint 슬라이드를 PNG로 내보낸다(화면을 쓰지 않음). Office 앱은 샌드박스라 Office 공용 폴더(Group Containers)에만
 // 바로 쓸 수 있다. 내보내기가 막힌 보호 문서면 빈 목록을 돌려준다.
 async function slideImages(file) {
@@ -245,20 +276,88 @@ end run`, path.basename(file), path.join(dir, "slides")], "PowerPoint 슬라이�
 const installed = (app) => new Promise((resolve) => execFile("open", ["-Ra", app], (e) => resolve(!e)));
 
 // 보호(MIP) PDF는 PDFKit이 열지 못한다. 회사 계정으로 로그인한 Microsoft Edge로 열고, Edge가 없으면 Adobe Acrobat Reader로 연다.
+// 보호를 푸는 것이 아니라 그 앱이 허락하는 기능(저장·화면 표시)만 쓴다. 문서 권한이 막으면 읽지 못한다.
 const EDGE = "Microsoft Edge";
 const READERS = ["Adobe Acrobat Reader", "Adobe Acrobat Reader DC", "Adobe Acrobat"];
 async function protectedPdf(file, only) {
-  if (await installed(EDGE)) return edgeCaptures(file, only);
+  if (await installed(EDGE)) return edgePages(file, only);
   for (const app of READERS) if (await installed(app)) return readerCaptures(app, file, only);
   throw new Error("보호된 PDF라 Microsoft Edge(회사 계정 로그인)로 열어 캡처해야 하는데 이 맥에 Edge가 없습니다. Edge를 설치한 뒤 목록의 '지금 가져오기'를 누르세요.");
 }
 
-// Edge: 따로 새 창을 열어 PDF를 쪽 번호(#page=N, 쪽 맞춤, 뷰어 도구 막대 숨김)로 열고 그 창을 캡처한 뒤 쪽만 잘라 낸다.
+// Edge의 '다른 이름으로 저장'(⌘S)으로 사본을 임시 폴더에 받는다. 저장 창에서 ⇧⌘G(폴더로 이동)에 폴더 경로를 붙여 넣는다
+// (한글 입력 상태에서도 되게 클립보드를 쓰고 되돌린다). 키는 자판 배열과 무관한 키 코드로 보낸다: 1 S · 5 G · 0 A · 9 V · 36 Return · 53 Esc
+const SAVE_AS = `on run argv
+  set w to (item 1 of argv) as integer
+  tell application "${EDGE}"
+    set index of window id w to 1
+    activate
+  end tell
+  delay 0.5
+  try
+    set kept to the clipboard
+  on error
+    set kept to ""
+  end try
+  set the clipboard to (item 2 of argv)
+  try
+    tell application "System Events" to tell process "${EDGE}"
+      key code 1 using command down
+      repeat 20 times
+        if exists sheet 1 of window 1 then exit repeat
+        delay 0.5
+      end repeat
+      if not (exists sheet 1 of window 1) then error "저장 창이 뜨지 않았습니다"
+      key code 5 using {command down, shift down}
+      delay 1
+      key code 0 using command down
+      key code 9 using command down
+      delay 1
+      key code 36
+      delay 1.5
+      key code 36
+      delay 1.5
+      repeat 3 times
+        if not (exists sheet 1 of window 1) then exit repeat
+        key code 53
+        delay 0.5
+      end repeat
+    end tell
+  on error m
+    set the clipboard to kept
+    error m
+  end try
+  set the clipboard to kept
+end run`;
+// 그 사본을 PDFKit으로 읽은 쪽들. 저장 권한이 있는 문서는 사본이 보호 없이 저장되어 원본 화질로 나온다. 사본은 읽자마자 지운다.
+// 터미널에 '손쉬운 사용'(키 입력) 권한이 필요하다. 저장이 안 되거나 사본도 보호되어 있으면 까닭을 던진다.
+async function edgeSaved(windowId, only) {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "edge-save-"));
+  try {
+    await osa(["-e", SAVE_AS, String(windowId), dir], "Edge에서 다른 이름으로 저장하지 못했습니다").catch(accessibilityHint);
+    for (let t = 0; t < 20; t++) {
+      const name = (await readdir(dir)).find((n) => /\.pdf$/i.test(n));
+      if (name) {
+        await wait(1500); // 다 써질 때까지
+        return await pdfKitPages(path.join(dir, name), only).catch(() => {
+          throw new Error("저장한 사본도 보호되어 있어 열 수 없습니다");
+        });
+      }
+      await wait(500);
+    }
+    throw new Error("저장한 사본을 찾지 못했습니다");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+// Edge: 따로 새 창을 열어 PDF를 연다. 먼저 '다른 이름으로 저장'한 사본을 읽어 보고(edgeSaved), 안 되면 쪽 번호
+// (#page=N, 쪽 맞춤, 뷰어 도구 막대 숨김)로 열어 그 창을 캡처한 뒤 쪽만 잘라 낸다.
 // 창은 가로로 넓게 두어(화면 높이의 90% × 2.1배) 가로 슬라이드도 옆에 여백이 남게 한다(그래야 쪽 경계를 찾는다).
 // 쓰던 Edge 창·탭은 건드리지 않고, 끝나면 그 창만 닫는다(원래 Edge가 꺼져 있었으면 Edge도 끈다).
-// 쪽마다 빈 화면을 거쳐 새로 열어 그 쪽에서 시작하게 한다.
+// 캡처할 때는 쪽마다 빈 화면을 거쳐 새로 열어 그 쪽에서 시작하게 한다.
 // 쪽 수는 알 수 없어 넘기다 같은 화면이 다시 나오면 마지막 쪽으로 본다. 터미널에 Edge 제어(자동화)와 화면 기록 권한이 필요하다.
-async function edgeCaptures(file, only) {
+async function edgePages(file, only) {
   const url = pathToFileURL(file).href;
   const edge = (body, windowId = 0, page = 0) =>
     osa(["-e", `on run argv
@@ -268,7 +367,7 @@ async function edgeCaptures(file, only) {
   tell application "${EDGE}"
     ${body}
   end tell
-end run`, url, String(windowId), String(page)], "Edge에서 PDF를 캡처하지 못했습니다").catch(automationHint(EDGE));
+end run`, url, String(windowId), String(page)], "Edge에서 PDF를 열지 못했습니다").catch(automationHint(EDGE));
   // 다 읽어 들일 때까지(최대 seconds초) 기다리고 그림이 그려질 시간을 조금 더 준다
   const loaded = async (windowId, seconds) => {
     for (let t = 0; t < seconds; t++) {
@@ -295,19 +394,22 @@ end run`, url, String(windowId), String(page)], "Edge에서 PDF를 캡처하지 
   try {
     await open(windowId, only || 1);
     await loaded(windowId, 90); // 보호 문서는 회사 계정 확인에 시간이 걸린다
-    let shot = "";
-    for (let t = 0; t < 10 && !shot; t++) {
-      shot = largest((await windows(EDGE)).filter((w) => !before.some((b) => b.id === w.id)));
-      if (!shot) await wait(500);
+    let why = "";
+    const saved = await edgeSaved(windowId, only).catch((e) => void (why = e.message));
+    if (saved?.length) return saved;
+    let shotId = "";
+    for (let t = 0; t < 10 && !shotId; t++) {
+      shotId = largest((await windows(EDGE)).filter((w) => !before.some((b) => b.id === w.id)));
+      if (!shotId) await wait(500);
     }
     for (let i = only || 1; i <= (only || 60); i++) {
       if (i > (only || 1)) {
         await open(windowId, i);
         await loaded(windowId, 30);
       }
-      const png = path.join(out, i + ".png");
-      await capture(png, shot);
-      const page = await cropToPage(await readFile(png));
+      const page = await shot(out, i, shotId);
+      if (!pages.length && (await blank(page)))
+        throw new Error(`Edge가 이 보호 문서의 화면 캡처를 막았고, '다른 이름으로 저장'도 되지 않았습니다(${why}).`);
       if (pages.length && (await samePage(page, pages.at(-1)))) break; // 더 넘어가지 않는다(마지막 쪽)
       pages.push(page);
     }
@@ -328,11 +430,7 @@ async function readerCaptures(app, file, only) {
 delay 0.5
 tell application "System Events"
   ${lines}
-end tell`], "Acrobat Reader에서 쪽을 넘기지 못했습니다").catch((e) => {
-      // -1719·-25211: 터미널에 손쉬운 사용 권한이 없어 키를 보낼 수 없다
-      throw /-1719|-25211|assistive|보조 접근/i.test(e.message)
-        ? new Error("터미널이 키 입력을 보낼 수 없습니다. 시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 터미널을 허용하세요.") : e;
-    });
+end tell`], "Acrobat Reader에서 쪽을 넘기지 못했습니다").catch(accessibilityHint);
   const before = new Set((await windows(app).catch(() => [])).map((w) => w.id));
   await launch(app, file);
   // 그 문서 창이 뜰 때까지(최대 90초) 기다린다. 제목에 파일 이름이 있거나 새로 생긴 창
@@ -355,9 +453,7 @@ end tell`], "Acrobat Reader에서 쪽을 넘기지 못했습니다").catch((e) =
       if (i > 1) await keys(`key code 124
   delay 1`);
       if (only && i < only) continue;
-      const png = path.join(out, i + ".png");
-      await capture(png, windowId);
-      const page = await cropToPage(await readFile(png));
+      const page = await shot(out, i, windowId);
       if (pages.length && (await samePage(page, pages.at(-1)))) break; // 더 넘어가지 않는다(마지막 쪽)
       pages.push(page);
     }
@@ -400,10 +496,8 @@ async function officeCaptures(kind, file, only) {
         break; // 숨긴 슬라이드 등으로 쇼가 먼저 끝났다: 받은 데까지 쓴다
       }
       if (only && i < only) continue;
-      const png = path.join(out, i + ".png");
-      await capture(png, windowId);
-      const page = await readFile(png);
-      if (pages.length && page.equals(pages.at(-1))) break; // 더 넘어가지 않는다(마지막 쪽)
+      const page = await shot(out, i, windowId, step.crop);
+      if (pages.length && (await samePage(page, pages.at(-1)))) break; // 더 넘어가지 않는다(마지막 쪽)
       pages.push(page);
     }
     if (!pages.length) throw new Error("문서에서 캡처할 쪽을 찾지 못했습니다.");

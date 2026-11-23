@@ -6,6 +6,7 @@ import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import sharp from "sharp";
 
 const skip = process.platform === "win32" && "가짜 도구가 셸 스크립트라 윈도우에서는 건너뛴다";
 const dir = mkdtempSync(path.join(os.tmpdir(), "fake-office-"));
@@ -24,13 +25,24 @@ if (tool === "open") {
 }
 if (tool === "screencapture") {
   s.log.push("capture " + args.find((a) => a.startsWith("-l")));
-  fs.writeFileSync(args.at(-1), "page " + Math.min(s.page, s.lastScreen)); // 마지막 화면 뒤로는 같은 화면
+  // 마지막 화면 뒤로는 같은 화면. blank면 캡처가 막힌 것처럼 한 가지 색 그림을 준다
+  fs.writeFileSync(args.at(-1), s.blank ? Buffer.from(s.blank, "base64") : "page " + Math.min(s.page, s.lastScreen));
   done();
 }
 const script = args[args.indexOf("-e") + 1], i = Number(args.at(-1));
-if (script.includes("PDFKit")) done("", 1); // 보호 PDF는 PDFKit이 열지 못한다
+if (script.includes("PDFKit")) { // 보호 PDF는 PDFKit이 열지 못한다. Edge가 저장한 사본("saved")은 연다
+  const [pdf, out, only] = args.slice(-3);
+  if (!fs.existsSync(pdf) || !fs.readFileSync(pdf, "utf8").startsWith("saved")) done("", 1);
+  for (let n = 1; n <= s.pages; n++) if (!only || Number(only) === n) fs.writeFileSync(path.join(out, "00" + n + ".png"), "saved " + n);
+  done(String(s.pages));
+}
 if (script.includes('"Microsoft Edge"')) { // Edge: 새 창에 #page=N으로 연다
   if (script.includes("make new window")) { s.edge = true; done("7"); }
+  if (script.includes("key code 1 using command down")) { // 다른 이름으로 저장(⌘S): saveAs가 없으면 키를 보낼 권한이 없다
+    if (!s.saveAs) done("", 1);
+    fs.writeFileSync(path.join(args.at(-1), "보호 문서.pdf"), s.saveAs === "saved" ? "saved" : "still protected");
+    done();
+  }
   if (script.includes("loading of active tab")) done("false");
   if (script.includes('"#page="')) s.page = Number(args.at(-1));
   if (script.includes("close window id w")) { s.edge = false; s.log.push("close"); }
@@ -76,7 +88,7 @@ const { attachmentPages } = await import("../src/intake/attachment-pages.mjs");
 
 // 가짜 Office 상태를 정하고 문서 하나를 캡처한다
 async function run(name, office, only) {
-  writeFileSync(state, JSON.stringify({ export: false, show: false, page: 1, pages: 3, lastScreen: 99, missing: [], log: [], ...office }));
+  writeFileSync(state, JSON.stringify({ export: false, show: false, page: 1, pages: 3, lastScreen: 99, missing: [], log: [], saveAs: "", ...office }));
   Object.defineProperty(process, "platform", { value: "darwin", configurable: true });
   try {
     const pages = await attachmentPages(path.join(dir, name), only);
@@ -119,6 +131,22 @@ test("보호 PDF: Edge로 다시 캡처(한 쪽만)는 그 쪽을 바로 연다"
   const { pages, log } = await run("보호 문서.pdf", {}, 2);
   assert.deepEqual(pages, ["page 2"]);
   assert.deepEqual(log, ["capture -l50", "close", "quit"]);
+});
+
+test("보호 PDF: Edge에서 '다른 이름으로 저장'한 사본이 열리면 화면 캡처 없이 그 사본의 쪽을 쓴다", { skip }, async () => {
+  const { pages, log } = await run("보호 문서.pdf", { saveAs: "saved" });
+  assert.deepEqual(pages, ["saved 1", "saved 2", "saved 3"]);
+  assert.deepEqual(log, ["close", "quit"]);
+});
+
+test("보호 PDF: 저장한 사본도 보호되어 있으면 화면 캡처로 넘어간다", { skip }, async () => {
+  const { pages } = await run("보호 문서.pdf", { saveAs: "protected", lastScreen: 2 });
+  assert.deepEqual(pages, ["page 1", "page 2"]);
+});
+
+test("보호 PDF: Edge가 화면 캡처를 막아 검은 화면만 찍히면 저장이 안 된 까닭과 함께 알린다", { skip }, async () => {
+  const black = await sharp({ create: { width: 40, height: 40, channels: 3, background: "#000" } }).png().toBuffer();
+  await assert.rejects(run("보호 문서.pdf", { blank: black.toString("base64") }), /화면 캡처를 막았고.*저장하지 못했습니다/s);
 });
 
 const noEdge = ["Microsoft Edge"];

@@ -36,7 +36,7 @@ cd contest-review
 - 터미널이 Word·PowerPoint·Excel을 제어 (시스템 설정 > 개인정보 보호 및 보안 > 자동화)
 - 화면 기록 (같은 곳의 '화면 기록'. 허용한 뒤 터미널을 다시 실행)
 - 터미널이 Microsoft Edge를 제어 (보호 PDF를 Edge로 열 때. 같은 '자동화' 화면)
-- 손쉬운 사용 (Edge가 없어 Acrobat Reader로 보호 PDF를 넘길 때만)
+- 손쉬운 사용 (보호 PDF를 Edge에서 '다른 이름으로 저장'할 때, Edge가 없어 Acrobat Reader로 넘길 때. 같은 곳의 '손쉬운 사용'에서 터미널을 허용)
 
 ## 3. 쓰는 방법
 
@@ -60,8 +60,8 @@ AI 비용은 목록 위에 **오늘 · 최근 7일**로 늘 보입니다. 아이
 | Node.js 22.21 이상 | 없으면 실행할 때 설치합니다 |
 | 인터넷 | 처음 설치와 AI 요약에 필요합니다. 회사 프록시는 `HTTPS_PROXY`로 넘깁니다 |
 | AI 키 | Anthropic API 키 또는 회사 LiteLLM 주소와 키 |
-| Microsoft Office (맥) | 회사 계정으로 로그인된 Word·PowerPoint·Excel. 보호(MIP) 문서를 열어 캡처하는 데 씁니다 |
-| Microsoft Edge (맥) | 회사 계정으로 로그인. 보호(MIP) PDF를 열어 캡처하는 데 씁니다(없으면 Adobe Acrobat Reader). 캡처하는 동안 새 Edge 창이 잠깐 앞으로 나왔다 닫히고, 캡처에서 탭·주소창은 잘라 냅니다 |
+| Microsoft Office (맥) | 회사 계정으로 로그인된 Word·PowerPoint·Excel. 보호(MIP) 문서를 열어 캡처하는 데 씁니다. Word 캡처에서 리본·눈금자·상태 표시줄은 잘라 내고 쪽만 남깁니다 |
+| Microsoft Edge (맥) | 회사 계정으로 로그인. 보호(MIP) PDF를 새 창에 열어 '다른 이름으로 저장'한 사본을 읽고(사본은 읽자마자 지움), 저장이 안 되면 그 창을 캡처해 탭·주소창을 잘라 냅니다(Edge가 없으면 Adobe Acrobat Reader). 그동안 새 Edge 창이 잠깐 앞으로 나왔다 닫히고, 저장할 때 클립보드를 잠깐 씁니다(끝나면 되돌림). 문서 권한이 저장·캡처를 막으면 읽지 못합니다 |
 | OneDrive | 응답 엑셀과 첨부 폴더가 이 PC에 동기화되어 있어야 합니다 |
 
 글자 읽기(OCR) 엔진과 한국어 모델은 저장소에 들어 있어 따로 받을 것이 없습니다.
