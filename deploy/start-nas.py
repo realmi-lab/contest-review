@@ -46,8 +46,9 @@ def node_path():
 
 
 def service_env():
-    env = {"REVIEW_NAS_MODE": "1", "REVIEW_PORT": port,
-           "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin", "HOME": str(home)}
+    # nvm으로 받은 Node를 쓸 때도 서버가 같은 Node를 찾도록 그 폴더를 PATH 맨 앞에 둔다.
+    env = {"REVIEW_NAS_MODE": "1", "REVIEW_PORT": port, "HOME": str(home),
+           "PATH": os.path.dirname(node_path()) + ":/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"}
     # 회사망 프록시: 이 스크립트를 실행한 터미널의 HTTPS_PROXY·NO_PROXY를 서버에 넘기고 Node가 따르게 한다.
     proxy = {k: os.environ[k] for k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY") if os.environ.get(k)}
     if proxy:

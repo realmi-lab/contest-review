@@ -8,12 +8,27 @@ cd "$(dirname "$0")"
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 need() { command -v "$1" >/dev/null || { echo "$2"; exit 1; }; }
-need node "Node.js 22.21 이상을 설치하세요."
 need python3 "python3를 설치하세요."
 need openssl "openssl을 설치하세요."
-# 22.21부터 내장 SQLite와 회사 프록시(NODE_USE_ENV_PROXY)를 플래그 없이 쓴다.
-node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 21) ? 0 : 1)' ||
-  { echo "Node.js 22.21 이상이 필요합니다 (지금 $(node -v))."; exit 1; }
+
+# Node.js 22.21 이상(내장 SQLite와 회사 프록시 NODE_USE_ENV_PROXY를 플래그 없이 쓴다).
+# 서버의 Node가 낮으면 nvm으로 이 앱만 .nvmrc의 Node 22를 쓴다. 서버의 기본 Node는 그대로 둔다.
+node_ok() {
+  command -v node >/dev/null &&
+    node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 21) ? 0 : 1)'
+}
+if ! node_ok && [ -s "${NVM_DIR:=$HOME/.nvm}/nvm.sh" ]; then
+  set +u # nvm 스크립트는 정의되지 않은 변수를 쓴다
+  . "$NVM_DIR/nvm.sh"
+  nvm install >/dev/null # 처음 한 번 받고, 이미 있으면 그대로 쓴다
+  nvm use >/dev/null
+  set -u
+fi
+node_ok || {
+  echo "Node.js 22.21 이상이 필요합니다 (지금 $(node -v 2>/dev/null || echo '없음'))."
+  echo "nvm을 설치하고 다시 실행하면 이 앱만 Node 22를 씁니다: https://github.com/nvm-sh/nvm#installing-and-updating"
+  exit 1
+}
 
 # OCR 엔진 패키지는 비공개라 깃에 없다. 운영 서버의 vendor/에 따로 넣는다.
 [ -f vendor/kordoc.tgz ] || { echo "vendor/kordoc.tgz(OCR 엔진 패키지)를 vendor 폴더에 넣은 뒤 다시 실행하세요."; exit 1; }
