@@ -161,13 +161,27 @@ export function syncIntake() {
   })().finally(() => (intake.running = null));
   return intake.running;
 }
+// 못 읽은 첨부 기록을 지워 다음 읽기에서 다시 열어 보게 한다(직접 올린 것·읽은 것은 그대로).
+function retryFailedReads() {
+  for (const w of formWorks()) {
+    const read = Object.fromEntries(Object.entries(w.source.read ?? {}).filter(([, r]) => !r.error));
+    if (Object.keys(read).length !== Object.keys(w.source.read ?? {}).length) {
+      w.source.read = read;
+      save(w);
+    }
+  }
+}
+// 서버를 켤 때 한 번: 새 버전이 못 읽던 첨부를 읽을 수 있을지 모르니 다시 열어 본다. 그 뒤로는 1분마다 동기화
 export function startIntake() {
+  retryFailedReads();
   syncIntake();
   setInterval(syncIntake, 60_000).unref();
 }
 
 // 평가표를 처음부터 다시 읽는다. responsesToo면 응답 엑셀도 다시 읽는다.
+// 도는 중인 읽기가 있으면 끝난 뒤 다시 읽는다(그 읽기는 바뀌기 전 설정·캐시로 시작했다).
 export async function rereadIntake(responsesToo = true) {
+  await intake.running;
   intake.seen.clear();
   if (responsesToo) intake.responses = null;
   await syncIntake();
@@ -176,13 +190,7 @@ export async function rereadIntake(responsesToo = true) {
 // '지금 가져오기': 도는 중인 읽기가 끝나면 못 읽었던 첨부까지 처음부터 다시 읽는다.
 export async function syncNow() {
   await intake.running;
-  for (const w of formWorks()) {
-    const read = Object.fromEntries(Object.entries(w.source.read ?? {}).filter(([, r]) => !r.error));
-    if (Object.keys(read).length !== Object.keys(w.source.read ?? {}).length) {
-      w.source.read = read;
-      save(w);
-    }
-  }
+  retryFailedReads();
   await rereadIntake();
   return intake.view;
 }

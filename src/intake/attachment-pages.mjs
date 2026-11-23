@@ -201,7 +201,7 @@ const READERS = ["Adobe Acrobat Reader", "Adobe Acrobat Reader DC", "Adobe Acrob
 async function readerCaptures(file, only) {
   let app;
   for (const name of READERS) if (!app && (await installed(name))) app = name;
-  if (!app) throw new Error("보호된 PDF입니다. Adobe Acrobat Reader를 설치하면 자동으로 캡처합니다. 지금은 회사 뷰어로 열어 캡처해 올려 주세요.");
+  if (!app) throw new Error("보호된 PDF라 Adobe Acrobat Reader로 열어 캡처해야 하는데 이 맥에 Reader가 없습니다. Reader를 설치한 뒤 목록의 '지금 가져오기'를 누르세요.");
   const keys = (lines) =>
     osa(["-e", `tell application "${app}" to activate
 delay 0.5

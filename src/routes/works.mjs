@@ -12,7 +12,7 @@ import { defaults, finalSheet, followupSheet, rubric, scoreRows, sheet, toCsv } 
 import { similarWorks } from "../review/similar.mjs";
 import { sampleImage } from "../sample.mjs";
 import {
-  atomic, changed, deleteImage, image, intakeFields, lastUsage, list, load, newWork, removeWork, save, summaryList, thumbnail, today,
+  atomic, changed, deleteImage, deleteImagesOf, image, intakeFields, lastUsage, list, load, newWork, removeWork, save, summaryList, thumbnail, today,
 } from "../store.mjs";
 import { shownRefs } from "../summary/reading-edition.mjs";
 import { costSummary, startSummary } from "../summary/run.mjs";
@@ -61,10 +61,11 @@ export default {
 
   // 캡처 그림(size=thumb이면 작은 미리보기). id마다 내용이 바뀌지 않으므로 브라우저에만(private) 오래 보관한다.
   "GET /api/image/:id": async ({ id, query, res }) => {
-    res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
     const thumb = query.get("size") === "thumb";
+    const bytes = thumb ? await thumbnail(id) : image(id); // 없으면 404(이때는 오래 보관하지 않는다)
+    res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
     res.setHeader("Content-Type", thumb ? "image/webp" : "image/png");
-    res.end(thumb ? await thumbnail(id) : image(id));
+    res.end(bytes);
   },
 
   // 비슷한 제안 (similar.mjs). 판정(중복·관련·무관)은 어느 쪽 작품에 남겼든 함께 보여 준다.
@@ -208,12 +209,11 @@ export default {
   "POST /api/reset-captures": async ({ b, json }) => {
     const w = current(b);
     if (busy(w.id)) err("진행 중인 작업이 끝난 뒤 지우세요.", 409);
-    const ids = w.captures.map((c) => c.id);
     w.captures = [];
     if (w.source?.files) w.source.read = Object.fromEntries(w.source.files.map((n) => [n, { manual: true }]));
     changed(w, true);
     atomic(() => {
-      for (const id of ids) deleteImage(id);
+      deleteImagesOf(w.id);
       save(w);
     });
     await rm(uploadDir(w.id), { recursive: true, force: true });

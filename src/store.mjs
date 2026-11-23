@@ -106,6 +106,7 @@ export function atomic(fn) {
 }
 export const insertImage = (id, wid, data) => sql.insertImage.run(id, wid, data);
 export const deleteImage = (id) => sql.deleteImage.run(id);
+export const deleteImagesOf = (wid) => sql.deleteImages.run(wid); // 그 작품의 그림 모두
 export function removeWork(wid) {
   atomic(() => {
     sql.deleteImages.run(wid);

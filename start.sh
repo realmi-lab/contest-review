@@ -37,7 +37,7 @@ fi
 # (예전 ./start.sh나 웹 모드 deploy/start-web.py가 등록한 것. 웹 모드로 되살리기: python3 deploy/start-web.py).
 if [ "$(uname)" = Darwin ]; then
   for plist in "$HOME"/Library/LaunchAgents/*.plist; do
-    [ -f "$plist" ] && grep -q "$PWD/server.mjs" "$plist" || continue
+    [ -f "$plist" ] && grep -qF "$PWD/server.mjs" "$plist" || continue
     label=$(basename "$plist" .plist)
     echo "이 앱을 띄우던 맥 서비스($label)를 내립니다."
     launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true

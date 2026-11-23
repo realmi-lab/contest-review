@@ -8,7 +8,6 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import puppeteer from "puppeteer-core";
 
 const project = fileURLToPath(new URL("../", import.meta.url));
 const chrome = [process.env.CHROME_PATH, "/usr/bin/google-chrome", "/usr/bin/chromium",
@@ -17,6 +16,11 @@ if (!chrome) {
   console.log("Chrome을 찾지 못해 화면 점검을 건너뜁니다. CHROME_PATH로 위치를 알려 주세요.");
   process.exit(0);
 }
+// 개발용 패키지(npm ci --omit=dev로 설치하면 없다)
+const { default: puppeteer } = await import("puppeteer-core").catch(() => {
+  console.log("puppeteer-core가 없습니다. 개발용 패키지까지 설치하세요: npm ci");
+  process.exit(1);
+});
 
 // 임시 폴더: 데이터·설정, 그리고 가짜 AI 키(맥·윈도우 설정 위치 모두)
 const temp = await mkdtemp(path.join(os.tmpdir(), "ui-"));

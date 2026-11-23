@@ -111,7 +111,7 @@ test("보호 PDF: 다시 캡처(한 쪽만)는 첫 쪽에서 그 쪽까지 넘�
 });
 
 test("보호 PDF: Acrobat Reader가 없으면 설치를 안내한다", { skip }, async () => {
-  await assert.rejects(run("보호 문서.pdf", { missing: ["Adobe Acrobat Reader", "Adobe Acrobat Reader DC", "Adobe Acrobat"] }), /Acrobat Reader를 설치하면/);
+  await assert.rejects(run("보호 문서.pdf", { missing: ["Adobe Acrobat Reader", "Adobe Acrobat Reader DC", "Adobe Acrobat"] }), /이 맥에 Reader가 없습니다/);
 });
 
 test("맥이 아니면 문서는 바꾸지 않고 그림은 그대로 받는다", async () => {
