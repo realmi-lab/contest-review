@@ -20,7 +20,7 @@ import {
   placeLabel, readEvaluations, readResponses, rootOf, shareState, storageRoots, workFolder,
 } from "./forms-intake.mjs";
 import { readSite, writeSite } from "./deploy/site.mjs";
-import { macAddress, nasServer, publicOrigin } from "./deploy/nas-access.mjs";
+import { macAddress, nasServer, publicHost } from "./deploy/nas-access.mjs";
 import { readAccess, verifyCode } from "./deploy/access-code.mjs";
 import { ai, aiSettings, haiku, haikuEffortNote, haikuLabel, matches, saveConnection, savedKey, saveKey, ticket, usageReport, validTicket, verifyKey, withHaiku } from "./claude-summary.mjs";
 import { dailyUsage, newHaikuUsage, recordHaikuUsage, reportedUsage, usageSnapshot } from "./haiku-usage.mjs";
@@ -715,7 +715,7 @@ async function handleRequest(req, res) {
     if (pathname === "/api/summary-link") {
       const key = await savedKey();
       if (!key) err("요약 설정에서 API 키를 등록하세요.");
-      if (!nasMode) return json({ url: publicOrigin + "/#connect=" + ticket(key, "link", 90) });
+      if (!nasMode) return json({ url: "https://" + publicHost + "/#connect=" + ticket(key, "link", 90) });
       for (const [code, expires] of redeemedLinks) if (expires <= Date.now()) redeemedLinks.delete(code);
       if (!validTicket(key, "link", b.code) || redeemedLinks.has(b.code))
         err("브라우저 연결 링크가 만료되었습니다. 맥의 요약 설정에서 다시 여세요.", 403);

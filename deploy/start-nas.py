@@ -1,11 +1,10 @@
-"""Prepare the HTTPS web instance and start its macOS LaunchAgent."""
+"""Prepare the HTTPS web instance and start its macOS LaunchAgent (QA망 웹 주소용. 운영망은 ./start.sh로 localhost 실행)."""
 
 import json
 import os
 import plistlib
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 os.umask(0o077)
@@ -21,8 +20,6 @@ if not network.get("publicHost") or not network.get("listenAddress"):
 host = network["publicHost"]
 address = network["listenAddress"]
 port = str(network.get("port", 20883))
-# 앞단 프록시가 없으면 브라우저가 이 서버의 포트로 바로 연다.
-url = f"https://{host}/" if network.get("proxyAddresses") else f"https://{host}:{port}/"
 
 
 def prepare_certificate():
@@ -58,12 +55,6 @@ def service_env():
     return env
 
 
-def foreground():
-    """맥이 아닌 서버나 ./start.sh --foreground: 서비스로 등록하지 않고 이 터미널에서 실행한다."""
-    os.chdir(project)
-    os.execve(node_path(), [node_path(), str(project / "server.mjs")], service_env())
-
-
 def start():
     label = "net.realmi.contest-review.web"
     node = node_path()
@@ -92,8 +83,5 @@ def start():
 
 if __name__ == "__main__":
     prepare_certificate()
-    if "--foreground" in sys.argv:
-        print(f"심사 웹앱을 이 터미널에서 실행합니다. {url} (끄려면 Ctrl+C)", flush=True)
-        foreground()
     start()
-    print(f"심사 웹앱을 시작했습니다. {url} 에서 열 수 있습니다.")
+    print(f"심사 웹앱을 시작했습니다. https://{host}/ 에서 열 수 있습니다.")
