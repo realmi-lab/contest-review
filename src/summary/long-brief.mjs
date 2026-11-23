@@ -1,5 +1,5 @@
-import { chat, pack } from "../ai/model.mjs";
-import { activeHaikuKey } from "../ai/claude-summary.mjs";
+import { pack } from "../ai/batches.mjs";
+import { chat } from "../ai/claude-summary.mjs";
 import { describesFigure, notStatement } from "./statement-filters.mjs";
 
 const roles = [
@@ -45,10 +45,9 @@ async function pick(items, title) {
     .filter((x) => x.item);
 }
 
-// 긴 문서를 그룹별로 고르면 핵심 제안·대표 결과가 탈락하거나 일부 장의 내용이 뽑힌다(로컬 9B 실측).
+// 긴 문서를 그룹별로 고르면 핵심 제안·대표 결과가 탈락하거나 일부 장의 내용이 뽑힌다.
 // 그래서 같은 역할로 분류된 항목만 놓고 쪽 위치와 함께 한 번 더 묻는다. 없다고 답하면(0) 그룹 선택을 쓴다.
-// 방법·한계는 로컬 모델에서만 따로 묻는다(localOnly). 9B는 실행할 때마다 선행 연구의 방법을 고르거나
-// 한계를 빠뜨렸고, Haiku는 그룹 선택만으로 맞게 골라 호출을 늘릴 이유가 없다.
+// 방법·한계는 그룹 선택만으로 맞게 골라 따로 묻지 않는다.
 // 근거 ID(S5.6)의 앞 번호는 캡처 순서다 (실측: 쪽 번호 없이 → 19쪽 '원가격 추정 방법',
 // 쪽 번호와 함께 → 5쪽 '좌석 그룹핑·가격 산정 목표').
 export const pageTag = (point) => {
@@ -61,25 +60,12 @@ const focused = {
     usable: () => true,
     ask: "이 문서가 무엇을 바꾸거나 만들려는지(핵심 제안·목표)를 가장 직접 말한 항목 번호 하나를 고른다. 문서 제목·작성자·날짜, 페이지나 장 구성 설명, 목차, 표의 숫자만 있는 항목은 고르지 않는다. 항목 앞의 쪽 번호를 참고해 문서 앞부분(배경·목적)에서 전체 목표를 밝힌 문장을 일부 장의 목적보다 우선한다.",
   },
-  method: {
-    topic: "이용·운영 방식",
-    localOnly: true,
-    usable: (text) => !describesFigure(text),
-    ask: "이 문서가 직접 수행한 핵심 분석·해결 방법(기법 이름과 그것으로 무엇을 구했는지)을 가장 잘 말한 항목 번호 하나를 고른다. 선행 연구나 참고한 사례의 방법, 변수 이름만 나열한 항목, 기대 효과는 고르지 않는다.",
-  },
   result: {
     topic: "실측·관찰 결과",
     usable: (text) => /\d/u.test(text) && !describesFigure(text),
     ask: "이 문서가 직접 측정·시험·조사한 결과 중 핵심 성과를 가장 잘 보여 주는 수치 항목 번호 하나를 고른다. 모델 정확도·오차·점수나 개선 폭 같은 최종 평가 수치를 표본 수·평균·표준편차·상관계수 같은 중간 통계보다 우선한다. 외부 배경 통계, 선행 연구의 수치, 그래프를 그렸다는 설명만 있는 항목은 고르지 않는다.",
   },
-  limitation: {
-    topic: "제출자가 밝힌 한계",
-    localOnly: true,
-    usable: () => true,
-    ask: "제출자가 스스로 밝힌 이 제안·분석의 한계, 부족했던 점, 성능이 낮았던 원인을 가장 직접 말한 항목 번호 하나를 고른다. 기존 환경의 문제나 배경 설명은 고르지 않는다.",
-  },
 };
-const focusedRoles = () => Object.keys(focused).filter((role) => !focused[role].localOnly || !activeHaikuKey());
 
 // 후보가 한 번에 묻기에 많으면 묶음마다 하나씩 고른 뒤 그 가운데서 다시 고른다.
 export async function pickFocused(role, items, title) {
@@ -242,7 +228,7 @@ export async function longBrief(points, title, evidence) {
   }
   const grouped = await pick(pool, title);
   const chosen = {};
-  for (const role of focusedRoles()) chosen[role] = await pickFocused(role, items, title);
+  for (const role of Object.keys(focused)) chosen[role] = await pickFocused(role, items, title);
   const selected = roles.flatMap((role) => {
     const item = chosen[role] || grouped.find((x) => x.role === role)?.item;
     return item ? [{ role, item }] : [];

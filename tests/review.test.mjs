@@ -10,29 +10,8 @@ import {
   toCsv,
   rubric,
   sheet,
-  total,
-  validateReport,
-  scopeConflicts,
 } from "../src/review/review.mjs";
 
-const ref = { text: "근거 있음", refs: ["S1.1"] };
-function fixture() {
-  return {
-    category: "시설·비품·공간",
-    summary: ref,
-    strengths: [ref],
-    weaknesses: [ref],
-    usability: ref,
-    feasibility: ref,
-    questions: ["어디에 배치하는가?"],
-    criteria: Object.fromEntries(
-      defaults.criteria.map((_, i) => [
-        "K" + (i + 1),
-        { basis: "scored", level: 7, reason: "기록", refs: ["S1.1"] },
-      ]),
-    ),
-  };
-}
 test("기본 분야는 회사 전체를 다루고 배점 합은 10점이다", () => {
   const r = rubric(defaults);
   assert.ok(r.categories.includes("조직문화·교류"));
@@ -47,7 +26,7 @@ test("기본 분야는 회사 전체를 다루고 배점 합은 10점이다", ()
     }),
   );
 });
-test("필수 캡처 누락 및 판독 실패를 낮은 점수 대신 보류한다", () => {
+test("필수 캡처 누락과 판독 실패를 찾는다", () => {
   const c = {
     status: "ready",
     label: "발표 1",
@@ -58,44 +37,8 @@ test("필수 캡처 누락 및 판독 실패를 낮은 점수 대신 보류한�
     lines: [{ text: "문장" }],
   };
   assert.deepEqual(coverage([c]), ["발표 · 누락된 쪽 2"]);
-  assert.equal(total(fixture(), defaults, coverage([c])), null);
   assert.deepEqual(coverage([c, { ...c, page: 2 }]), []);
   assert.ok(coverage([{ ...c, status: "failed" }]).length);
-});
-test("허용된 실제 근거와 점수 범위를 확인한다", () => {
-  const r = fixture();
-  assert.equal(total(validateReport(r, defaults, ["S1.1"]), defaults), 7);
-  r.criteria.K3.level = 8;
-  assert.equal(total(r, defaults), 7.3);
-  r.criteria.K3.basis = "recapture";
-  validateReport(r, defaults, ["S1.1"]);
-  assert.equal(total(r, defaults), null);
-  r.summary = { text: "미확인", refs: ["S90.0"] };
-  assert.throws(() => validateReport(r, defaults, ["S1.1"]));
-});
-test("비품 제안에 자료 밖의 신원확인 또는 거래 규제를 감점 근거로 강요하지 않는다", () => {
-  const r = fixture();
-  r.weaknesses = [
-    { text: "방문객 신분 확인 절차가 없어 미흡하다.", refs: ["S1.1"] },
-  ];
-  assert.ok(scopeConflicts(r, "현관에서 우산을 대여한다.").length);
-  assert.deepEqual(scopeConflicts(r, "방문객 신분 확인을 한다."), []);
-  r.category = "거래·입출금·지갑";
-  assert.deepEqual(scopeConflicts(r, "원화 출금"), []);
-});
-
-import { amountTokens, checkSum } from "../src/ocr/amounts.mjs";
-test("검산은 OCR 원문 수치와 같은 단위를 사용하며 중복 합산을 거부한다", () => {
-  const lines = [
-    { text: "우산 2.3만원" },
-    { text: "거치대 1.1만원" },
-    { text: "합계 3.4만원" },
-  ];
-  const [a, b, c] = amountTokens(lines).map((x) => x.id);
-  assert.equal(checkSum(lines, [a, b], c, "만원").computed, "3.4");
-  assert.throws(() => checkSum(lines, [a, b], c, "원"));
-  assert.throws(() => checkSum(lines, [a, a], c, "만원"));
-  assert.equal(checkSum(lines, [a], c, "만원").difference, "-1.1");
 });
 test("채점표는 항목 점수의 합을 확정 점수로 삼고 선택지 밖의 값은 받지 않는다", () => {
   const filled = { scores: [1.5, 2, 1.8, 1, 0.7], checks: ["규제 검토", "없는 표시"], scale: "과제화", decision: "채택 검토",

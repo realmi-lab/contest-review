@@ -1,10 +1,10 @@
-import { chat, pack, sourceParts } from "../ai/model.mjs";
+import { pack, sourceParts } from "../ai/batches.mjs";
 import { directChecks } from "../check/grounding.mjs";
 import { visualClaimProblem } from "./visual-claims.mjs";
 import { checkStrengthenedObligation } from "../check/obligation-check.mjs";
 import { markDisputedDefinition } from "../check/formula-check.mjs";
 import { excerptSentences, sentencesOf } from "./long-brief.mjs";
-import { activeHaikuKey } from "../ai/claude-summary.mjs";
+import { chat } from "../ai/claude-summary.mjs";
 import { claimsAbsence, danglingStart, describesDocument, digits, notStatement, plainVoice, unprintedNumbers } from "./statement-filters.mjs";
 import { storyBrief } from "./story-brief.mjs";
 import { sourceSections, draftSections, includeSections, overviewItems } from "./source-sections.mjs";
@@ -76,7 +76,7 @@ function grounded(p, evidence) {
 }
 
 // 요약 문장의 낱말이 모두 인용 원문(또는 문서 제목)에 있으면 원문을 줄여 옮긴 문장이다.
-// 수치·조건은 grounded()가 이미 대조했으므로 모델 검토 없이 받아들인다. 로컬 9B는 이런 문장도
+// 수치·조건은 grounded()가 이미 대조했으므로 모델 검토 없이 받아들인다. 모델은 이런 문장도
 // 주어 하나가 인용 줄에 없다는 이유로 떨어뜨렸다(실측: "예술의전당의 좌석 등급을 추정하기 위해 K-means …").
 const ending = /(?:했습니다|하였습니다|합니다|입니다|됩니다|하였다|했다|한다|된다|하여|하고|하기|하는|에서|으로|부터|까지|함|됨|을|를|이|가|은|는|의|에|로|와|과|도)$/u;
 const connective = /^(?:위해|위한|통해|통한|대한|대해|따라|따른|경우|그리고)$/u;
@@ -196,10 +196,10 @@ async function detailAnchors(r, core, lead, points, excluded, run) {
   return [...picked, ...await batchPick(pool)];
 }
 
-// 요약 편집본. Haiku면 마지막에 "~가 제시되지 않았다"는 문장을 원문 전체와 대조해 고친다.
+// 요약 편집본. 마지막에 "~가 제시되지 않았다"는 문장을 원문 전체와 대조해 고친다.
 export async function composeEdition(r, progress, run = chat, options = {}) {
   const edition = await draftEdition(r, progress, run, options);
-  return activeHaikuKey() ? correctAbsences(edition, r, progress, run) : edition;
+  return correctAbsences(edition, r, progress, run);
 }
 
 // 앞 문장을 받아 이어지는 문장인가(이를·이에·이후·또 …)
@@ -261,7 +261,7 @@ export async function correctAbsences(edition, r, progress, run) {
   return result;
 }
 
-async function draftEdition(r, progress, run, { captures = [], withTables = (edition) => edition } = {}) {
+async function draftEdition(r, progress, run, { captures = [] } = {}) {
   const excluded = new Set((r.visualChecks || []).flatMap((c) => c.refs));
   const usable = (list) => (list || []).filter((p) => citeable(p, r, excluded)).map((p) => {
     const text = plainVoice(p.text);
@@ -269,39 +269,37 @@ async function draftEdition(r, progress, run, { captures = [], withTables = (edi
   });
   const points = usable(r.points), lead = usable(r.lead);
   const picked = briefAnchors(lead.length ? lead : points);
-  if (!picked.length) return withTables(emptyEdition());
-  // Haiku는 핵심 요약을 한 줄 요약 → 문제 → 목표 → 방법 → 결과 → 시사점 → 한계 순서로 새로 쓴다(story-brief.mjs).
+  if (!picked.length) return emptyEdition();
+  // 핵심 요약을 한 줄 요약 → 문제 → 목표 → 방법 → 결과 → 시사점 → 한계 순서로 새로 쓴다(story-brief.mjs).
   // 세 가지 이상 통과했을 때만 쓰고, 아니면 고른 요점을 한 줄씩 다듬는 기존 방식으로 간다.
   // 답은 여러 요점을 엮은 문장이라, 수치는 그 요점들의 근거 전부와 대조하고 인용 검토는 요점 문장(basis)과 대조한다.
   // 한 근거 문장을 전제로 한 나머지 대조(그림 서술·세부 조건·의무 표현)는 엮은 문장에서 오탐이 나므로 쓰지 않는다
   // (실측: "…기능을 담은 플랫폼이 화면으로 소개된다" 탈락). 재료가 된 요점은 이미 그 대조를 거쳤다.
   // 끝내 쓰지 못한 물음은 다른 줄로 메우지 않고 edition.missing에 이름과 이유를 남겨 화면이 알린다.
   let story = [];
-  if (activeHaikuKey()) {
-    progress("핵심 요약 작성 · 문제·목표·방법·결과·시사점·한계 순서");
-    // 답을 문장으로 나눠 문장마다 대조하고, 통과한 문장만 남긴다. 여러 사실을 엮은 줄은 구절 하나가 걸려도
-    // 줄 전체가 빠졌다(실측: 전체 30개 다시 요약에서 정확한 '어떻게 푸는가' 3개가 통째로 빠짐).
-    const accept = async (answers) => { // 답마다 { why: 탈락 이유(통과면 ""), text: 통과한 문장들 }
-      const sentences = answers.flatMap((s, owner) =>
-        sentencesOf(s.point.text).map((text) => ({ owner, point: { ...s.point, text }, basis: s.basis })));
-      const numbered = sentences.filter((x) => numbersPrinted(x.point, r.evidence));
-      const passed = await reviewEntries(numbered, r, progress, run);
-      const ok = (x) => passed.has(numbered.indexOf(x) + 1);
-      return answers.map((s, owner) => {
-        const mine = sentences.filter((x) => x.owner === owner);
-        // 앞 문장이 빠졌는데 그 문장을 받는 말로 이어지는 문장도 함께 뺀다(실측: "관리자는 웹에서 이를 모아 …"만 남음).
-        const kept = mine.filter((x, i) => ok(x) && (i === 0 || ok(mine[i - 1]) || !leansOnPrevious(x.point.text)));
-        if (kept.length) return { why: "", text: kept.map((x) => x.point.text).join(" ") };
-        const unnumbered = mine.filter((x) => !numbered.includes(x));
-        if (!unnumbered.length) return { why: "인용 검토" };
-        return { why: "수치 대조: " + (unnumbered.flatMap((x) => unprinted(x.point, r.evidence)).join(", ") || "깨진 지표 표기") };
-      });
-    };
-    try {
-      story = await storyBrief(r.title, points, run, accept);
-    } catch (err) { // 응답이 잘리거나 양식이 틀리면 기존 방식으로 계속한다.
-      if (!/응답이 길어|양식에 맞게 응답하지/u.test(err.message)) throw err;
-    }
+  progress("핵심 요약 작성 · 문제·목표·방법·결과·시사점·한계 순서");
+  // 답을 문장으로 나눠 문장마다 대조하고, 통과한 문장만 남긴다. 여러 사실을 엮은 줄은 구절 하나가 걸려도
+  // 줄 전체가 빠졌다(실측: 전체 30개 다시 요약에서 정확한 '어떻게 푸는가' 3개가 통째로 빠짐).
+  const accept = async (answers) => { // 답마다 { why: 탈락 이유(통과면 ""), text: 통과한 문장들 }
+    const sentences = answers.flatMap((s, owner) =>
+      sentencesOf(s.point.text).map((text) => ({ owner, point: { ...s.point, text }, basis: s.basis })));
+    const numbered = sentences.filter((x) => numbersPrinted(x.point, r.evidence));
+    const passed = await reviewEntries(numbered, r, progress, run);
+    const ok = (x) => passed.has(numbered.indexOf(x) + 1);
+    return answers.map((s, owner) => {
+      const mine = sentences.filter((x) => x.owner === owner);
+      // 앞 문장이 빠졌는데 그 문장을 받는 말로 이어지는 문장도 함께 뺀다(실측: "관리자는 웹에서 이를 모아 …"만 남음).
+      const kept = mine.filter((x, i) => ok(x) && (i === 0 || ok(mine[i - 1]) || !leansOnPrevious(x.point.text)));
+      if (kept.length) return { why: "", text: kept.map((x) => x.point.text).join(" ") };
+      const unnumbered = mine.filter((x) => !numbered.includes(x));
+      if (!unnumbered.length) return { why: "인용 검토" };
+      return { why: "수치 대조: " + (unnumbered.flatMap((x) => unprinted(x.point, r.evidence)).join(", ") || "깨진 지표 표기") };
+    });
+  };
+  try {
+    story = await storyBrief(r.title, points, run, accept);
+  } catch (err) { // 응답이 잘리거나 양식이 틀리면 기존 방식으로 계속한다.
+    if (!/응답이 길어|양식에 맞게 응답하지/u.test(err.message)) throw err;
   }
   const told = story.filter((s) => s.point).length >= 3;
   const brief = told ? story.filter((s) => s.point).map(({ point }) => ({ ...point, refs: shownRefs(point, r.evidence) })) : picked;
@@ -333,19 +331,18 @@ async function draftEdition(r, progress, run, { captures = [], withTables = (edi
     }
   }
   const reviewed = await reviewEntries(entries, r, progress, run);
-  const base = emptyEdition(), seen = new Set();
+  const edition = emptyEdition(), seen = new Set();
   const add = (view, point) => {
     if (!point || seen.has(normalized(point.text))) return;
     seen.add(normalized(point.text));
-    base[view].push(markDisputedDefinition({ ...point, topic: shownTopic(point) }, r.sourceAlerts));
+    edition[view].push(markDisputedDefinition({ ...point, topic: shownTopic(point) }, r.sourceAlerts));
   };
   if (told) {
     brief.forEach((point) => add("brief", point));
     // rejected: 검증에서 떨어진 마지막 초안. 화면에는 쓰지 않고 원인을 확인할 때 본다.
-    base.missing = story.filter((s) => !s.point).map(({ label, why, text }) => ({ topic: label, why, ...(text ? { rejected: text } : {}) }));
+    edition.missing = story.filter((s) => !s.point).map(({ label, why, text }) => ({ topic: label, why, ...(text ? { rejected: text } : {}) }));
   }
   entries.forEach(({ view, point, fallback }, i) => add(view, reviewed.has(i + 1) ? point : fallback));
-  const edition = withTables(base);
   if (points.length < 16) return edition;
   const plan = sourceSections(r, excluded, captures);
   if (plan.groups.length < 3) return edition;
@@ -404,9 +401,7 @@ async function reviewEntries(entries, r, progress, run) {
     }
     for (const i of keys) if (checks["P" + i] === true) for (const j of indices.get(i)) reviewed.add(j);
   }
-  // 로컬 9B 모델은 여러 문장을 한꺼번에 검토하면 맞는 의역도 떨어뜨린다
-  // (실측: 4개 묶음에서 false였던 문장이 하나씩 물으면 true). 그래서 로컬은 한 문장씩 묻는다.
-  const size = activeHaikuKey() ? 8 : 1;
+  const size = 8; // 한 요청에 여덟 문장씩 묻는다
   for (const [list, rule] of [[woven, STORY_RULE], [rows, SOURCE_RULE]]) {
     for (const batch of pack(list, 4400)) {
       for (let i = 0; i < batch.length; i += size) await verify(batch.slice(i, i + size), rule);

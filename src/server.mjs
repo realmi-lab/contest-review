@@ -8,12 +8,10 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
-import { amountTokens, checkSum } from "./ocr/amounts.mjs";
 import { defaults, finalSheet, followupSheet, rubric, scoreRows, sheet, stalled, toCsv } from "./review/review.mjs";
 import { similarWorks } from "./review/similar.mjs";
 import { summarize, checkLogic } from "./summary/reading.mjs";
 import { ideaOpinion } from "./check/idea-opinion.mjs";
-import { evaluate, compareResults, modelInfo, model } from "./ai/model.mjs";
 import { sampleImage } from "./sample.mjs";
 import {
   checkSources, copyAttachments, distribute, evaluationFile, fileIndex, FORMS_DEFAULTS, formsConfig, homePath,
@@ -45,10 +43,6 @@ db.exec(
 const put = db.prepare(
   "INSERT INTO works(id,data) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
 );
-db.exec(`CREATE TABLE IF NOT EXISTS original_pdfs (
-  work TEXT PRIMARY KEY REFERENCES works(id) ON DELETE CASCADE,
-  pdf BLOB NOT NULL
-)`);
 db.exec(`CREATE TABLE IF NOT EXISTS last_haiku_usage (
   work TEXT NOT NULL REFERENCES works(id) ON DELETE CASCADE,
   kind TEXT NOT NULL, rev INTEGER NOT NULL, usage TEXT NOT NULL,
@@ -171,7 +165,6 @@ function newWork(name, spec = defaults, values = {}) {
     rubric: rubric(spec),
     complete: false,
     captures: [],
-    result: null,
     final: null,
     error: "",
   });
@@ -337,10 +330,10 @@ function syncIntake() {
 syncIntake();
 setInterval(syncIntake, 60_000).unref();
 const tasks = new Map();
-// 이 맥의 자원을 쓰는 작업(OCR·로컬 모델)은 한 줄로 차례로 처리한다.
-// Haiku 요청은 맥 자원을 거의 쓰지 않으므로 별도 줄에서 처리해 OCR을 막지 않는다.
-const queues = { local: Promise.resolve(), cloud: Promise.resolve() };
-function schedule(key, work, label, fn, lane = "local") {
+// 이 컴퓨터의 자원을 쓰는 작업(글자 인식·문서 캡처)은 한 줄로 차례로 처리한다.
+// AI 요청은 이 컴퓨터 자원을 거의 쓰지 않으므로 별도 줄에서 처리해 글자 인식을 막지 않는다.
+const queues = { machine: Promise.resolve(), ai: Promise.resolve() };
+function schedule(key, work, label, fn, lane = "machine") {
   if (tasks.has(key)) err("이미 대기 중인 작업입니다.", 409);
   const job = { work, label: "대기 · " + label };
   tasks.set(key, job);
@@ -425,8 +418,6 @@ function enqueueOcr(wid, cid) {
         dropped: result.dropped || 0,
       };
     else delete c.ocrInfo;
-    c.amounts = amountTokens(c.lines);
-    c.sumCheck = null;
     c.ocrWidth = result?.width || c.width;
     c.ocrHeight = result?.height || c.height;
     c.status = problem ? "failed" : "ready";
@@ -454,7 +445,7 @@ async function replaceImage(wid, cid, bytes) {
   const { data, info } = await pngOf(bytes);
   const w = load(wid), c = w.captures.find((x) => x.id === cid);
   if (!c) return;
-  for (const key of ["ocrInfo", "amounts", "sumCheck"]) delete c[key];
+  delete c.ocrInfo;
   Object.assign(c, { id: randomUUID(), hash: createHash("sha256").update(data).digest("hex"), lines: [], status: "queued",
     issue: "", width: info.width, height: info.height });
   changed(w, true);
@@ -520,17 +511,8 @@ async function addImage(wid, b, bytes) {
   enqueueOcr(w.id, c.id);
   return c.id;
 }
-for (const w of list()) {
-  let migrated = false;
-  for (const c of w.captures) {
-    if (c.status === "queued") enqueueOcr(w.id, c.id);
-    if (c.status === "ready" && !c.amounts) {
-      c.amounts = amountTokens(c.lines);
-      migrated = true;
-    }
-  }
-  if (migrated) save(w);
-}
+// 서버가 꺼지기 전에 줄 서 있던 글자 인식을 다시 줄 세운다.
+for (const w of list()) for (const c of w.captures) if (c.status === "queued") enqueueOcr(w.id, c.id);
 async function body(req) {
   const parts = [];
   let n = 0;
@@ -630,33 +612,16 @@ function login(res, code) {
   rememberAccess(res);
 }
 
-// 엔진 상태는 뒤에서 갱신한다. Ollama가 느려도 목록 응답(/api/state)은 기다리지 않는다.
-let healthValue = null,
-  healthAt = 0,
-  healthCheck = null;
-async function checkHealth() {
-  const [m, files] = await Promise.all([
-    modelInfo().catch(() => null),
-    Promise.all(
-      ["det.onnx", "rec_korean.onnx", "rec_korean.yml"].map((x) =>
-        stat(path.join(root, "vendor/models/ppocr", x)).catch(() => null),
-      ),
-    ),
-  ]);
-  healthValue = { model, modelReady: !!m, ocrReady: files.every(Boolean) };
-  healthAt = Date.now();
-}
+// 글자 인식 모델 파일이 준비됐는가(화면 왼쪽 아래 상태 표시)
 async function health() {
-  if (Date.now() - healthAt > 5000 && !healthCheck)
-    healthCheck = checkHealth().finally(() => (healthCheck = null));
-  if (!healthValue) await healthCheck; // 서버 시작 직후 한 번만 기다린다
-  return healthValue;
+  const files = await Promise.all(["det.onnx", "rec_korean.onnx", "rec_korean.yml"].map((x) =>
+    stat(path.join(root, "vendor/models/ppocr", x)).catch(() => null)));
+  return { ocrReady: files.every(Boolean) };
 }
 // 요약(이어서 사실·논리 점검) 또는 점검만 대기열에 넣는다. 요청 처리(/api/summarize·check-logic)와 자동 진행이 함께 쓴다.
-function startSummary(w, check, cloud, key) {
-  const readingField = cloud ? "cloudReading" : "reading";
-  const logicField = cloud ? "cloudLogic" : "logic";
-  const reading = w[readingField];
+// 결과는 작품의 cloudReading(요약)·cloudLogic(점검)에 둔다. (예전 로컬 모델 결과와 구분하던 이름을 그대로 쓴다.)
+function startSummary(w, check, key) {
+  const reading = w.cloudReading;
   if (!w.captures.length || w.captures.some((c) => c.status === "queued"))
     err("캡처의 문자 인식이 완료되어야 합니다.");
   if (check && (!reading || reading.rev !== w.rev))
@@ -666,13 +631,12 @@ function startSummary(w, check, cloud, key) {
   schedule(
     (check ? "logic-" : "summary-") + w.id,
     w.id,
-    (cloud ? haikuLabel + " · " : "로컬 · ") + (check ? "사실·논리 점검 준비" : "요약 준비"),
+    haikuLabel + " · " + (check ? "사실·논리 점검 준비" : "요약 준비"),
     // 과정: (OCR →) AI 요약 → AI 사실·논리 점검. 요약을 만들면 점검까지 이어서 한다.
     async (progress) => {
       if (load(w.id).rev !== w.rev) throw Error("대기 중 자료가 변경되었습니다. 새 자료로 실행하세요.");
-      // 한 단계를 실행한다. Haiku면 단계마다 사용량을 따로 기록한다.
+      // 한 단계를 실행하고 단계마다 사용량을 따로 기록한다.
       const step = async (kind, run, readingId) => {
-        if (!cloud) return run();
         const usage = newHaikuUsage(randomUUID());
         if (readingId) usage.readingId = readingId;
         const startedAt = new Date().toISOString();
@@ -697,20 +661,18 @@ function startSummary(w, check, cloud, key) {
         latest.error = "";
         save(latest);
       };
-      const provider = cloud ? "haiku" : "local";
       let current = reading;
       if (!check) {
         const output = await step("summary", () => summarize({ ...w, reading }, image, progress));
-        current = { ...output, rev: w.rev, provider, ...(cloud ? { effort: haikuEffortNote } : {}) };
+        current = { ...output, rev: w.rev, effort: haikuEffortNote };
         store((latest) => {
-          latest[readingField] = current;
-          latest[logicField] = null;
+          latest.cloudReading = current;
+          latest.cloudLogic = null;
         });
       }
-      // 점검 끝에 'AI가 본 이 아이디어'(idea-opinion.mjs)를 쓴다. Haiku로만 쓰고, 실패해도 점검 결과는 남긴다.
+      // 점검 끝에 'AI가 본 이 아이디어'(idea-opinion.mjs)를 쓴다. 실패해도 점검 결과는 남긴다.
       const logic = await step("logic", async () => {
-        const result = await checkLogic(current, w.captures, progress);
-        if (!cloud) return result;
+        const result = await checkLogic(current, progress);
         progress("AI가 본 이 아이디어 쓰기");
         try {
           result.opinion = await ideaOpinion(current, result.issues.filter((x) => x.status !== "참고"));
@@ -720,11 +682,11 @@ function startSummary(w, check, cloud, key) {
         return result;
       }, current.id);
       store((latest) => {
-        if (latest[readingField]?.id !== current.id) throw Error("작업 중 자료가 변경되었습니다. 새 자료로 실행하세요.");
-        latest[logicField] = { ...logic, provider };
+        if (latest.cloudReading?.id !== current.id) throw Error("작업 중 자료가 변경되었습니다. 새 자료로 실행하세요.");
+        latest.cloudLogic = logic;
       });
     },
-    cloud ? "cloud" : "local",
+    "ai",
   );
   w.error = "";
   save(w);
@@ -741,7 +703,7 @@ async function autoSummarize(wid) {
   if (!key) return;
   s.autoRev = w.rev;
   save(w);
-  startSummary(w, false, true, key);
+  startSummary(w, false, key);
 }
 
 // 최근 7일(UTC) AI 사용량: 응답마다 받은 토큰 수에 공식 단가를 곱해 이 서버에서 계산한 날짜별 기록
@@ -832,7 +794,7 @@ async function handleRequest(req, res) {
       res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(`채점 결과 ${day}.csv`)}`);
       return res.end(toCsv(scoreRows(list(), defaults.criteria)));
     }
-    const match = pathname.match(/^\/api\/(work|image|original|similar)\/([0-9a-f-]{36})$/);
+    const match = pathname.match(/^\/api\/(work|image|similar)\/([0-9a-f-]{36})$/);
     if (req.method === "GET" && match) {
       // 비슷한 제안 (similar.mjs). 판정(중복·관련·무관)은 어느 쪽 작품에 남겼든 함께 보여 준다.
       if (match[1] === "similar") {
@@ -844,25 +806,13 @@ async function handleRequest(req, res) {
       if (match[1] === "work") {
         const work = load(match[2]);
         // 예전에 만든 요약도 근거 칩이 수치가 적힌 쪽을 가리키게 보낸다(저장된 요약은 그대로 둔다).
-        for (const reading of [work.cloudReading, work.reading])
-          if (reading?.edition && reading.evidence)
-            for (const view of ["brief", "detail"])
-              reading.edition[view] = (reading.edition[view] || []).map((p) => ({ ...p, refs: shownRefs(p, reading.evidence) }));
-        if (work.original) {
-          delete work.original.license;
-          delete work.original.notice;
-        }
+        const reading = work.cloudReading;
+        if (reading?.edition && reading.evidence)
+          for (const view of ["brief", "detail"])
+            reading.edition[view] = (reading.edition[view] || []).map((p) => ({ ...p, refs: shownRefs(p, reading.evidence) }));
         work.lastHaikuUsage = Object.fromEntries(readUsage.all(work.id, work.rev)
           .map((row) => [row.kind, JSON.parse(row.usage)]));
         return json(work);
-      }
-      if (match[1] === "original") {
-        const original = db.prepare("SELECT pdf FROM original_pdfs WHERE work=?").get(match[2]);
-        if (!original) err("등록된 원본 PDF가 없습니다.", 404);
-        const filename = encodeURIComponent(load(match[2]).name + ".pdf").replace(/'/g, "%27");
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + filename);
-        return res.end(original.pdf);
       }
       // 캡처 이미지는 id마다 내용이 바뀌지 않으므로 브라우저에만(private) 오래 보관한다.
       res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
@@ -987,10 +937,8 @@ async function handleRequest(req, res) {
       return json({ report, intake: intake.view });
     }
     const summaryRequest = pathname === "/api/summarize" || pathname === "/api/check-logic";
-    if (summaryRequest && ![undefined, "local", "haiku"].includes(b.provider)) err("요약 모델을 확인하세요.");
-    const cloud = summaryRequest && b.provider === "haiku";
-    const key = cloud ? await savedKey() : "";
-    if (cloud && !key) err("서버에 Claude API 키가 없습니다. 맥의 요약 설정에서 등록하세요.", 503);
+    const key = summaryRequest ? await savedKey() : "";
+    if (summaryRequest && !key) err("서버에 Claude API 키가 없습니다. 요약 설정에서 등록하세요.", 503);
     const w = load(b.id);
     if (pathname === "/api/intake") {
       const version = w.intakeVersion ?? 0;
@@ -1042,35 +990,15 @@ async function handleRequest(req, res) {
       summaries = null;
       return json({ ok: true });
     }
-    if (pathname === "/api/clear-summary") {
-      if (!["local", "haiku"].includes(b.provider)) err("요약 모델을 확인하세요.");
-      if ([...tasks.values()].some((t) => t.work === w.id)) err("작업 완료 후 지우세요.", 409);
-      const ai = b.provider === "haiku";
-      w[ai ? "cloudReading" : "reading"] = null;
-      w[ai ? "cloudLogic" : "logic"] = null;
-      if (ai) db.prepare("DELETE FROM last_haiku_usage WHERE work=?").run(w.id);
-      save(w);
-      return json({ ok: true });
-    }
-    // 기준이나 빠짐없음 표시가 바뀌면 심사 결과만 지난 것으로 돌린다.
+    // 기준이나 빠짐없음 표시가 바뀌면 확정 점수만 지운다.
     // 캡처는 그대로이므로 rev를 올리지 않아 내용 요약(유료)은 남는다.
     if (pathname === "/api/settings") {
-      if (tasks.has("review-" + w.id)) err("예비 심사가 끝난 뒤 바꾸세요.", 409);
       w.rubric = rubric(b.rubric);
       w.complete = b.complete === true;
-      if (w.result) w.result.rev = null;
       w.final = null;
       w.error = "";
       save(w);
       return json({ ok: true });
-    }
-    if (pathname === "/api/sum") {
-      const c = w.captures.find((x) => x.id === b.capture);
-      if (c?.status !== "ready") err("문자 인식이 완료된 캡처를 선택하세요.");
-      c.sumCheck = checkSum(c.lines, b.parts, b.reported, b.unit);
-      changed(w);
-      save(w);
-      return json(c.sumCheck);
     }
     // 도식 검토로 지정(캡처 여러 장 한 번에). 다음 요약부터 그 쪽은 이미지도 함께 읽는다.
     if (pathname === "/api/visual") {
@@ -1121,35 +1049,12 @@ async function handleRequest(req, res) {
       return json({ ok: true });
     }
     if (summaryRequest) {
-      startSummary(w, pathname === "/api/check-logic", cloud, key);
+      startSummary(w, pathname === "/api/check-logic", key);
       return json({ ok: true }, 202);
     }
-    if (pathname === "/api/evaluate") {
-      if (!w.captures.length || w.captures.some((c) => c.status === "queued"))
-        err("캡처를 접수하고 OCR 완료 후 심사하세요.");
-      if (!w.captures.some((c) => c.lines.length || c.visual))
-        err("심사할 수 있는 근거가 없습니다.");
-      schedule("review-" + w.id, w.id, "심사 준비 중", async (progress) => {
-        const result = await evaluate(w, w.captures, image, progress);
-        const latest = load(w.id);
-        if (latest.rev !== w.rev)
-          throw new Error(
-            "심사 중 자료가 변경되었습니다. 새 자료로 다시 심사하세요.",
-          );
-        result.rev = w.rev;
-        latest.result = result;
-        latest.final = null;
-        latest.error = "";
-        save(latest);
-      });
-      w.error = "";
-      save(w);
-      return json({ ok: true }, 202);
-    }
-    // 채점표 확정. AI 예비 심사는 참고용이라 없어도 확정할 수 있다.
+    // 채점표 확정
     if (pathname === "/api/final") {
       if (!w.captures.length) err("캡처 자료를 올린 뒤 채점하세요.");
-      if (tasks.has("review-" + w.id)) err("예비 심사가 끝난 뒤 확정하세요.");
       // 채점표를 연 뒤에 다른 평가자가 확정·수정했으면 덮어쓰지 않는다(base: 화면이 연 채점표의 확정 시각).
       if ((b.base || null) !== (w.final?.when || null))
         err("그사이 다른 평가자가 이 채점표를 확정했습니다. 새로고침해 확인한 뒤 다시 저장하세요.", 409);
@@ -1164,38 +1069,6 @@ async function handleRequest(req, res) {
       save(w);
       return json({ ok: true });
     }
-    if (pathname === "/api/compare") {
-      const other = load(b.other);
-      if (
-        other.id === w.id ||
-        other.result?.rev !== other.rev ||
-        w.result?.rev !== w.rev ||
-        other.result?.total == null ||
-        w.result?.total == null ||
-        !w.result.report?.category ||
-        other.result.report?.category !== w.result.report.category
-      )
-        err("같은 분야에서 예비점수가 나온 서로 다른 두 작품을 선택하세요.");
-      const criterion = bounded(b.criterion, 50),
-        key = "compare-" + w.id;
-      schedule(key, w.id, "두 작품 순서를 바꿔 비교 중", async () => {
-        const comparison = await compareResults(w, other, criterion);
-        const fresh = load(w.id);
-        if (fresh.rev !== w.rev || load(other.id).rev !== other.rev)
-          throw new Error("비교 중 자료가 변경되었습니다.");
-        fresh.comparison = {
-          ...comparison,
-          criterion,
-          other: other.name,
-          when: new Date().toISOString(),
-          rev: w.rev,
-          otherId: other.id,
-          otherRev: other.rev,
-        };
-        save(fresh);
-      });
-      return json({ ok: true }, 202);
-    }
     err("지원하지 않는 작업입니다.", 404);
   } catch (e) {
     if (e.code === "ENOENT") return json({ error: "파일을 찾을 수 없습니다." }, 404);
@@ -1203,7 +1076,7 @@ async function handleRequest(req, res) {
   }
 }
 
-// 서비스 재시작(launchctl kickstart) 때 진행 중이던 요약·심사가 말없이 사라지지 않도록 기록한다.
+// 서비스 재시작(launchctl kickstart) 때 진행 중이던 요약·점검이 말없이 사라지지 않도록 기록한다.
 // 대기 중인 OCR은 다음 시작 때 다시 줄을 선다.
 function stopServer() {
   for (const [key, job] of tasks) {

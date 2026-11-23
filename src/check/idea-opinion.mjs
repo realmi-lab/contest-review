@@ -1,7 +1,7 @@
 // AI가 본 이 아이디어: 한마디 평 · 좋은 점 · 약한 점 · 제안자에게 물어볼 것 · 우리 회사(가상자산 거래소)에 적용한다면.
 // 점수·등급·채택 판단은 내지 않는다(채점과 결정은 사람이 한다). 원문 근거가 확인된 요점과 점검 결과만 재료로 쓰고,
 // 좋은 점·약한 점은 근거 요점 번호를 받아 그 요점의 원문 근거(쪽)를 잇는다. 번호를 댈 수 없는 줄은 버린다.
-import { chat } from "../ai/model.mjs";
+import { chat } from "../ai/claude-summary.mjs";
 import { pageTag } from "../summary/long-brief.mjs";
 
 const POINTS = 60; // 요약 문장 외에 보내는 요점 수(문서 앞에서 뒤까지 고르게)

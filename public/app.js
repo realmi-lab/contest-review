@@ -62,7 +62,7 @@ const ICONS = {
 const icon = (name, size = 18) =>
   `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
 
-// engine: 로컬 모델이 필요한 버튼 (작업 중·모델 미연결이면 잠김)
+// engine: 작업을 시작하는 버튼 (이 작품의 작업이 진행·대기 중이면 잠김)
 const button = (action, label, cls = "", engine = false) =>
   `<button type="button" data-action="${action}" class="${cls}" ${engine ? "data-engine" : ""}>${esc(label)}</button>`;
 const field = (label, control) =>
@@ -1448,7 +1448,6 @@ function drawViewer(c) {
     ${ocrNotes(c)}
     <ol class="ocrlines">${join(c.lines, (l, i) => `<li class="${cited.has(i) ? "cited" : ""}">${esc(l.text)}</li>`)}</ol>
     ${c.ocrError ? `<p class="warning">${esc(c.ocrError)}</p>` : ""}
-    ${c.sumCheck ? `<p class="warning">${esc(c.sumCheck.text)}</p>` : ""}
 `;
   pane.hidden = false;
   document.body.classList.add("has-evidence");
@@ -1832,7 +1831,7 @@ async function startJob(route, nextTab) {
     const scope = route === "summarize" ? "요약에 이어 사실·논리 점검까지 실행합니다.\n" : "";
     if (!confirm(`${work.name}\n${scope}${cloudScope()}\n${aiLabel()}로 실행할까요?`)) return;
   }
-  await api(route, { ...target, ...(summary ? { provider: "haiku" } : {}) });
+  await api(route, target);
   if (selected !== target.id) return;
   if (route === "summarize") closeViewer();
   tab = nextTab;
@@ -2044,7 +2043,7 @@ const forms = {
     if (!(await api("summary-settings")).configured) return openSummarySettings();
     const scope = form.elements.scope.value, targets = batchTargets(scope), failed = [];
     for (const x of targets)
-      await api(batchRoute(scope, x), { id: x.id, rev: x.rev, provider: "haiku" }).catch((e) => failed.push(e.message));
+      await api(batchRoute(scope, x), { id: x.id, rev: x.rev }).catch((e) => failed.push(e.message));
     closeDialog();
     const queued = targets.length - failed.length;
     notify(`${queued}개 작품을 대기열에 넣었습니다.` + (failed.length ? ` ${failed.length}개는 넣지 못했습니다 · ${failed[0]}` : ""), !queued);

@@ -12,8 +12,9 @@ import { alignedPercentColumns } from "../ocr/aligned-tables.mjs";
 import { longBrief, attachSurveyContext } from "./long-brief.mjs";
 import { composeEdition } from "./reading-edition.mjs";
 import { createHash, randomUUID } from "node:crypto";
-import { capturePng, chat, chunk, collectEvidence, pack, model, modelInfo, SCAN_CHARS, sourceParts } from "../ai/model.mjs";
-import { activeHaikuKey, extractEffort, withEffort } from "../ai/claude-summary.mjs";
+import { chunk, pack, SCAN_CHARS, sourceParts } from "../ai/batches.mjs";
+import { chat, extractEffort, haiku, modelDigest, withEffort } from "../ai/claude-summary.mjs";
+import { collectEvidence } from "./evidence.mjs";
 import { describesDocument, notStatement, withoutEventPreamble } from "./statement-filters.mjs";
 import { directChecks } from "../check/grounding.mjs";
 import { coverage } from "../review/review.mjs";
@@ -77,11 +78,9 @@ const EXTRACT_RULES = [
   "포괄적인 제목만 되풀이하지 말고 이 문서만의 구체적 차이를 쓴다. '원문은', '~라고 적혀 있다'처럼 문서를 가리키지 말고 내용 자체를 서술한다. 인사말, 작성자 소개, URL, 동일한 반복은 본문 항목에서 제외한다. 줄바꿈으로 잘린 문장과 표 셀은 이어 읽는다. 표의 열은 |로 구분될 수 있다. 여러 시점 값이 동일하면 기간을 합칠 수 있으나 양 끝과 단위를 보존한다.",
   "points는 요점마다 근거 ID 1~4개를 연결한다. 원문에서 서로 떨어진 조건을 이어 붙여 새로운 인과관계를 만들지 않는다. 짧은 문서 3~7개, 정보가 많은 묶음은 10개 안팎이면 충분하다. 문서 제목·쪽번호, 메뉴, 중복, 인사·연락처·참고문헌만 context로 분류한다. 주요 본문을 모두 담았으면 세부 반복을 생략할 수 있다.",
 ];
-const IMAGE_RULE =
-  "첨부된 원본 캡처와 아래 같은 쪽의 OCR을 함께 읽는다. 표마다 행·열 머리글, 그래프마다 축·범례·단위를 대조한다. 결과표는 대상별 수치와 단위를 한 요점에 묶는다. 제목·표 머리글만 설명하는 요점은 생략한다. 표에 이미 기록된 평가값은 실측·관찰 결과로 분류한다. OCR 근거 ID에서 확인되는 값만 인용하고 대상과의 연결이 불명확하거나 값이 기재되지 않았으면 생략한다.";
-// 작은 로컬 모델은 내용이 거의 없는 쪽(참고문헌 등)에서 지시문을 요점처럼 되풀이한다.
+// 내용이 거의 없는 쪽(참고문헌 등)에서 모델이 지시문을 요점처럼 되풀이할 때가 있다.
 // 지시문의 12자 이상 구절을 담고 그 구절이 인용 원문에는 없으면 요점에서 뺀다.
-const instructionText = norm([editor, ...EXTRACT_RULES, IMAGE_RULE].join(""));
+const instructionText = norm([editor, ...EXTRACT_RULES].join(""));
 export function echoesInstructions(p, evidence) {
   const text = norm(p.text);
   const source = norm(p.refs.map((r) => evidence[r]?.text || "").join(""));
@@ -180,8 +179,8 @@ export function assembleSummary(parts, evidence) {
     sourceCount: Object.keys(evidence).length,
   };
 }
-// A brief only selects already grounded statements. The document-wide pass sees
-// results and limitations from the last page as well as the opening proposal.
+// 핵심 요약은 이미 원문과 대조한 요점 가운데서만 고른다. 문서 전체를 보므로
+// 첫 쪽의 제안뿐 아니라 마지막 쪽의 결과·한계도 후보가 된다.
 async function documentBrief(points) {
   const all = points.map((p, i) => ({ id: i + 1, point: p }));
   const statements = all.filter((x) => !notStatement(x.point.text)); // 소제목·표 행은 요지 후보에서 뺀다
@@ -219,7 +218,7 @@ async function documentBrief(points) {
     return choices.map((i) => byId.get(i));
   };
   let candidates = pool;
-  // Keep each pass within the local model's context, even on long submissions.
+  // 긴 문서는 묶음마다 먼저 추린 뒤 그 가운데서 다시 고른다.
   while (true) {
     const batches = pack(
       candidates.map((x) => ({ id: x.id, text: x.point.text })),
@@ -241,20 +240,14 @@ async function documentBrief(points) {
   const chosen = await select(candidates, 6);
   return chosen.map((x) => x.point);
 }
-// 로컬 9B 모델은 진술 수십 개를 한 번에 받으면 전부 같은 역할 번호로 채운다.
-// 실측(예술의전당 71개): 한 번에 → 모두 1(대상과 배경), 12개씩 → 0~7로 고르게 분류.
-// Haiku는 기존처럼 글자 수(5100자)로만 묶는다.
-export function classificationBatches(points) {
-  const batches = pack(points.map((p, i) => ({ id: i + 1, text: p.text })), 5100);
-  return activeHaikuKey() ? batches : batches.flatMap((batch) => chunk(batch, 12));
-}
+// 역할 분류는 요점을 글자 수 5100자씩 묶어 묻는다.
+const classificationBatches = (points) => pack(points.map((p, i) => ({ id: i + 1, text: p.text })), 5100);
 // 저장된 요약의 편집 판. 이 번호와 다르면 요점 선택부터 다시 한다.
 // 7: 역할 분류 12개씩. 8: 지시문 되풀이 제거. 9·10: 핵심 제안 별도 선택(쪽 위치). 11·12: 문서 설명·소제목·표 행 제외.
-// 13: 대표 결과 별도 선택. 14: 모델이 덧붙인 평·그림 설명·앞 문장에 기대는 문장 제외. 15: 로컬은 방법·한계도 별도 선택.
+// 13: 대표 결과 별도 선택. 14: 모델이 덧붙인 평·그림 설명·앞 문장에 기대는 문장 제외. 15: 방법·한계 별도 선택(예전 로컬 모델용).
 // 16: 문장 앞 행사명 제거. 17: 캡처 판독 상태에 대한 평 제외.
 const READING_VERSION = 17;
-// Classify after the statement is written. Choosing a topic before generation
-// makes small local models repeat their last heading throughout a document.
+// 역할(주제)은 요점 문장을 쓴 뒤에 분류한다. 쓰기 전에 고르게 하면 같은 제목이 문서 내내 되풀이된다.
 export async function editReading(draft, progress, reuseRoles = false) {
   const visualChecks = [...(draft.visualChecks || [])];
   const points = draft.points
@@ -344,8 +337,7 @@ export async function editReading(draft, progress, reuseRoles = false) {
       if (ids.includes(id) && !ignored.includes(points[id - 1]))
         front.push(points[id - 1]);
   }
-  // A model may mark a real statement as boilerplate. Keep it in the details
-  // unless its wording is plainly just a greeting or a document label.
+  // 모델이 실제 진술을 인사말로 분류할 수 있다. 문구가 인사나 문서 표지일 때만 빼고 나머지는 세부 내용에 둔다.
   ignored = ignored.filter((p) =>
     /^(?:안녕하|감사(?:합|드|를)|고맙|공감하신다면|제안자\s*[:：]|맺음말[.\s]*$|서론[.\s]*$)/.test(
       p.text,
@@ -411,8 +403,7 @@ export async function editReading(draft, progress, reuseRoles = false) {
     version: READING_VERSION,
   };
 }
-// Numeric observations should survive the final selection even when an export
-// starts with a cover sheet of license, download and help information.
+// 내려받은 통계표가 저작권·도움말 표지로 시작해도 측정값 요점이 핵심 요약에 남게 한다.
 export function prioritizeSeries(lead, points) {
   const columns = points.filter((p) => p.mode === "표의 열·값 대조");
   if (columns.length) {
@@ -443,8 +434,7 @@ export function prioritizeSeries(lead, points) {
   );
   return [context, ...series, ...other].filter(Boolean).slice(0, 6);
 }
-// Column membership depends on screen coordinates. Rebuild it even if an OCR
-// retry produces identical strings in different places.
+// 표의 열 소속은 화면 좌표로 정해진다. 다시 인식해 같은 글자가 다른 자리에 나와도 새로 만든다.
 export function replaceAlignedColumns(draft, columns, evidence) {
   const isColumn = (p) => p.mode === "표의 열·값 대조";
   if (
@@ -471,51 +461,6 @@ export function replaceAlignedColumns(draft, columns, evidence) {
     .filter(Boolean);
   return { ...draft, points, lead, unassigned, context, included: used.size };
 }
-// Repeat unambiguous header/value pairs alongside the original rows so a
-// compact vision model can compare each label with its position on the page.
-function tableHints(blocks, tables) {
-  const hints = [];
-  const cells = (row) => row.text.split("|").map((s) => s.trim());
-  const numeric = /^[+−-]?\d+(?:[.,]\d+)*(?:\s*[%％])?$/u;
-  for (const rows of tables || []) {
-    if (rows.length < 2) continue;
-    const labels = cells(rows[0]), values = cells(rows[1]);
-    if (labels.length < 3 || labels.length > 9 || labels.length !== values.length ||
-        new Set(labels).size !== labels.length || labels.some((s) => s.length > 48 || !/\p{L}/u.test(s)) ||
-        values.some((s) => !s)) continue;
-    const start = numeric.test(values[0]) ? 0 : 1;
-    if ((start && !/\p{L}/u.test(values[0])) || values.slice(start).some((s) => !numeric.test(s))) continue;
-    const pair = "\n" + rows[0].text + "\n" + rows[1].text + "\n";
-    const block = blocks.find((b) => ("\n" + b.text + "\n").includes(pair));
-    if (!block) continue;
-    hints.push([block.id, start ? values[0] : "", labels.slice(start).map((label, i) => [label, values[i + start]])]);
-    if (hints.length === 3) break;
-  }
-  return hints;
-}
-// Keep selected measurements available when the final prose editor drops a
-// table. Copy only cells from a complete native row attached to the same OCR.
-export function preservePairedTableValues(edition, rows, reading) {
-  const selected = [...reading.lead, ...reading.points];
-  const excluded = new Set((reading.visualChecks || []).flatMap((p) => p.refs));
-  const detail = [...edition.detail];
-  let added = 0;
-  for (const ref of new Set(selected.flatMap((p) => p.refs))) {
-    if (excluded.has(ref) || !rows.has(ref)) continue;
-    for (const [, metric, pairs] of rows.get(ref)) {
-      if (added >= 2 || detail.length >= 6) break;
-      const shown = [...edition.brief, ...detail].some((p) => p.refs.includes(ref) &&
-        pairs.every(([label, value]) => [label + value, label + metric + value]
-          .some((s) => norm(p.text).includes(norm(s)))));
-      if (shown) continue;
-      const text = (metric ? metric + " · " : "") + pairs.map(([label, value]) => label + " " + value).join(", ") + ".";
-      detail.push({ topic: "표에 기재된 수치", text, refs: [ref], mode: "표의 열·값 대조" });
-      added++;
-    }
-    if (added >= 2 || detail.length >= 6) break;
-  }
-  return { ...edition, detail };
-}
 // 이전 요약에서 바뀐 이미지 판독(changed)을 인용한 요점만 새로 추출한 요점(extra)으로 바꿔 끼운다.
 export function replaceChartPoints(prior, extra, changed, evidence) {
   const untouched = (p) => !p.refs.some((r) => changed.has(r));
@@ -536,59 +481,20 @@ export function replaceChartPoints(prior, extra, changed, evidence) {
   };
 }
 export async function summarize(work, imageFor, progress) {
-  const info = await modelInfo();
-  if (!info) throw Error("로컬 요약 모델을 준비하세요.");
-  const { evidence, blocks, imagePages } = await collectEvidence(
-    work.captures,
-    imageFor,
-    progress,
-    "layout",
-    info.name === model,
-  );
+  const digest = modelDigest();
+  const { evidence, blocks } = await collectEvidence(work.captures, imageFor, progress);
   const trusted = blocks.filter((b) => !b.uncertain);
-  const tablesByPage = new Map(work.captures.map((c) => [c.id, c.ocrInfo?.tables]));
-  // An image and the citable OCR in its message must describe the same page.
-  const runs = [];
-  for (const block of trusted) {
-    const page = imagePages.get(evidence[block.id].capture);
-    if (!runs.length || runs.at(-1).page !== page) runs.push({ page, blocks: [] });
-    runs.at(-1).blocks.push(block);
-  }
-  for (const run of runs) {
-    run.batches = pack(run.blocks, run.page ? 3900 : 5300).flatMap((g) => chunk(g, 42));
-  }
-  const parts = [];
+  const batches = pack(trusted, 5300).flatMap((g) => chunk(g, 42));
   // 묶음 하나를 요점으로 추출해 [{ ids, output }] 목록으로 돌려준다 (길면 반으로 나눠 다시 시도).
-  async function extract(g, page, png) {
+  async function extract(g) {
     const ids = g.map((x) => x.id);
-    const hints = png ? tableHints(g, tablesByPage.get(page.capture)) : [];
-    const prompt = [
-      ...EXTRACT_RULES,
-      ...(png ? [IMAGE_RULE] : []),
-      ...(hints.length ? ["Kordoc이 복원한 열과 값이다. 캡처와 대조한 뒤 주요 결과의 항목별 값을 그대로 보존한다.", JSON.stringify(hints)] : []),
-      JSON.stringify(g.map(({ id, text }) => [id, text])),
-    ].join("\n");
+    const prompt = [...EXTRACT_RULES, JSON.stringify(g.map(({ id, text }) => [id, text]))].join("\n");
     try {
-      const output = await chat(
-        editor,
-        prompt,
-        extractSchema(ids),
-        png ? [png] : undefined,
-        2600,
-      );
-      if (page) page[png ? "withImage" : "withoutImage"]++;
-      return [{ ids, output }];
+      return [{ ids, output: await chat(editor, prompt, extractSchema(ids), undefined, 2600) }];
     } catch (e) {
-      if (png && /Ollama 오류.*(?:image|vision|multimodal|projector)/is.test(e.message)) {
-        page.note = "모델이 캡처를 읽지 못해 OCR만 사용";
-        return extract(g, page);
-      }
       if (g.length < 2 || !/길어 중단|양식에 맞게/.test(e.message)) throw e;
       const mid = Math.ceil(g.length / 2);
-      return [
-        ...(await extract(g.slice(0, mid), page, page?.note ? undefined : png)),
-        ...(await extract(g.slice(mid), page, page?.note ? undefined : png)),
-      ];
+      return [...(await extract(g.slice(0, mid))), ...(await extract(g.slice(mid)))];
     }
   }
   const inputKey = createHash("sha256")
@@ -600,24 +506,15 @@ export async function summarize(work, imageFor, progress) {
           c.lines.map((l) => [l.text, l.box, l.numericDispute]),
           c.ocrInfo?.tables,
           c.visual,
-          c.sumCheck,
         ]),
       ),
     )
     .digest("hex");
   const prior = work.reading;
-  const previousPages = prior?.imageReading?.pages || [];
-  const sameImages = previousPages.length === imagePages.size &&
-    (!imagePages.size || (prior?.imageReading?.version === 1 && previousPages.every((old) => {
-      const page = imagePages.get(old.capture);
-      return page && page.reason === old.reason && (page.noTrustedText
-        ? old.noTrustedText === true : old.withImage > 0 && !old.withoutImage);
-    })));
   const sameEvidence = (old, v) =>
     old && v && old.text === v.text && old.kind === v.kind && old.label === v.label &&
     old.capture === v.capture && JSON.stringify(old.indexes) === JSON.stringify(v.indexes);
-  const reusable = sameImages && prior?.digest === info.digest &&
-    (prior.version === 2 || prior.extractVersion === 2);
+  const reusable = prior?.digest === digest && (prior.version === 2 || prior.extractVersion === 2);
   const sameInput =
     reusable &&
     (!prior.inputKey || prior.inputKey === inputKey) &&
@@ -649,25 +546,14 @@ export async function summarize(work, imageFor, progress) {
       included: prior.included,
     };
   } else {
-    const total = runs.reduce((n, run) => n + run.batches.length, 0);
     let step = 0;
-    // 로컬 모델은 한 개씩 차례로, Haiku는 4개씩 동시에 보낸다. Haiku 추출은 생각을 줄인다(low).
-    const parallel = activeHaikuKey() ? 4 : 1;
-    await withEffort(extractEffort, async () => {
-      for (const { page, batches } of runs) {
-        let png;
-        if (page) {
-          try { png = await capturePng(imageFor, page.capture); }
-          catch { page.note = "원본 캡처를 열지 못해 OCR만 사용"; }
-        }
-        const results = await mapLimit(batches, parallel, (g) => {
-          progress("요점 추출 · " + (++step) + " / " + total +
-            (page ? " · " + page.label + (page.note ? " · OCR" : " · OCR + 원본 캡처") : ""));
-          return extract(g, page, page?.note ? undefined : png);
-        });
-        parts.push(...results.flat());
-      }
-    });
+    // 4개씩 동시에 보낸다. 추출은 생각을 줄인다(low).
+    const results = await withEffort(extractEffort, () =>
+      mapLimit(batches, 4, (g) => {
+        progress("요점 추출 · " + ++step + " / " + batches.length);
+        return extract(g);
+      }));
+    const parts = results.flat();
     const tables = observedSeries(trusted);
     for (const table of tables) {
       const dataRef = table.refs[0];
@@ -691,7 +577,7 @@ export async function summarize(work, imageFor, progress) {
     alignedPercentColumns(work.captures, evidence),
     evidence,
   );
-  // Skipped material stays accessible even if the model fails to select a lead.
+  // 모델이 핵심 요약을 고르지 못해도 첫 원문은 보이게 한다.
   const firstReadable = merged.unassigned.find(
     (r) => evidence[r].kind !== "OCR 수치 대조 필요",
   );
@@ -707,10 +593,6 @@ export async function summarize(work, imageFor, progress) {
     ];
   }
   const limits = coverage(work.captures);
-  const pages = sameInput ? previousPages : [...imagePages.values()];
-  for (const page of pages) {
-    if (page.note) limits.push(page.label + " · " + page.note);
-  }
   for (const c of work.captures) {
     if (c.ocrInfo?.uncertain?.length)
       limits.push(
@@ -725,27 +607,14 @@ export async function summarize(work, imageFor, progress) {
   if (!work.complete) limits.push("전체 제출물 캡처 여부 미확인");
   const metadata = {
     title: work.name, inputKey, sourceAlerts: checkSubtractionDefinitions(evidence),
-    extractVersion: 2, id: randomUUID(), limits, evidence, model: info.name || model,
-    digest: info.digest, when: new Date().toISOString(),
-    ...(info.name === model ? { imageReading: { version: 1, pages } } : {}),
+    extractVersion: 2, id: randomUUID(), limits, evidence, model: haiku,
+    digest, when: new Date().toISOString(),
   };
   const edited = sameInput && prior.version === READING_VERSION && prior.inputKey === inputKey
     ? { ...prior, ...metadata }
     : await editReading({ ...merged, ...metadata }, progress,
         sameInput && prior.version >= 7); // 역할 분류는 7판부터 믿을 수 있다
-  const paired = new Set(pages.filter((p) => p.withImage && !p.withoutImage).map((p) => p.capture));
-  const rows = new Map();
-  for (const run of runs) {
-    if (!paired.has(run.page?.capture)) continue;
-    for (const hint of tableHints(run.blocks, tablesByPage.get(run.page.capture))) {
-      const ref = hint[0];
-      if (!rows.has(ref)) rows.set(ref, []);
-      rows.get(ref).push(hint);
-    }
-  }
-  const edition = await composeEdition(edited, progress, chat, {
-    captures: work.captures, withTables: (base) => preservePairedTableValues(base, rows, edited),
-  });
+  const edition = await composeEdition(edited, progress, chat, { captures: work.captures });
   return { ...edited, edition, reusedExtraction: Boolean(sameInput || chartsOnly) };
 }
 const types = [
@@ -901,7 +770,7 @@ function anchorQuote(quote, rows) {
   return owners.length === 1 ? { ...quote, id: owners[0].id } : quote;
 }
 
-export async function checkLogic(reading, captures, progress) {
+export async function checkLogic(reading, progress) {
   const sources = Object.entries(reading.evidence).map(([id, e]) => ({
     id,
     text: e.text,
@@ -955,19 +824,6 @@ export async function checkLogic(reading, captures, progress) {
       });
     }
   }
-  for (const c of captures)
-    if (c.sumCheck && !c.sumCheck.matches) {
-      const ref = sources.find(
-        (s) => reading.evidence[s.id].capture === c.id && s.id.endsWith(".T"),
-      );
-      if (ref)
-        issues.push({
-          status: "계산으로 확인",
-          type: "표시 합계 불일치",
-          reason: c.sumCheck.text,
-          refs: [ref.id],
-        });
-    }
   // AI는 문서 전체를 한 번에 본다. 심사자가 보는 요약 문장과 원문을 SCAN_CHARS씩 나눠 보낸다.
   // 요약 요점 전부(150개 안팎)를 지도로 주면 원문끼리의 모순에도 요점 번호를 인용해 후보 절반이 유형 규칙에 걸렸다.
   const summary = points.filter((p) => shown.has(p.text)).map((p) => ({ id: p.id, text: p.text, refs: p.refs }));

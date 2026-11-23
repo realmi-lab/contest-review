@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { briefAnchors, composeEdition, restatesSource } from "../src/summary/reading-edition.mjs";
 import { readingViews, representativeCaptures, explainOcr } from "../public/expanded-reading.mjs";
-import { withHaiku } from "../src/ai/claude-summary.mjs";
 
 const point = (topic, text, ref) => ({ topic, text, refs: [ref], mode: "요약" });
 
@@ -62,13 +61,9 @@ test("인용 검토 응답이 잘리면 같은 근거를 작은 묶음으로 나
     if (keys.length > 1) throw new Error("모델 응답이 길어 중단되었습니다.");
     return { [keys[0]]: true };
   };
-  const edition = await withHaiku("test-key", () => composeEdition(r, () => {}, review));
+  const edition = await composeEdition(r, () => {}, review);
   assert.deepEqual(batches, [["P1", "P2"], ["P1"], ["P2"]]);
   assert.deepEqual(edition.brief, [a, b]);
-  // 로컬 모델은 처음부터 한 문장씩 검토한다.
-  batches.length = 0;
-  await composeEdition(r, () => {}, review);
-  assert.deepEqual(batches, [["P1"], ["P2"]]);
 });
 
 test("원문 낱말만으로 된 요약은 모델 검토 없이 받아들인다", async () => {
@@ -78,7 +73,11 @@ test("원문 낱말만으로 된 요약은 모델 검토 없이 받아들인다"
   assert.equal(restatesSource(a, r), true);
   assert.equal(restatesSource({ ...a, text: "K-means 군집분석으로 좌석 등급을 추정해 수익이 크게 늘었다." }, r), false);
   assert.equal(restatesSource({ ...a, text: "K-means 군집분석 알고리즘을 사용하지 않았다." }, r), false);
-  const edition = await composeEdition(r, () => {}, async () => { throw new Error("모델을 부르면 안 된다"); });
+  const edition = await composeEdition(r, () => {}, async (_, _prompt, schema) => {
+    // 이야기 요약은 쓰지 못한 것으로 하고, 인용 검토는 부르지 않아야 한다.
+    if (Object.keys(schema.properties)[0] === "gist") throw new Error("Haiku가 요약 양식에 맞게 응답하지 못했습니다.");
+    throw new Error("인용 검토를 부르면 안 된다");
+  });
   assert.deepEqual(edition.brief, [a]);
 });
 
@@ -92,7 +91,7 @@ test("다시 쓴 결과 줄이 너무 길면 버리지 않고 편집 전 요점�
   assert.deepEqual(edition.brief.map((p) => p.text), [first]);
 });
 
-test("Haiku는 핵심 요약을 한 줄 요약·문제·목표·방법·결과·시사점 순서로 새로 쓰고, 검증에서 떨어진 물음만 한 번 다시 쓴다", async () => {
+test("핵심 요약은 한 줄 요약·문제·목표·방법·결과·시사점 순서로 새로 쓰고, 검증에서 떨어진 물음만 한 번 다시 쓴다", async () => {
   const background = point("대상과 배경", "대출 비교 앱 이용자가 늘어 데이터가 많아졌다.", "S1.1");
   const goal = point("제안 내용", "홈 화면에 들어온 고객 중 대출을 신청할 고객을 예측한다.", "S2.1");
   const method = point("이용·운영 방식", "범주형 변수가 많아 CatBoost 분류 모델을 사용했다.", "S3.1");
@@ -130,7 +129,7 @@ test("Haiku는 핵심 요약을 한 줄 요약·문제·목표·방법·결과·
       meaning: none, limit: none,
     };
   };
-  const edition = await withHaiku("test-key", () => composeEdition(r, () => {}, run));
+  const edition = await composeEdition(r, () => {}, run);
   assert.deepEqual(edition.brief.map((x) => [x.topic, x.refs.join()]), [
     ["한 줄 요약", "S2.1,S3.1"], ["무엇이 문제인가", "S1.1"], ["무엇을 하려는가", "S2.1"], ["어떻게 푸는가", "S3.1"], ["무엇을 얻었나", "S4.1,S1.1"]]); // 수치(0.398)가 적힌 근거가 앞에 온다
   assert.ok(!("basis" in edition.brief[0])); // 검토용 문장은 저장하지 않는다
@@ -141,11 +140,6 @@ test("Haiku는 핵심 요약을 한 줄 요약·문제·목표·방법·결과·
   assert.deepEqual(edition.missing, [{ topic: "시사점과 활용", why: "답 없음" }, { topic: "한계·확인할 점", why: "답 없음" }]);
   assert.equal(asked[0], "gist");
   assert.match(rules[0], /엮어 쓴 것이다/); // 새로 쓴 답은 엮어 쓴 문장의 기준으로 검토한다
-  // 로컬 모델은 이야기 요약을 쓰지 않는다.
-  asked.length = 0;
-  const local = await composeEdition(r, () => {}, run);
-  assert.ok(!asked.includes("gist"));
-  assert.deepEqual(local.brief.map((x) => x.topic), ["제안 내용", "이용·운영 방식", "실측·관찰 결과"]);
 });
 
 test("분석 기법을 설명하는 줄은 '분석 방법'으로 보여 주고 문서를 가리키는 말투는 걷어 낸다", async () => {

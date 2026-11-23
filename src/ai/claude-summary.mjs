@@ -38,12 +38,19 @@ const THINKING_ROOM = { low: 16000, medium: 16000, high: 40000 };
 const MAX_OUTPUT = 64000;
 const context = new AsyncLocalStorage();
 export const withHaiku = (key, fn, recordUsage) => context.run({ key, recordUsage }, fn);
-// Haiku 요청 안에서 일부 단계만 다른 생각 깊이로 보낸다. 로컬 모델이면 그대로 실행한다.
+// Haiku 요청 안에서 일부 단계만 다른 생각 깊이로 보낸다.
 export const withEffort = (effort, fn) => {
   const store = context.getStore();
   return store ? context.run({ ...store, effort }, fn) : fn();
 };
-export const activeHaikuKey = () => context.getStore()?.key;
+// 요약·점검 코드가 부르는 AI 요청. withHaiku로 넘겨받은 키로 보낸다.
+export function chat(system, prompt, schema, images, limit = 2200) {
+  const key = context.getStore()?.key;
+  if (!key) throw Error("AI 키 없이 요약을 실행할 수 없습니다. 요약 설정에서 키를 등록하세요.");
+  return haikuChat(key, system, prompt, schema, images, limit);
+}
+// 저장된 요약을 다시 쓸 수 있는지 가리는 값. 모델이나 생각 깊이가 바뀌면 요점을 새로 뽑는다.
+export const modelDigest = () => haiku + ":" + extractEffort + "+" + haikuEffort;
 const settingsFile = join(settingsDir, "anthropic.key");
 
 export async function savedKey() {
@@ -147,7 +154,7 @@ function structure(schema) {
   return { type: schema.type };
 }
 
-export async function haikuChat(key, system, prompt, schema, images, limit) {
+async function haikuChat(key, system, prompt, schema, images, limit) {
   const content = (images || []).map((data) => ({ type: "image", source: { type: "base64", media_type: "image/png", data } }));
   content.push({ type: "text", text: prompt });
   const effort = context.getStore()?.effort || haikuEffort;

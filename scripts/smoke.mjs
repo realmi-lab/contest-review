@@ -91,7 +91,7 @@ try {
   });
   await step("AI 키가 없으면 요약을 시작하지 않는다", async () => {
     const w = await work(id);
-    assert.equal((await post("summarize", { id, rev: w.rev, provider: "haiku" })).status, 503);
+    assert.equal((await post("summarize", { id, rev: w.rev })).status, 503);
   });
   await step("공모 연동 설정을 저장하면 응답을 읽어 작품을 만들고 첨부를 자동 접수한다", async () => {
     const saved = await post("forms-settings", { workbook, attachments });

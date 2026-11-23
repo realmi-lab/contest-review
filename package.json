@@ -10,8 +10,7 @@
     "start": "node server.mjs",
     "test": "node --test tests/*.test.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "prepare:ocr": "node scripts/prepare-ocr.mjs",
-    "compare:public": "node scripts/compare-public.mjs"
+    "prepare:ocr": "node scripts/prepare-ocr.mjs"
   },
   "dependencies": {
     "kordoc": "file:vendor/kordoc.tgz",

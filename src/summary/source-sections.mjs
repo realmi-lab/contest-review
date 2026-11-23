@@ -1,4 +1,4 @@
-import { chunk, pack } from "../ai/model.mjs";
+import { chunk, pack } from "../ai/batches.mjs";
 import { excerptSentences } from "./long-brief.mjs";
 import { danglingStart } from "./statement-filters.mjs";
 
