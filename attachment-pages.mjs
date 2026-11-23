@@ -51,7 +51,7 @@ async function pdfPages(pdf) {
 }
 
 // Office 문서: 앱으로 열어 쪽(슬라이드·시트)마다 받는다. MIP로 보호된 문서는 PDF로 내보내도 암호화되어
-// 읽을 수 없으므로, PowerPoint는 슬라이드를 PNG로 내보내고(화면을 쓰지 않음, 막혀 있으면 슬라이드 쇼 캡처),
+// 읽을 수 없으므로, PowerPoint는 슬라이드를 PNG로 내보내고(화면을 쓰지 않음, 막혀 있으면 창 모드 슬라이드 쇼 캡처),
 // Word는 '한 쪽 전체' 배율로, Excel은 시트마다 창을 캡처한다. 창은 앞으로 가져오지 않는다(가려져도 창 번호로 캡처).
 // 이 서버를 띄운 터미널에 Office '제어'와 '화면 기록' 권한이 있어야 한다.
 // 문서는 Launch Services(open -g -a)로 연다: Office 샌드박스가 파일 접근을 허락받고, 앱을 앞으로 가져오지 않는다.
@@ -60,14 +60,15 @@ const STEPS = {
   powerpoint: {
     app: "Microsoft PowerPoint",
     doc: "presentation",
-    open: `run slide show (slide show settings of presentation n)
+    open: `set show type of slide show settings of presentation n to slide show type window
+      run slide show (slide show settings of presentation n)
       delay 2
       return count of slides of presentation n`,
     go: `go to slide (slide show view of slide show window 1) number i
       delay 1`,
     close: `exit slide show (slide show view of slide show window 1)
       close presentation n saving no`,
-    window: false,
+    window: "new", // 슬라이드 쇼를 시작하면서 새로 생긴 창을 캡처한다
   },
   word: {
     app: "Microsoft Word",
@@ -78,7 +79,7 @@ const STEPS = {
     go: `select (go to document n what go to a page which go to absolute count i)
       delay 1`,
     close: `close document n saving no`,
-    window: true,
+    window: "largest",
   },
   excel: {
     app: "Microsoft Excel",
@@ -87,7 +88,7 @@ const STEPS = {
     go: `activate object worksheet i of workbook n
       delay 1`,
     close: `close workbook n saving no`,
-    window: true,
+    window: "largest",
   },
 };
 const tell = (step, body, file, i = 0) =>
@@ -110,14 +111,15 @@ async function openInApp(step, file) {
   }
   throw new Error(`${step.app}에서 문서가 열리지 않았습니다(회사 계정 로그인·보호 문서 권한 확인).`);
 }
-// 화면에 보이는 그 앱의 가장 큰 창 번호(screencapture -l)
-const WINDOW_ID = `ObjC.import("CoreGraphics");
+// 화면에 있는 그 앱의 창들 [{ id, area }] (screencapture -l에 쓸 창 번호와 넓이)
+const WINDOWS = `ObjC.import("CoreGraphics");
 function run([owner]) {
   const all = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(1, 0))) || [];
-  const area = (w) => w.kCGWindowBounds.Width * w.kCGWindowBounds.Height;
-  const mine = all.filter((w) => w.kCGWindowOwnerName === owner && w.kCGWindowLayer === 0).sort((a, b) => area(b) - area(a));
-  return mine.length ? String(mine[0].kCGWindowNumber) : "";
+  return JSON.stringify(all.filter((w) => w.kCGWindowOwnerName === owner && w.kCGWindowLayer === 0)
+    .map((w) => ({ id: w.kCGWindowNumber, area: w.kCGWindowBounds.Width * w.kCGWindowBounds.Height })));
 }`;
+const windows = async (app) => JSON.parse(await osa(["-l", "JavaScript", "-e", WINDOWS, app], "창을 찾지 못했습니다"));
+const largest = (list) => String(list.sort((a, b) => b.area - a.area)[0]?.id ?? "");
 const capture = (out, windowId) =>
   new Promise((resolve, reject) =>
     execFile("screencapture", ["-x", "-o", ...(windowId ? ["-l" + windowId] : []), out], { timeout: 30_000 }, (e) =>
@@ -158,8 +160,11 @@ async function officeCaptures(kind, file) {
   }
   const out = await mkdtemp(path.join(os.tmpdir(), "office-"));
   try {
+    const before = new Set((await windows(step.app)).map((w) => w.id));
     const count = Math.min(Number(await tell(step, step.open, file)) || 0, 60);
-    const windowId = step.window ? await osa(["-l", "JavaScript", "-e", WINDOW_ID, step.app], "창을 찾지 못했습니다") : "";
+    const now = await windows(step.app);
+    // 그 창만 캡처한다(다른 창에 가려져도 된다). 새 창을 못 찾으면(쇼가 전체 화면으로 뜬 경우) 화면 전체를 캡처한다.
+    const windowId = largest(step.window === "new" ? now.filter((w) => !before.has(w.id)) : now);
     const pages = [];
     try {
       for (let i = 1; i <= count; i++) {
