@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { briefAnchors, composeEdition, restatesSource } from "../src/summary/reading-edition.mjs";
-import { readingViews, representativeCaptures, explainOcr } from "../public/expanded-reading.mjs";
+import { readingViews, representativeCaptures, explainOcr } from "../public/lib/expanded-reading.mjs";
 
 const point = (topic, text, ref) => ({ topic, text, refs: [ref], mode: "요약" });
 

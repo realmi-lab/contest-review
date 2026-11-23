@@ -1,4 +1,4 @@
-import { seoulMinute } from "../../public/html.mjs";
+import { seoulMinute } from "../../public/lib/html.mjs";
 
 export const defaults = {
   categories: [

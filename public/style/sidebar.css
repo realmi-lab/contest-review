@@ -1,0 +1,246 @@
+/* ─────────────────────────── 왼쪽 메뉴 (검은 바탕) ─────────────────────────── */
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100vh;
+  padding: 18px 14px 14px;
+  background: var(--side-bg);
+  color: var(--side-text);
+  scrollbar-color: var(--side-line) transparent;
+  box-shadow: 6px 0 24px -12px rgb(28 32 40 / 45%);
+  z-index: 2;
+}
+/* 메뉴 안 버튼 공통: 투명 바탕, 마우스를 올리면 한 단계 밝게 */
+.brand,
+.navall,
+.navwork,
+.stepitem {
+  width: 100%;
+  background: transparent;
+  color: var(--side-text);
+  text-align: left;
+}
+.brand:hover,
+.navall:hover,
+.navwork:hover,
+.stepitem:hover,
+.stepitem.active {
+  background: var(--side-hover);
+}
+.brand {
+  display: flex;
+  font-family: var(--font-heading);
+  font-style: italic;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  color: #fff;
+  font-size: 19px;
+  font-weight: 700;
+}
+.mark {
+  position: relative;
+  flex: none;
+  width: 38px;
+  height: 38px;
+}
+.mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+}
+.brand-spark {
+  position: absolute;
+  right: -3px;
+  top: -2px;
+  width: 12px;
+  height: 18px;
+  background: #ffcd83;
+  clip-path: polygon(60% 0, 10% 55%, 45% 55%, 26% 100%, 96% 37%, 61% 37%, 83% 0);
+  opacity: 0;
+  pointer-events: none;
+}
+.brand:focus-visible .brand-spark,
+.brand:active .brand-spark {
+  opacity: 1;
+}
+@media (hover: hover) {
+  .brand:hover .brand-spark {
+    opacity: 1;
+  }
+}
+.menu-toggle {
+  display: none;
+}
+/* 앱 빌드 번호 */
+.build {
+  margin: 0;
+  color: var(--side-text);
+  font-size: var(--fs-label);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+.sidenav {
+  flex: 1;
+  margin: 0 -14px;
+  padding: 4px 14px 12px;
+  overflow-y: auto;
+  border-top: 1px solid var(--side-line);
+  border-bottom: 1px solid var(--side-line);
+}
+.sidebar .count {
+  background: var(--side-line);
+  color: var(--side-text);
+}
+.navall {
+  display: flex;
+  align-items: center;
+  margin: 8px 0 4px;
+  padding: 10px;
+  color: #fff;
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+/* 지금 보고 있는 메뉴: 옅은 오렌지 면 + 오렌지 글자 */
+.navall.active,
+.navwork.active {
+  background: var(--side-active);
+  color: var(--accent-on-dark);
+}
+.navgroup {
+  position: sticky;
+  top: -4px;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  margin: 14px 0 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--side-hover);
+  color: var(--side-text);
+  font-size: var(--fs-label);
+  font-weight: 700;
+}
+.navgroup em {
+  color: var(--side-muted);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+.navwork {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  font-weight: 500;
+}
+.nav-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.navwork.active {
+  font-weight: 700;
+}
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border-radius: 50%;
+}
+/* 선택한 작품 아래 단계 메뉴 */
+.stepnav {
+  --step-surface: var(--side-bg);
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 8px 14px;
+  padding-left: 10px;
+  border-left: 1px solid var(--side-line);
+}
+.stepitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+}
+.stepno {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: var(--fs-label);
+  font-weight: 700;
+}
+.stepitem .stepno {
+  background: var(--side-line);
+  color: var(--side-text);
+}
+.done > .stepno {
+  background: var(--accent);
+  color: var(--text);
+}
+[aria-current="step"] > .stepno {
+  box-shadow:
+    0 0 0 2px var(--step-surface, var(--bg)),
+    0 0 0 4px var(--accent);
+}
+.steptext {
+  display: grid;
+  min-width: 0;
+}
+.steptext b {
+  color: var(--side-text);
+  font-size: var(--fs-ui);
+  font-weight: 600;
+}
+.stepitem.active .steptext b {
+  color: var(--accent-on-dark);
+  font-weight: 700;
+}
+.steptext small {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--side-muted);
+  font-size: var(--fs-label);
+}
+#health {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  color: var(--side-muted);
+  font-size: var(--fs-meta);
+}
+#health::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f5a524;
+}
+#health.online::before {
+  background: var(--green);
+}
+.model-settings-link {
+  align-self: flex-start;
+  background: transparent;
+  color: var(--side-text);
+  padding: 6px 8px;
+  text-align: left;
+}
+.model-settings-link:hover { background: var(--side-hover); }
+
+.haiku-usage dd { margin: 0; }
+@media (max-width: 700px) {
+  .model-settings-link { grid-column: 1 / -1; }
+  .menu-toggle[aria-expanded="false"] ~ .model-settings-link { display: none; }
+}

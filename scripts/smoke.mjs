@@ -4,6 +4,7 @@
 // AI 키가 없어 요약·점검(유료)은 실행하지 않는다.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import http from "node:http";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -58,9 +59,17 @@ const failed = [];
 
 try {
   await until("서버 시작", 30, () => get("/api/state").then((r) => r.ok));
-  await step("화면 파일을 모두 내려 준다", async () => {
-    for (const file of ["/", "/app.js", "/style.css", "/html.mjs", "/glossary.mjs", "/diagram-hint.mjs", "/expanded-reading.mjs", "/interactions.mjs"])
-      assert.equal((await get(file)).status, 200, file);
+  await step("화면 파일을 내려 주고, public 폴더 밖과 없는 경로는 막는다", async () => {
+    const index = await get("/").then((r) => r.text());
+    const linked = [...index.matchAll(/(?:src|href)="(\/[^"]+)"/g)].map((m) => m[1]);
+    assert.ok(linked.length >= 2, "index.html이 화면 파일을 불러온다");
+    for (const file of [...linked, "/fonts/BithumbGothic-Basic.woff2"]) assert.equal((await get(file)).status, 200, file);
+    for (const bad of ["/../src/server.mjs", "/%2e%2e/src/server.mjs", "/..%2fpackage.json", "/nothing.js", "/api/nothing"])
+      assert.equal((await get(bad)).status, 404, bad);
+    // localhost가 아닌 주소로 온 요청(fetch는 Host를 바꿀 수 없어 http로 보낸다)
+    const otherHost = await new Promise((resolve, reject) =>
+      http.get(base + "/api/state", { headers: { host: "example.com" } }, (res) => resolve(res.resume().statusCode)).on("error", reject));
+    assert.equal(otherHost, 403);
   });
   await step("상태에 빌드 번호와 AI 비용이 있다", async () => {
     const state = await get("/api/state").then((r) => r.json());

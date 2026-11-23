@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { diagramHint } from "../public/diagram-hint.mjs";
+import { diagramHint } from "../public/lib/diagram-hint.mjs";
 
 const at = (text, x, y, w = 40, h = 14) => ({ text, box: { x, y, w, h } });
 const years = [2019, 2020, 2021, 2022, 2023].map((t, i) => at(String(t), 100 + i * 80, 400));

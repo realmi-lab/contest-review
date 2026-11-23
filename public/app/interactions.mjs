@@ -1,3 +1,6 @@
+import { evidenceCrop } from "../lib/expanded-reading.mjs";
+import { esc } from "../lib/html.mjs";
+
 /* ─────────────────────────── 입체감과 움직임 ───────────────────────────
    원문은 손에 잡히는 종이처럼 들려 올라온다. 평가자의 일은 요약과 원문을 대조하는 것이라
    움직임은 그 연결(어느 쪽, 어느 줄)과 상태 변화(단계·작품 이동, 점수, 확정)를 설명하는 데만 쓴다.
@@ -6,8 +9,6 @@
    - tiltPages: 요약 옆 원문 썸네일이 포인터 쪽으로 살짝 기운다.
    - tween: 숫자를 바뀐 값까지 부드럽게 센다.
    움직임 줄이기 설정이면 이동·기울기는 빼고 투명도와 색 변화만 남긴다(style.css). */
-import { esc } from "./html.mjs";
-import { evidenceCrop } from "./expanded-reading.mjs";
 
 const calm = matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -21,7 +22,8 @@ export function transition(draw, direction) {
   const root = document.documentElement;
   root.dataset.nav = direction;
   const moving = document.startViewTransition(draw);
-  moving.finished.finally(() => {
+  moving.ready.catch(() => {}); // 다음 전환이 바로 시작돼 건너뛴 경우는 오류가 아니다
+  moving.finished.catch(() => {}).finally(() => {
     if (root.dataset.nav === direction) delete root.dataset.nav;
   });
   return moving.updateCallbackDone;

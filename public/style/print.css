@@ -1,0 +1,35 @@
+/* ─────────────────────────── 인쇄 ─────────────────────────── */
+
+@media print {
+  .peek {
+    display: none !important;
+  }
+  body {
+    display: block;
+    background: var(--paper);
+  }
+  .sidebar,
+  .detailnav,
+  .evidence,
+  .toolbar,
+  button:not(.ref),
+  #notice,
+  dialog,
+  .no-print {
+    display: none !important;
+  }
+  main,
+  .content {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  .panel,
+  .issue {
+    break-inside: avoid;
+  }
+  .ref {
+    background: none;
+    color: #333;
+  }
+}

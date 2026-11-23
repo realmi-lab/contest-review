@@ -1,0 +1,261 @@
+/* 전체 작품 목록의 줄마다 붙는 작은 요약 버튼 */
+.summary-actions {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  gap: 4px;
+}
+.summary-actions button {
+  min-height: 32px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--text);
+  font-size: var(--fs-label);
+}
+.summary-actions button:enabled:hover { background: var(--accent-soft); }
+/* 실행할 수 없을 때(작업 중·캡처 없음)는 눌리지 않는 모양으로 */
+.summary-actions button:disabled { border-color: var(--line-soft); background: var(--fill); color: var(--text-4); }
+
+/* ─────────────────────────── 목록 화면 ─────────────────────────── */
+
+.listhead {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 4px 0 20px;
+}
+.listhead h1 {
+  color: var(--desk-text);
+  font-size: var(--fs-title);
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+}
+.listhead h1 .count { background: var(--text); color: #fff; }
+.listhead button { align-self: center; background: var(--paper); color: var(--text); box-shadow: inset 0 0 0 1px var(--rule); }
+.listhead button:hover { background: var(--fill); }
+.listhead button:disabled { background: transparent; color: var(--text-4); box-shadow: inset 0 0 0 1px var(--line); }
+.listhead p {
+  margin: 0;
+  color: var(--desk-muted);
+  font-size: var(--fs-ui);
+}
+/* MS Forms 공모 연동 현황: 응답·심사자별 배정·공유·평가 진행. 작품 표와 같은 머리글·줄 간격을 쓴다. */
+.forms-intake {
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.forms-intake .toolbar { margin: 0; padding: 14px 16px 12px; }
+.cardtitle { margin: 0; }
+.cardtitle + .muted { font-size: var(--fs-meta); }
+.forms-intake > p { margin: 0; padding: 0 16px 10px; }
+.forms-intake .scoretable th { padding: 8px 16px; font-size: var(--fs-label); }
+.forms-intake .scoretable td { padding: 10px 16px; }
+.scoretable td small { display: block; margin-top: 2px; color: var(--text-3); font-size: var(--fs-label); }
+.scoretable.evaluators td:first-child, .evaluations .scoretable td:first-child { width: auto; }
+.scoretable.evaluators td.number, .evaluations .scoretable td.number { width: auto; font-variant-numeric: tabular-nums; }
+.quickcreate {
+  display: grid;
+  grid-template-columns: minmax(9.5em, 1fr) repeat(2, minmax(6em, 1fr)) minmax(9em, 2fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--paper-surface);
+  box-shadow: var(--shadow-raised);
+}
+.quickcreate input {
+  width: 100%;
+  font-weight: 400;
+}
+.quickcreate .primary { min-height: 42px; }
+/* 작품 목록 카드: 위에는 단계 탭·검색·정렬, 아래에는 표.
+   단계 탭은 밑줄 탭으로, 고른 단계에 오렌지 줄과 검은 개수 표시가 붙는다. */
+.workboard {
+  overflow: hidden;
+}
+.listbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+.stagetabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+.stagetab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 16px 10px 15px;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-3);
+  box-shadow: inset 0 -2px 0 transparent;
+}
+.stagetab:hover { background: transparent; color: var(--text); }
+.stagetab em {
+  color: var(--text-3);
+  font-size: var(--fs-label);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+.stagetab[aria-pressed="true"] { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.stagetab[aria-pressed="true"] em { color: var(--accent-text); }
+.listbar input {
+  width: 220px;
+  border-color: var(--line);
+}
+.listbar select {
+  border-color: var(--line);
+}
+/* 작품 목록: 한 줄에 한 작품, 머리말별로 묶음 */
+.worklist { overflow-x: auto; }
+.works-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: var(--fs-ui);
+  font-variant-numeric: tabular-nums;
+}
+.works-table { min-width: 820px; } /* 1180px 창에서도 진행 상태 열까지 가로 스크롤 없이 */
+.works-table th, .works-table td { padding: 12px; }
+.works-table thead th {
+  color: var(--text-3);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.works-table thead th { border-bottom: 1px solid var(--rule); }
+.works-table td, .works-table tbody th { border-top: 1px solid var(--line-soft); }
+.works-table thead th:nth-child(4) { width: 40%; } /* 작품명: 가장 넓게 */
+.works-table td:nth-child(5) { max-width: 9em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } /* 분야: 길면 말줄임 */
+.works-table td { color: var(--text-2); overflow-wrap: anywhere; }
+.works-table td small { display: block; }
+.works-table td:nth-child(6), .works-table thead th:nth-child(6) { white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; } /* 캡처 장수 */
+/* 팀·접수자는 낱말 중간에서 꺾지 않고, 길면 말줄임 */
+.works-table td:nth-child(2), .works-table td:nth-child(3) { max-width: 9em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.works-table td:nth-child(2) { max-width: 18em; } /* 팀: 두 배 */
+.works-table time, .intake-meta time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.workrow { cursor: pointer; }
+.workrow:hover, .workrow:focus-within { background: var(--fill); }
+.rowtitle {
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+/* 긴 제목은 두 줄까지 (전체 이름은 title 툴팁과 작품 화면) */
+.rowtitle > span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.rowtitle:hover { background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+/* 제목 아래 한 줄 요약: 한 줄만 (전체는 작품 화면에서) */
+.rowgist { display: -webkit-box; margin-top: 2px; overflow: hidden; color: var(--text-3); font-size: var(--fs-meta); font-weight: 400; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
+.detail-title { display: grid; min-width: 0; gap: 6px; }
+/* 접수 정보는 제목 아래 한 줄로: 항목 이름은 옅게, 값은 진하게 */
+/* 접수 정보는 시험지의 학년·반·번호·성명 칸처럼 잉크 괘선 칸에 넣는다 */
+.intake-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 10px; }
+/* 칸마다 테두리를 두르고 겹쳐 붙여, 좁은 창에서 줄이 넘어가도 칸 모양이 유지된다(접수 정보·점검 결과 수) */
+.intake-meta { display: inline-flex; flex-wrap: wrap; margin: 0; padding: 0 1.5px 1.5px 0; font-size: var(--fs-ui); }
+.intake-meta div { display: flex; align-items: stretch; min-width: 0; margin: 0 -1.5px -1.5px 0; border: 1px solid var(--rule); }
+.intake-meta dt { padding: 5px 10px; border-right: 1px solid var(--rule); background: var(--fill); color: var(--text-2); font-size: var(--fs-meta); font-weight: 600; }
+.intake-meta dd { min-width: 5.5em; margin: 0; padding: 5px 14px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.intake-line .link { padding: 0; color: var(--text-3); font-size: var(--fs-meta); text-decoration: underline; text-underline-offset: 3px; }
+.intake-line .link:hover { color: var(--text); }
+.badges { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.badge {
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: var(--fs-label);
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* 진행 상태: 캡처 → 요약 → 점검 → 채점 네 칸 눈금(왼쪽 메뉴의 단계와 같은 순서)과 글자. 확정은 오렌지 도장.
+   처리 중은 오렌지 테두리. 점(●)은 검은 왼쪽 메뉴 위에 놓인다. */
+.progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.steps { display: inline-flex; gap: 2px; }
+.steps i { width: 9px; height: 4px; border-radius: 1px; background: var(--line); }
+.steps i.on { background: var(--text-2); }
+.progress.final {
+  padding: 1px 8px;
+  border: 1.5px solid var(--accent-text);
+  border-radius: 3px;
+  color: var(--accent-text);
+  font-family: var(--font-heading);
+  transform: rotate(-3deg);
+}
+.badge[data-queue="wait"] {
+  background: var(--fill);
+  color: var(--text-3);
+}
+.badge[data-queue="run"] {
+  background: var(--paper);
+  color: var(--accent-text);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.dot.stage-new, .dot.stage-wait {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--side-muted);
+}
+.dot.stage-capt {
+  background: var(--side-muted);
+}
+.dot.stage-read {
+  background: #ffb27a;
+}
+.dot.stage-checked,
+.dot.stage-run {
+  background: var(--accent);
+}
+.dot.stage-final {
+  background: var(--paper);
+}
+.dot.stage-run {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot.stage-run {
+    animation: none;
+  }
+}
+.welcome {
+  max-width: 600px;
+  margin: 60px auto;
+  padding: 40px;
+}
+ol.howto {
+  margin: 28px 0 0;
+  padding: 20px 20px 20px 40px;
+  border-radius: 12px;
+  background: var(--fill);
+  color: var(--text-2);
+  line-height: 1.9;
+}
+ol.howto b {
+  margin-right: 8px;
+  color: var(--text);
+}
+
+/* 목록 머리의 AI 비용 요약 */
+.listhead .cost-note { background: transparent; color: var(--text-3); font-size: var(--fs-meta); font-variant-numeric: tabular-nums; white-space: nowrap; }

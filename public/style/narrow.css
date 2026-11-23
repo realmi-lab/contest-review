@@ -1,0 +1,101 @@
+/* ─────────────────────────── 좁은 창 ─────────────────────────── */
+
+@media (max-width: 1100px) {
+  .quickcreate { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .quickcreate label:nth-child(4) { grid-column: span 2; }
+
+}
+@media (max-width: 900px) {
+  main {
+    padding: 20px 16px 60px;
+  }
+  .detailhead {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .sheet {
+    padding: 20px;
+  }
+  .quotes, .opinion-grid {
+    grid-template-columns: 1fr;
+  }
+  .quotes blockquote + blockquote {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+  .formgrid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .formgrid label:first-child {
+    grid-column: 1 / -1;
+  }
+  .listbar input {
+    width: 100%;
+  }
+  .rubedit {
+    grid-template-columns: 1fr 80px auto;
+  }
+  .rubedit textarea {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+@media (max-width: 550px) {
+  .quickcreate { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .quickcreate label:first-child, .quickcreate label:nth-child(4) { grid-column: 1 / -1; }
+  .quickcreate .primary { grid-column: 1 / -1; }
+}
+
+/* 좁은 창: 왼쪽 메뉴 폭을 줄인다 */
+@media (max-width: 1100px) {
+  :root {
+    --sidebar: 232px;
+  }
+}
+
+@media screen and (max-width: 700px) {
+  body {
+    display: block;
+  }
+  .sidebar {
+    z-index: 4;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 8px;
+    height: auto;
+    padding: 8px 12px;
+  }
+  .brand {
+    width: fit-content;
+    padding: 3px 2px;
+    white-space: nowrap;
+  }
+  .menu-toggle {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    color: var(--side-text);
+    background: var(--side-hover);
+  }
+  .menu-toggle[aria-expanded="true"] {
+    color: var(--accent-on-dark);
+  }
+  .menu-toggle[aria-expanded="false"] ~ .sidenav,
+  .menu-toggle[aria-expanded="false"] ~ #health {
+    display: none;
+  }
+  .sidenav, #health {
+    grid-column: 1 / -1;
+  }
+  .sidenav {
+    max-height: 50dvh;
+    margin: 0;
+    padding: 6px 0;
+  }
+  .quickcreate input {
+    min-width: 0;
+  }
+}

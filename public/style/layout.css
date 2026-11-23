@@ -1,0 +1,18 @@
+/* ─────────────────────────── 본문 틀 ─────────────────────────── */
+
+main {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 28px 32px 80px;
+  outline: none;
+}
+/* 내용 요약에서는 원문 패널을 겹쳐 열어 본문의 폭과 줄바꿈을 유지한다. */
+@media (min-width: 1280px) {
+  body.has-evidence:not(:has(.reading-content)) {
+    padding-right: calc(var(--viewer) + 24px);
+  }
+  body.has-evidence:not(:has(.reading-content)) main {
+    max-width: none;
+  }
+}

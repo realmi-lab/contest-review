@@ -1,0 +1,91 @@
+/* 토큰·비용: 결과 아래 접힌 한 줄 */
+.usage-fold { margin-top: 20px; color: var(--text-3); font-size: var(--fs-meta); }
+.usage-fold > summary { width: fit-content; cursor: pointer; }
+.usage-fold > summary:hover { color: var(--text); }
+.haiku-usage { margin: 8px 0 0; padding-block: 10px; border-block: 1px solid var(--line-soft); font-size: var(--fs-meta); font-variant-numeric: tabular-nums; }
+.haiku-usage > div, .haiku-usage dl { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+.haiku-usage dl { margin: 4px 0 0; color: var(--text-2); }
+.haiku-usage dl div { display: inline-flex; gap: 4px; }
+
+/* ─────────────────────────── 내용 요약 ─────────────────────────── */
+
+.read-section {
+  padding: 24px 0;
+  border-top: 1px solid var(--line);
+}
+.read-section:first-of-type,
+.toolbar + .read-section,
+.warning + .read-section {
+  border-top: 0;
+}
+
+.claim.active {
+  background: var(--accent-soft);
+}
+.mode {
+  font-size: var(--fs-label);
+}
+.topics {
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.topics > :first-child {
+  border-top: 0;
+}
+.empty-topic {
+  margin: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  color: var(--text-3);
+  font-size: var(--fs-ui);
+}
+
+/* 내용 요약 화면: 제목 줄에 결과 선택을 함께 두고, 요점은 '항목 | 문장 | 그림' 세 칸으로 읽는다. */
+.reading-content { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 20px; align-items: center; }
+.reading-content > * { grid-column: 1 / -1; min-width: 0; }
+.reading-content > .panetitle { grid-column: 1; margin: 0; padding: 0; border: 0; }
+.reading-content > .provider-toolbar { grid-column: 2; }
+.summary-edition { padding: 22px 0 8px; }
+.summary-edition h2 { margin: 0; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.summary-points { list-style: none; margin: 0; padding: 0; }
+.summary-points + h2, .summary-missing + h2 { margin-top: 48px; }
+.summary-missing { margin: 0; padding: 12px 0 0; border-top: 1px solid var(--line-soft); color: var(--text-3); font-size: var(--fs-meta); line-height: 1.6; }
+.summary-missing b { margin-right: 10px; color: var(--text-2); font-weight: 600; }
+.summary-points > li { display: grid; gap: 4px; padding: 16px 0; }
+.summary-points > li + li { border-top: 1px dashed var(--line); } /* 답안 줄 */
+.summary-points > li > b { color: var(--text-3); font-size: var(--fs-meta); font-weight: 600; }
+.summary-points.lead > li > b { color: var(--text-2); font-family: var(--font-heading); font-size: var(--fs-ui); font-weight: 700; letter-spacing: -0.02em; }
+.summary-points .claim { max-width: 68ch; line-height: 1.75; }
+/* 핵심 요약은 문제·목표 / 방법·결과 / 시사점·한계 세 묶음으로 읽힌다: 묶음이 바뀌는 줄은 실선과 여백 */
+.summary-points.lead > li[data-topic="어떻게 푸는가"],
+.summary-points.lead > li[data-topic="시사점과 활용"] { margin-top: 20px; border-top: 1px solid var(--text-4); }
+.summary-edition .summary-points > li { grid-template-columns: 132px minmax(0, 1fr); column-gap: 20px; align-items: baseline; }
+.summary-edition .summary-points > li.with-figure { grid-template-columns: 132px minmax(0, 1fr) 208px; }
+/* 핵심 요약은 세부 내용보다 한 단계 크게 읽힌다. */
+.summary-points.lead .claim { font-size: var(--fs-read); }
+.summary-points:not(.lead) .claim { color: var(--text-2); font-size: var(--fs-body); line-height: 1.75; }
+.summary-points:not(.lead) > li { padding: 12px 0; }
+/* 한 줄 요약은 시험지의 지문 상자: 잉크 테두리 상자 안에 가장 크게, 항목 칸 없이 폭 전체 */
+.summary-edition .summary-points.lead > li.gist { display: block; margin: 20px 0 6px; padding: 16px 22px 18px; border-radius: 10px; background: var(--fill); }
+.summary-points.lead > li.gist > b { display: block; margin-bottom: 6px; color: var(--text-3); font-family: var(--font); font-size: var(--fs-label); font-weight: 600; }
+.summary-points.lead > li.gist .claim { max-width: none; font-family: var(--font-heading); font-size: var(--fs-lead); font-weight: 700; line-height: 1.6; letter-spacing: -0.02em; }
+.summary-points.lead > li.gist + li { border-top: 0; }
+/* 요점 옆 근거 그림. 누르면 원본 캡처가 열린다. */
+.summary-image { position: relative; display: grid; align-self: start; padding: 0; overflow: hidden; border-radius: 8px; background: var(--paper); text-align: left; box-shadow: var(--shadow-on-paper);
+  transform: perspective(700px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition: transform var(--slow) var(--ease-out), box-shadow var(--base) var(--ease-out); }
+.summary-image:hover { background: var(--paper); box-shadow: var(--shadow-lift); transition-duration: 90ms, var(--base); }
+.summary-image:active:not(:disabled) { transform: perspective(700px) scale(0.985); box-shadow: var(--shadow-on-paper); }
+.summary-preview { display: block; width: 100%; height: 120px; object-fit: contain; background: var(--paper); }
+.summary-image .summary-preview image { pointer-events: none; }
+.summary-image small { padding: 6px 10px; border-top: 1px solid var(--line-soft); color: var(--text-3); font-size: var(--fs-label); font-weight: 500; }
+.summary-points blockquote { margin: 0; white-space: pre-line; }
+/* 창이 좁으면 항목 칸과 그림을 줄여 문장 폭을 지킨다. */
+@media (max-width: 1180px) {
+  .summary-edition .summary-points > li { grid-template-columns: 112px minmax(0, 1fr); }
+  .summary-edition .summary-points > li.with-figure { grid-template-columns: 112px minmax(0, 1fr) 190px; }
+  .summary-preview { height: 108px; }
+}
+/* 요약 아래 AI 사용량(토큰·비용) */
+.reading-content > .usage-fold { margin: 20px 0 0; }
+.ocr-difference { padding: 12px 0; }

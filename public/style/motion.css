@@ -1,0 +1,68 @@
+/* ─────────────────────────── 화면 넘김 ───────────────────────────
+   작품·단계를 바꾸면 본문이 그 방향으로 넘어가고(into·next·prev·back), 목록에서 고른 제목은
+   작품 제목 자리로 옮겨 가며, 진행 단계 막대는 다음 칸으로 미끄러진다(View Transitions). */
+#main {
+  view-transition-name: main;
+}
+::view-transition-group(root) {
+  animation-duration: 160ms;
+}
+::view-transition-old(main) {
+  animation: page-out 120ms ease-in both;
+}
+::view-transition-new(main) {
+  animation: page-in var(--slow) var(--ease-out) both;
+}
+html[data-nav="next"]::view-transition-new(main) { animation-name: page-in-next; }
+html[data-nav="prev"]::view-transition-new(main) { animation-name: page-in-prev; }
+html[data-nav="into"] .detail-title h1 { view-transition-name: work-title; }
+::view-transition-group(work-title) {
+  animation-duration: var(--slow);
+  animation-timing-function: var(--ease-out);
+}
+@keyframes page-out { to { opacity: 0; } }
+@keyframes page-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes page-in-next { from { opacity: 0; transform: translateX(16px); } }
+@keyframes page-in-prev { from { opacity: 0; transform: translateX(-16px); } }
+/* 요약 화면에 들어오면 줄이 위에서부터 차례로 놓인다(전체 0.25초 안). */
+#main.entering .summary-points > li {
+  animation: line-in var(--slow) var(--ease-out) both;
+  animation-delay: calc(min(var(--i, 0), 6) * 40ms);
+}
+@keyframes line-in { from { opacity: 0; transform: translateY(6px); } }
+
+/* ─────────────────────────── 작품 넘김 ───────────────────────────
+   다음 작품으로 가면 지금 카드가 왼쪽으로 빠지고 새 카드가 오른쪽에서 들어온다(이전 작품은 반대). */
+.paper-stack { position: relative; }
+html[data-nav^="turn"] .sheet { view-transition-name: sheet; }
+html[data-nav^="turn"]::view-transition-new(main) { animation: page-fade 260ms ease-out both; }
+::view-transition-group(sheet) { animation-duration: 420ms; animation-timing-function: var(--ease-out); }
+::view-transition-old(sheet),
+::view-transition-new(sheet) { mix-blend-mode: normal; }
+html[data-nav="turn-next"]::view-transition-old(sheet) { animation: card-out-left 420ms var(--ease-out) both; }
+html[data-nav="turn-next"]::view-transition-new(sheet) { animation: card-in-right 420ms var(--ease-out) both; }
+html[data-nav="turn-prev"]::view-transition-old(sheet) { animation: card-out-right 420ms var(--ease-out) both; }
+html[data-nav="turn-prev"]::view-transition-new(sheet) { animation: card-in-left 420ms var(--ease-out) both; }
+@keyframes card-out-left { to { opacity: 0; transform: translateX(-40px); } }
+@keyframes card-out-right { to { opacity: 0; transform: translateX(40px); } }
+@keyframes card-in-right { from { opacity: 0; transform: translateX(40px); } }
+@keyframes card-in-left { from { opacity: 0; transform: translateX(-40px); } }
+
+/* 움직임 줄이기: 이동·기울기·확대는 빼고 투명도와 색 변화만 남긴다. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-new(main),
+  html[data-nav]::view-transition-new(main) { animation: page-fade 160ms ease-out both; }
+  html[data-nav="into"] .detail-title h1,
+  html[data-nav^="turn"] .sheet { view-transition-name: none; }
+  #main.entering .summary-points > li { animation-name: page-fade; animation-delay: 0ms; }
+  .summary-image,
+  .summary-image:hover { transform: none; }
+    .stamp.fresh { animation: page-fade 200ms ease-out both; }
+  .peek { transform: none; filter: none; }
+  .evidence { animation: page-fade 160ms ease-out; }
+  button:active:not(:disabled),
+  button.primary:hover,
+  .ref:hover,
+  .ref[aria-describedby] { transform: none; }
+}
+@keyframes page-fade { from { opacity: 0; } }

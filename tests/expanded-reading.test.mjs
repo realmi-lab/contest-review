@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { expandedReading } from "../public/expanded-reading.mjs";
+import { expandedReading } from "../public/lib/expanded-reading.mjs";
 
 const source = (text, line, capture = "page-a", kind = "OCR") => ({
   text,

@@ -1,0 +1,139 @@
+/* 요약 설정의 AI 사용량 확인 표 */
+.usage-check { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.usage-check h3 { margin: 0 0 10px; font-size: var(--fs-body); }
+.usage-check table { width: 100%; border-collapse: collapse; font-size: var(--fs-meta); font-variant-numeric: tabular-nums; }
+.usage-check th, .usage-check td { padding: 7px 8px; border-top: 1px solid var(--line-soft); text-align: right; white-space: nowrap; }
+.usage-check thead th { border-top: 0; color: var(--text-3); font-size: var(--fs-label); font-weight: 600; }
+.usage-check th:first-child { text-align: left; }
+.usage-check td small { color: var(--warn-text); }
+.usage-check p { margin: 10px 0 0; }
+
+/* ─────────────────────────── 대화상자·알림 ─────────────────────────── */
+
+dialog {
+  width: min(560px, 94vw);
+  max-height: 90vh;
+  padding: 24px 28px 28px;
+  border: 0;
+  border-radius: var(--radius); /* 대화상자도 책상 위에 올려 둔 종이 한 장 */
+  color: var(--text);
+  background: var(--paper);
+  box-shadow: var(--shadow-float);
+}
+dialog::backdrop {
+  background: rgb(16 18 22 / 50%);
+}
+.dialoghead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.dialoghead h2 {
+  margin: 0;
+  font-size: var(--fs-pane);
+}
+dialog:has(.capture-stage) {
+  position: fixed;
+  inset: 0;
+  width: min(96vw, 1600px);
+  max-width: none;
+  height: min(92dvh, 1100px);
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  color: #fff;
+  background: var(--text);
+}
+dialog:has(.capture-stage)::backdrop { background: rgb(18 22 28 / 72%); }
+dialog:has(.capture-stage) .dialoghead {
+  height: 56px;
+  margin: 0;
+  padding-inline: max(16px, env(safe-area-inset-left)) max(8px, env(safe-area-inset-right));
+  gap: 12px;
+}
+dialog:has(.capture-stage) h2 {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-read);
+}
+dialog:has(.capture-stage) .iconbtn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  color: #fff;
+}
+dialog:has(.capture-stage) .iconbtn:hover {
+  background: var(--side-hover);
+}
+.capture-stage {
+  position: absolute;
+  inset: max(56px, env(safe-area-inset-top), env(safe-area-inset-bottom))
+         max(56px, env(safe-area-inset-left), env(safe-area-inset-right));
+  container-type: size;
+  display: flex;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.capture-stage .viewbox {
+  flex: none;
+  margin: auto;
+  width: min(100cqw, calc(100cqh * var(--page-ratio)), var(--page-width));
+}
+.capture-stage .viewbox[aria-pressed="true"] { cursor: zoom-out; }
+.capture-stage [role="status"] { margin: auto; }
+.capture-nav { position: absolute; inset: 0; pointer-events: none; }
+.capture-nav .iconbtn { position: absolute; top: 50%; transform: translateY(-50%); pointer-events: auto; }
+.capture-nav .iconbtn:first-child { left: 6px; }
+.capture-nav .iconbtn:last-child { right: 6px; }
+.capture-nav span { position: absolute; inset: auto 0 14px; text-align: center; font-variant-numeric: tabular-nums; }
+@media (max-width: 700px) {
+  dialog:has(.capture-stage) { width: calc(100% - 12px); height: 88dvh; }
+  .capture-stage { inset-inline: 6px; }
+  .capture-nav { inset: auto 0 4px; display: flex; align-items: center; justify-content: center; gap: 16px; }
+  .capture-nav .iconbtn, .capture-nav span { position: static; transform: none; }
+}
+.cam {
+  display: grid;
+  gap: 12px;
+}
+.cam video {
+  width: 100%;
+  max-height: 320px;
+  border-radius: 12px;
+  background: var(--text);
+}
+#notice {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  z-index: 20;
+  max-width: min(560px, 90vw);
+  padding: 13px 20px;
+  border-radius: var(--radius-sm);
+  transform: translateX(-50%);
+  background: var(--side-bg);
+  color: var(--side-text);
+  font-size: var(--fs-ui);
+  font-weight: 500;
+  box-shadow: var(--shadow-lift);
+  cursor: pointer;
+}
+#notice.error {
+  background: var(--red-text);
+}
+
+/* 접수 정보 수정 대화상자 아래의 작품 삭제 */
+.dangerzone { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+
+/* 공모 연동 설정: 고를 곳 두 개(제목 · 고른 경로와 읽은 결과 | 찾아보기) */
+.setup-step { display: grid; gap: 8px; }
+.setup-step h3 { margin: 0; font-size: var(--fs-section); }
+.source-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.source-row > div { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.source-row span { overflow-wrap: anywhere; font-size: var(--fs-ui); }
+.source-row .picked { color: var(--accent-text); font-weight: 600; }
+.source-row small { font-size: var(--fs-meta); }
