@@ -1,0 +1,45 @@
+{
+  "network": {
+    "publicHost": "contest.company.com",
+    "listenAddress": "10.0.0.20",
+    "port": 20883,
+    "proxyAddresses": [
+      "10.0.0.2"
+    ]
+  },
+  "forms": {
+    "oneDriveRoot": "~/Library/CloudStorage/OneDrive-회사이름",
+    "formsWorkbook": "아이디어 공모/아이디어 공모 응답.xlsx",
+    "formsSheet": "",
+    "columns": {
+      "id": "A",
+      "submittedAt": "C",
+      "email": "D",
+      "submitter": "E",
+      "team": "G",
+      "title": "H",
+      "description": "I",
+      "files": "J"
+    },
+    "attachmentsDir": "Apps/Microsoft Forms/아이디어 공모",
+    "reviewDir": "아이디어 공모 심사",
+    "evaluators": [
+      {
+        "name": "홍길동",
+        "email": "gildong.hong@company.com",
+        "categories": [
+          "복지·근무환경",
+          "인사·교육"
+        ]
+      },
+      {
+        "name": "김보안",
+        "email": "boan.kim@company.com",
+        "categories": [
+          "보안·이용자 보호",
+          "거래·입출금·지갑"
+        ]
+      }
+    ]
+  }
+}
