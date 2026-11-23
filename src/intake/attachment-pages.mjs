@@ -43,6 +43,39 @@ async function samePage(a, b) {
   return different <= 8;
 }
 
+// 브라우저·뷰어 창 캡처에서 쪽만 잘라 낸다(탭·주소창·도구 막대·회색 여백을 뺀다).
+// 아래쪽 왼·오른 가장자리의 바탕색(뷰어 회색)이 위로 끊기지 않고 이어지는 데까지가 문서 영역이고, 그 안에서 바탕색과
+// 다른 점들을 감싸는 상자가 쪽이다. 쪽이 창 가장자리에 닿는 등 판단하기 어려우면 자르지 않고 그대로 돌려준다.
+export async function cropToPage(png) {
+  try {
+    const { data, info } = await sharp(png).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const { width: w, height: h } = info;
+    const at = (x, y) => (y * w + x) * 3;
+    const inset = Math.round(Math.min(w, h) * 0.012) + 8; // 창의 둥근 모서리를 피한다
+    const leftX = inset, rightX = w - 1 - inset - Math.round(w * 0.02) - 30; // 오른쪽 스크롤 막대를 피한다
+    const bg = at(leftX, h - inset);
+    const like = (i) => Math.abs(data[i] - data[bg]) + Math.abs(data[i + 1] - data[bg + 1]) + Math.abs(data[i + 2] - data[bg + 2]) <= 24;
+    let top = h - inset;
+    while (top > 0 && like(at(leftX, top - 1)) && like(at(rightX, top - 1))) top--;
+    if (top > h * 0.4) return png;
+    let left = w, right = -1, upper = h, lower = -1;
+    for (let y = top; y < h - inset; y += 2)
+      for (let x = leftX; x <= rightX; x += 2)
+        if (!like(at(x, y))) {
+          left = Math.min(left, x); right = Math.max(right, x);
+          upper = Math.min(upper, y); lower = Math.max(lower, y);
+        }
+    if (right < 0 || (right - left) * (lower - upper) < w * h * 0.1) return png;
+    const margin = 4;
+    left = Math.max(0, left - margin);
+    upper = Math.max(top, upper - margin);
+    const width = Math.min(w, right + margin + 2) - left, height = Math.min(h, lower + margin + 2) - upper;
+    return await sharp(png).extract({ left, top: upper, width, height }).png().toBuffer();
+  } catch {
+    return png; // 그림이 아니거나 읽지 못하면 그대로
+  }
+}
+
 // 문서를 앱으로 연다(Launch Services). 앱을 앞으로 가져오지 않고, Office 샌드박스도 파일 접근을 허락받는다.
 const launch = (app, file) =>
   new Promise((resolve, reject) =>
@@ -220,8 +253,10 @@ async function protectedPdf(file, only) {
   throw new Error("보호된 PDF라 Microsoft Edge(회사 계정 로그인)로 열어 캡처해야 하는데 이 맥에 Edge가 없습니다. Edge를 설치한 뒤 목록의 '지금 가져오기'를 누르세요.");
 }
 
-// Edge: 따로 새 창을 열어 PDF를 쪽 번호(#page=N, 쪽 맞춤)로 열고 그 창을 캡처한다. 쓰던 Edge 창·탭은 건드리지 않고,
-// 끝나면 그 창만 닫는다(원래 Edge가 꺼져 있었으면 Edge도 끈다). 쪽마다 빈 화면을 거쳐 새로 열어 그 쪽에서 시작하게 한다.
+// Edge: 따로 새 창을 열어 PDF를 쪽 번호(#page=N, 쪽 맞춤, 뷰어 도구 막대 숨김)로 열고 그 창을 캡처한 뒤 쪽만 잘라 낸다.
+// 창은 가로로 넓게 두어(화면 높이의 90% × 2.1배) 가로 슬라이드도 옆에 여백이 남게 한다(그래야 쪽 경계를 찾는다).
+// 쓰던 Edge 창·탭은 건드리지 않고, 끝나면 그 창만 닫는다(원래 Edge가 꺼져 있었으면 Edge도 끈다).
+// 쪽마다 빈 화면을 거쳐 새로 열어 그 쪽에서 시작하게 한다.
 // 쪽 수는 알 수 없어 넘기다 같은 화면이 다시 나오면 마지막 쪽으로 본다. 터미널에 Edge 제어(자동화)와 화면 기록 권한이 필요하다.
 async function edgeCaptures(file, only) {
   const url = pathToFileURL(file).href;
@@ -244,12 +279,17 @@ end run`, url, String(windowId), String(page)], "Edge에서 PDF를 캡처하지 
   };
   const open = (windowId, page) => edge(`set URL of active tab of window id w to "about:blank"
     delay 0.3
-    set URL of active tab of window id w to u & "#page=" & p & "&view=Fit"
+    set URL of active tab of window id w to u & "#page=" & p & "&view=Fit&toolbar=0"
     set index of window id w to 1
     activate`, windowId, page);
   const before = await windows(EDGE).catch(() => []);
   const windowId = Number(await edge(`set nw to make new window
     return id of nw`));
+  const [screenW, screenH] = await osa(["-l", "JavaScript", "-e",
+    `ObjC.import("AppKit"); const f = $.NSScreen.mainScreen.visibleFrame; JSON.stringify([f.size.width, f.size.height])`], "화면 크기")
+    .then(JSON.parse).catch(() => [1440, 900]);
+  const height = Math.round(screenH * 0.9), width = Math.min(Math.round(screenW) - 20, Math.round(height * 2.1));
+  await edge(`set bounds of window id w to {10, 40, ${10 + width}, ${40 + height}}`, windowId).catch(() => {});
   const out = await mkdtemp(path.join(os.tmpdir(), "edge-"));
   const pages = [];
   try {
@@ -267,7 +307,7 @@ end run`, url, String(windowId), String(page)], "Edge에서 PDF를 캡처하지 
       }
       const png = path.join(out, i + ".png");
       await capture(png, shot);
-      const page = await readFile(png);
+      const page = await cropToPage(await readFile(png));
       if (pages.length && (await samePage(page, pages.at(-1)))) break; // 더 넘어가지 않는다(마지막 쪽)
       pages.push(page);
     }
@@ -317,7 +357,7 @@ end tell`], "Acrobat Reader에서 쪽을 넘기지 못했습니다").catch((e) =
       if (only && i < only) continue;
       const png = path.join(out, i + ".png");
       await capture(png, windowId);
-      const page = await readFile(png);
+      const page = await cropToPage(await readFile(png));
       if (pages.length && (await samePage(page, pages.at(-1)))) break; // 더 넘어가지 않는다(마지막 쪽)
       pages.push(page);
     }

@@ -61,7 +61,7 @@ AI 비용은 목록 위에 **오늘 · 최근 7일**로 늘 보입니다. 아이
 | 인터넷 | 처음 설치와 AI 요약에 필요합니다. 회사 프록시는 `HTTPS_PROXY`로 넘깁니다 |
 | AI 키 | Anthropic API 키 또는 회사 LiteLLM 주소와 키 |
 | Microsoft Office (맥) | 회사 계정으로 로그인된 Word·PowerPoint·Excel. 보호(MIP) 문서를 열어 캡처하는 데 씁니다 |
-| Microsoft Edge (맥) | 회사 계정으로 로그인. 보호(MIP) PDF를 열어 캡처하는 데 씁니다(없으면 Adobe Acrobat Reader). 캡처하는 동안 새 Edge 창이 잠깐 앞으로 나왔다 닫힙니다 |
+| Microsoft Edge (맥) | 회사 계정으로 로그인. 보호(MIP) PDF를 열어 캡처하는 데 씁니다(없으면 Adobe Acrobat Reader). 캡처하는 동안 새 Edge 창이 잠깐 앞으로 나왔다 닫히고, 캡처에서 탭·주소창은 잘라 냅니다 |
 | OneDrive | 응답 엑셀과 첨부 폴더가 이 PC에 동기화되어 있어야 합니다 |
 
 글자 읽기(OCR) 엔진과 한국어 모델은 저장소에 들어 있어 따로 받을 것이 없습니다.
