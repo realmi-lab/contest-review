@@ -2,7 +2,7 @@
 
 ## 운영 서버
 
-운영망은 프로젝트 루트에서 `./start.sh`를 실행해 서버 안에서 `http://localhost:18765`로 연다(README의 '운영 서버에서 실행').
+운영망은 프로젝트 루트에서 `./start.sh`(이 PC에서만 `http://localhost:18765`) 또는 `./start.sh --server`(다른 PC에서 `https://<이 PC IP>:20883`, 아래 network를 처음에 자동으로 채움)로 연다(README의 '운영 서버에서 실행').
 
 ## 웹 주소로 열 때(QA망 방식)
 

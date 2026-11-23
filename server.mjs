@@ -20,7 +20,7 @@ import {
   placeLabel, readEvaluations, readOneDrive, readResponses, rootOf, shareState, storageRoots, workFolder,
 } from "./forms-intake.mjs";
 import { readSite, writeSite } from "./deploy/site.mjs";
-import { macAddress, nasServer, publicHost } from "./deploy/nas-access.mjs";
+import { macAddress, nasServer, publicOrigin } from "./deploy/nas-access.mjs";
 import { readAccess, verifyCode } from "./deploy/access-code.mjs";
 import { ai, aiSettings, haiku, haikuEffortNote, haikuLabel, matches, saveConnection, savedKey, saveKey, ticket, usageReport, validTicket, verifyKey, withHaiku } from "./claude-summary.mjs";
 import { dailyUsage, newHaikuUsage, recordHaikuUsage, reportedUsage, usageSnapshot } from "./haiku-usage.mjs";
@@ -28,15 +28,9 @@ import { dailyUsage, newHaikuUsage, recordHaikuUsage, reportedUsage, usageSnapsh
 process.umask(0o077);
 const root = path.dirname(fileURLToPath(import.meta.url));
 const nasMode = process.env.REVIEW_NAS_MODE === "1";
-const directory = nasMode
-  ? path.join(os.homedir(), "Library", "Application Support", "ContestReviewWeb")
-  : process.env.REVIEW_DATA_DIR ||
-  path.join(
-    os.homedir(),
-    "Library",
-    "Application Support",
-    "ContestReviewDesk",
-  );
+// 데이터 폴더: REVIEW_DATA_DIR(./start.sh는 두 방식 모두 ContestReviewDesk), 없으면 웹 주소 방식은 ContestReviewWeb
+const directory = process.env.REVIEW_DATA_DIR ||
+  path.join(os.homedir(), "Library", "Application Support", nasMode ? "ContestReviewWeb" : "ContestReviewDesk");
 await mkdir(directory, { recursive: true, mode: 0o700 });
 const db = new DatabaseSync(path.join(directory, "desk.sqlite3"));
 db.exec(
@@ -715,7 +709,7 @@ async function handleRequest(req, res) {
     if (pathname === "/api/summary-link") {
       const key = await savedKey();
       if (!key) err("요약 설정에서 API 키를 등록하세요.");
-      if (!nasMode) return json({ url: "https://" + publicHost + "/#connect=" + ticket(key, "link", 90) });
+      if (!nasMode) return json({ url: publicOrigin + "/#connect=" + ticket(key, "link", 90) });
       for (const [code, expires] of redeemedLinks) if (expires <= Date.now()) redeemedLinks.delete(code);
       if (!validTicket(key, "link", b.code) || redeemedLinks.has(b.code))
         err("브라우저 연결 링크가 만료되었습니다. 맥의 요약 설정에서 다시 여세요.", 403);

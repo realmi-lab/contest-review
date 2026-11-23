@@ -3,6 +3,7 @@
 // ① 응답마다 작품 폴더를 만들어 첨부를 복사하고 ② 분야별 심사자 폴더에 배정 작품과 평가표 엑셀을 두고 공유를 요청하며
 // ③ 심사자가 채운 평가표를 다시 읽는다. 폴더 공유는 Power Automate가 '_공유 요청' 폴더의 요청 파일을 보고 처리한다.
 // 설정은 deploy/site.json의 forms다(QA망·회사망마다 다름. 회사망 예시: deploy/site.example.json).
+import { execFile } from "node:child_process";
 import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -173,8 +174,40 @@ export async function fromOneDrive(file, action, waitMs = 1000, tries = 10) {
 }
 export const readOneDrive = (file) => fromOneDrive(file, () => readFile(file));
 
+// MIP(민감도 레이블)로 암호화된 엑셀은 zip(PK…)이 아닌 암호화 파일이라 직접 풀 수 없다. 맥의 Excel 앱이 회사 계정으로
+// 열어 값을 넘겨 준다(처음 한 번 macOS가 'Excel 제어 허용'을 묻는다). 이미 열려 있던 통합 문서는 닫지 않는다.
+const EXCEL_READER = `function run([file, sheetName]) {
+  const excel = Application("Microsoft Excel");
+  const name = file.split("/").pop();
+  const opened = excel.workbooks().find((w) => w.name() === name);
+  if (!opened) excel.open(Path(file));
+  const book = opened || excel.workbooks().find((w) => w.name() === name) || excel.activeWorkbook();
+  const sheet = sheetName ? book.worksheets.byName(sheetName) : book.worksheets[0];
+  let rows = sheet.usedRange.value();
+  if (!Array.isArray(rows)) rows = [[rows]];
+  const two = (n) => String(n).padStart(2, "0");
+  const cell = (v) => Object.prototype.toString.call(v) === "[object Date]"
+    ? v.getFullYear() + "-" + two(v.getMonth() + 1) + "-" + two(v.getDate()) + " " + two(v.getHours()) + ":" + two(v.getMinutes())
+    : v ?? "";
+  if (!opened) book.close({ saving: "no" });
+  return JSON.stringify(rows.map((r) => (Array.isArray(r) ? r : [r]).map(cell)));
+}`;
+export const isEncrypted = (buffer) => !(buffer[0] === 0x50 && buffer[1] === 0x4b);
+function excelRows(file, sheetName) {
+  if (process.platform !== "darwin") throw new Error("암호화(MIP)된 응답 엑셀은 맥의 Excel 앱으로만 읽을 수 있습니다.");
+  return new Promise((resolve, reject) =>
+    execFile("osascript", ["-l", "JavaScript", "-e", EXCEL_READER, file, sheetName], { timeout: 180_000, maxBuffer: 64 << 20 },
+      (e, out, errText) => (e
+        ? reject(new Error("Excel 앱으로 응답 엑셀을 읽지 못했습니다(Excel 설치·회사 계정 로그인·Excel 제어 허용 확인): " + String(errText || e.message).trim()))
+        : resolve(JSON.parse(out)))));
+}
+export async function workbookRows(file, sheetName = "") {
+  const buffer = await readOneDrive(file);
+  return isEncrypted(buffer) ? excelRows(file, sheetName) : readSheet(buffer, sheetName);
+}
+
 export async function readResponses(config) {
-  return formEntries(readSheet(await readOneDrive(config.formsWorkbook), config.formsSheet), config.columns);
+  return formEntries(await workbookRows(config.formsWorkbook, config.formsSheet), config.columns);
 }
 
 // OneDrive가 허용하지 않는 글자를 빼고 길이를 줄인 폴더·파일 이름

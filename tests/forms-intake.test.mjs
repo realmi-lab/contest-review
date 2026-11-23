@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, readdir, rename, writeFile } from "node:fs/pr
 import os from "node:os";
 import path from "node:path";
 import {
-  attachmentNames, copyAttachments, dayOf, distribute, evaluationFile, fileIndex, formEntries, formsConfig, fromOneDrive,
+  attachmentNames, copyAttachments, dayOf, distribute, evaluationFile, fileIndex, formEntries, formsConfig, fromOneDrive, workbookRows,
   readEvaluations, readResponses, safeName, shareState, workFolder,
 } from "../forms-intake.mjs";
 import { readSheet, writeWorkbook } from "../xlsx.mjs";
@@ -141,4 +141,13 @@ test("OneDrive 온라인 전용 파일(EDEADLK -11)은 내려받을 때까지 �
   assert.equal(calls, 3);
   await assert.rejects(fromOneDrive("응답.xlsx", async () => { throw online(); }, 1, 3), /항상 이 기기에 유지/);
   await assert.rejects(fromOneDrive("응답.xlsx", async () => { throw Object.assign(new Error("없음"), { errno: -2 }); }, 1), /없음/);
+});
+
+test("MIP로 암호화된 엑셀(zip이 아님)은 맥의 Excel 앱으로 읽고, 보통 엑셀은 직접 읽는다", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "mip-"));
+  const plain = path.join(dir, "응답.xlsx"), locked = path.join(dir, "보호.xlsx");
+  await writeFile(plain, writeWorkbook([{ name: "Form1", rows: [["ID", "제목"], [1, "공유 우산"]] }]));
+  await writeFile(locked, Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])); // 암호화된 Office 파일 머리
+  assert.deepEqual((await workbookRows(plain))[1], [1, "공유 우산"]);
+  if (process.platform !== "darwin") await assert.rejects(workbookRows(locked), /Excel 앱/);
 });

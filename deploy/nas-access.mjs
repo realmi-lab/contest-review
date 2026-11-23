@@ -7,7 +7,11 @@ import { readSite } from "./site.mjs";
 const network = readSite().network ?? {};
 export const publicHost = network.publicHost ?? "localhost";
 export const macAddress = network.listenAddress ?? "127.0.0.1";
+// 앞단 프록시가 없으면(proxyAddresses 비움) 브라우저가 https://<publicHost>:<port>로 바로 연다.
+const direct = !network.proxyAddresses?.length;
 const allowedAddresses = [...(network.proxyAddresses ?? []), macAddress];
+const hosts = direct ? [publicHost + ":" + (network.port ?? 20883)] : [publicHost, publicHost + ":443"];
+export const publicOrigin = "https://" + hosts[0];
 
 export async function nasServer(directory, handle) {
   const [key, cert] = await Promise.all(
@@ -18,14 +22,14 @@ export async function nasServer(directory, handle) {
   return https.createServer({ key, cert, minVersion: "TLSv1.2" }, (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     if (
-      !allowedAddresses.includes(req.socket.remoteAddress) ||
-      ![publicHost, publicHost + ":443"].includes(req.headers.host)
+      (!direct && !allowedAddresses.includes(req.socket.remoteAddress)) ||
+      !hosts.includes(req.headers.host)
     ) {
       res.writeHead(403).end();
       return;
     }
-    if ((req.headers.origin && req.headers.origin !== "https://" + publicHost) ||
-        (req.method === "POST" && (req.headers.origin !== "https://" + publicHost ||
+    if ((req.headers.origin && req.headers.origin !== publicOrigin) ||
+        (req.method === "POST" && (req.headers.origin !== publicOrigin ||
           req.headers["sec-fetch-site"] === "cross-site"))) {
       res.writeHead(403).end();
       return;

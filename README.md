@@ -10,9 +10,11 @@ cd contest-review
 ./start.sh
 ```
 
-- 서버의 브라우저에서 **http://localhost:18765** 를 엽니다. `./start.sh`는 그 터미널에서 서버를 띄우고, 끄려면 Ctrl+C입니다.
+- `./start.sh`(= `--localhost`): 이 PC에서만 **http://localhost:18765** 로 엽니다.
+- `./start.sh --server`: 다른 PC에서 **https://<이 PC IP>:20883** 으로 엽니다. 처음 실행할 때 이 PC의 IP를 `deploy/site.json`의 `network`에 넣고(앞단 프록시를 두면 고칩니다) 내부 인증서를 만듭니다. 처음엔 브라우저가 인증서 경고를 보여 줍니다.
+- 두 방식 모두 그 터미널에서 서버가 돌고(끄려면 Ctrl+C), 같은 데이터(`~/Library/Application Support/ContestReviewDesk/`)를 씁니다.
 - Node가 22.21보다 낮으면(예: 20) nvm을 `~/.nvm`에 설치해 `.nvmrc`의 Node 22를 이 앱에만 씁니다. 서버의 기본 Node와 셸 설정 파일은 그대로 둡니다. OCR 엔진(`vendor/kordoc.tgz`, MIT)과 한국어 모델(`vendor/models`)은 저장소에 들어 있고, 패키지는 처음 실행할 때와 `package-lock.json`이 바뀌었을 때 `npm ci`로 설치합니다. 서버가 nodejs.org·GitHub·npm에 접속할 수 있어야 하며, 회사 프록시는 `HTTPS_PROXY=… ./start.sh`로 넘깁니다.
-- MS Forms 공모 연동은 왼쪽 메뉴의 **공모 연동 설정**에서 응답 엑셀과 첨부 폴더를 고르고, AI 키(회사 LiteLLM 주소 포함)는 **요약 설정**에서 넣습니다. 데이터는 `~/Library/Application Support/ContestReviewDesk/`에 있습니다.
+- MS Forms 공모 연동은 왼쪽 메뉴의 **공모 연동 설정**에서 응답 엑셀과 첨부 폴더를 고르고, AI 키(회사 LiteLLM 주소 포함)는 **요약 설정**에서 넣습니다. 운영망 응답 엑셀은 MIP(민감도 레이블)로 암호화되어 있어 맥의 **Excel 앱**이 열어 값을 넘겨 줍니다. Excel이 설치되어 회사 계정으로 로그인돼 있어야 하고, 처음 한 번 macOS가 'Excel 제어 허용'을 물으면 허용합니다(암호화되지 않은 엑셀은 앱 없이 바로 읽습니다).
 
 ## 사용
 
