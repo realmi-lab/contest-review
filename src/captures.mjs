@@ -35,7 +35,10 @@ function runOcr(buffer) {
     });
     child.on("close", (code) => {
       clearTimeout(timer);
-      if (code !== 0) return reject(new Error("Kordoc OCR 실패 · " + Buffer.concat(stderr).toString().slice(-450)));
+      if (code !== 0) {
+        const text = Buffer.concat(stderr).toString(); // 오류 줄("Error: …")만 보여 주고, 없으면 끝부분
+        return reject(new Error("Kordoc OCR 실패 · " + (text.match(/^\w*Error: (.+)$/m)?.[1] ?? text.trim().slice(-300))));
+      }
       try {
         resolve(JSON.parse(Buffer.concat(stdout).toString()));
       } catch {
