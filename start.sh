@@ -8,10 +8,12 @@ cd "$(dirname "$0")"
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 need() { command -v "$1" >/dev/null || { echo "$2"; exit 1; }; }
-need node "Node.js 24 이상을 설치하세요."
+need node "Node.js 22.21 이상을 설치하세요."
 need python3 "python3를 설치하세요."
 need openssl "openssl을 설치하세요."
-[ "$(node -p 'process.versions.node.split(".")[0]')" -ge 24 ] || { echo "Node.js 24 이상이 필요합니다 (지금 $(node -v))."; exit 1; }
+# 22.21부터 내장 SQLite와 회사 프록시(NODE_USE_ENV_PROXY)를 플래그 없이 쓴다.
+node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 21) ? 0 : 1)' ||
+  { echo "Node.js 22.21 이상이 필요합니다 (지금 $(node -v))."; exit 1; }
 
 # OCR 엔진 패키지는 비공개라 깃에 없다. 운영 서버의 vendor/에 따로 넣는다.
 [ -f vendor/kordoc.tgz ] || { echo "vendor/kordoc.tgz(OCR 엔진 패키지)를 vendor 폴더에 넣은 뒤 다시 실행하세요."; exit 1; }
