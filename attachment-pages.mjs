@@ -54,54 +54,62 @@ async function pdfPages(pdf) {
 // 읽을 수 없으므로, PowerPoint는 슬라이드를 PNG로 내보내고(화면을 쓰지 않음, 막혀 있으면 슬라이드 쇼 캡처),
 // Word는 '한 쪽 전체' 배율로, Excel은 시트마다 창을 캡처한다. 창은 앞으로 가져오지 않는다(가려져도 창 번호로 캡처).
 // 이 서버를 띄운 터미널에 Office '제어'와 '화면 기록' 권한이 있어야 한다.
+// 문서는 Launch Services(open -g -a)로 연다: Office 샌드박스가 파일 접근을 허락받고, 앱을 앞으로 가져오지 않는다.
+// (AppleScript의 open은 OneDrive 폴더 문서에서 '매개변수 오류(-50)'를 냈다.) 그 뒤로는 문서 이름(n)으로 다룬다.
 const STEPS = {
   powerpoint: {
     app: "Microsoft PowerPoint",
-    open: `activate
-      open f
+    doc: "presentation",
+    open: `run slide show (slide show settings of presentation n)
       delay 2
-      set p to active presentation
-      run slide show (slide show settings of p)
-      delay 2
-      return count of slides of p`,
+      return count of slides of presentation n`,
     go: `go to slide (slide show view of slide show window 1) number i
       delay 1`,
     close: `exit slide show (slide show view of slide show window 1)
-      close active presentation saving no`,
+      close presentation n saving no`,
     window: false,
   },
   word: {
     app: "Microsoft Word",
-    open: `open f
-      delay 2
-      set view type of view of active window to print view
+    doc: "document",
+    open: `set view type of view of active window to print view
       set page fit of zoom of view of active window to page fit full page
-      return compute statistics active document statistic statistic pages`,
-    go: `select (go to active document what go to a page which go to absolute count i)
+      return compute statistics document n statistic statistic pages`,
+    go: `select (go to document n what go to a page which go to absolute count i)
       delay 1`,
-    close: `close active document saving no`,
+    close: `close document n saving no`,
     window: true,
   },
   excel: {
     app: "Microsoft Excel",
-    open: `open f
-      delay 2
-      return count of worksheets of active workbook`,
-    go: `activate object worksheet i of active workbook
-      select range "A1" of active sheet
+    doc: "workbook",
+    open: `return count of worksheets of workbook n`,
+    go: `activate object worksheet i of workbook n
       delay 1`,
-    close: `close active workbook saving no`,
+    close: `close workbook n saving no`,
     window: true,
   },
 };
 const tell = (step, body, file, i = 0) =>
   osa(["-e", `on run argv
-  set f to POSIX file (item 1 of argv)
+  set n to item 1 of argv
   set i to (item 2 of argv) as integer
   tell application "${step.app}"
     ${body}
   end tell
-end run`, file, String(i)], `${step.app.replace("Microsoft ", "")} 앱으로 문서를 열어 캡처하지 못했습니다(Office 로그인·'제어 허용' 확인)`);
+end run`, path.basename(file), String(i)], `${step.app.replace("Microsoft ", "")} 앱으로 문서를 열어 캡처하지 못했습니다(Office 로그인·'제어 허용' 확인)`);
+// 앱에서 문서가 열릴 때까지(최대 90초) 기다린다. 보호 문서는 회사 계정 확인에 시간이 걸린다.
+async function openInApp(step, file) {
+  await new Promise((resolve, reject) =>
+    execFile("open", ["-g", "-a", step.app, file], (e) => (e ? reject(new Error(`${step.app}로 문서를 열지 못했습니다.`)) : resolve())));
+  for (let t = 0; t < 90; t++) {
+    const opened = await tell(step, `if (name of every ${step.doc}) contains n then return "yes"
+      return "no"`, file).catch(() => "no");
+    if (opened === "yes") return;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  throw new Error(`${step.app}에서 문서가 열리지 않았습니다(회사 계정 로그인·보호 문서 권한 확인).`);
+}
 // 화면에 보이는 그 앱의 가장 큰 창 번호(screencapture -l)
 const WINDOW_ID = `ObjC.import("CoreGraphics");
 function run([owner]) {
@@ -114,24 +122,22 @@ const capture = (out, windowId) =>
   new Promise((resolve, reject) =>
     execFile("screencapture", ["-x", "-o", ...(windowId ? ["-l" + windowId] : []), out], { timeout: 30_000 }, (e) =>
       e ? reject(new Error("화면을 캡처하지 못했습니다. 시스템 설정 > 개인정보 보호 및 보안 > 화면 기록에서 터미널을 허용하세요.")) : resolve()));
-// PowerPoint 슬라이드를 PNG로 내보낸다. Office 앱은 샌드박스라 Office 공용 폴더(Group Containers)에만 바로 쓸 수 있다.
+// PowerPoint 슬라이드를 PNG로 내보낸다(화면을 쓰지 않음). Office 앱은 샌드박스라 Office 공용 폴더(Group Containers)에만
+// 바로 쓸 수 있다. 내보내기가 막힌 보호 문서면 빈 목록을 돌려준다.
 async function slideImages(file) {
   const dir = path.join(os.homedir(), "Library", "Group Containers", "UBF8T346G9.Office", "contest-review", randomUUID());
   await mkdir(dir, { recursive: true });
   try {
     await osa(["-e", `on run argv
-  set f to POSIX file (item 1 of argv)
+  set n to item 1 of argv
   set target to (POSIX file (item 2 of argv)) as text
-  tell application "Microsoft PowerPoint"
-    open f
-    set p to active presentation
-    save p in target as save as PNG
-    close p saving no
-  end tell
-end run`, file, path.join(dir, "slides")], "PowerPoint 슬라이드 내보내기");
+  tell application "Microsoft PowerPoint" to save presentation n in target as save as PNG
+end run`, path.basename(file), path.join(dir, "slides")], "PowerPoint 슬라이드 내보내기");
     const names = (await readdir(dir, { recursive: true })).filter((n) => /\.png$/i.test(n))
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     return await Promise.all(names.slice(0, 60).map((n) => readFile(path.join(dir, n))));
+  } catch {
+    return [];
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -142,9 +148,13 @@ const installed = (app) => new Promise((resolve) => execFile("open", ["-Ra", app
 async function officeCaptures(kind, file) {
   const step = STEPS[kind];
   if (!(await installed(step.app))) throw new Error(`이 맥에 ${step.app} 앱이 없습니다. 회사 뷰어로 열어 캡처해 올려 주세요.`);
+  await openInApp(step, file);
   if (kind === "powerpoint") {
-    const slides = await slideImages(file).catch(() => []); // 내보내기가 막힌 보호 문서는 슬라이드 쇼로 캡처
-    if (slides.length) return slides;
+    const slides = await slideImages(file); // 내보내기가 막힌 보호 문서는 슬라이드 쇼로 캡처
+    if (slides.length) {
+      await tell(step, step.close.split("\n").pop(), file).catch(() => {});
+      return slides;
+    }
   }
   const out = await mkdtemp(path.join(os.tmpdir(), "office-"));
   try {

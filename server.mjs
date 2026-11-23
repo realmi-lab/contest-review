@@ -810,6 +810,13 @@ async function handleRequest(req, res) {
     // MS Forms 응답을 지금 가져오고 평가표를 다시 읽는다.
     if (pathname === "/api/intake-sync") {
       await intake.running; // 1분마다 도는 읽기가 진행 중이면 끝난 뒤 처음부터 다시 읽는다
+      for (const w of formWorks()) { // 못 읽었던 첨부는 다시 열어 본다
+        const read = Object.fromEntries(Object.entries(w.source.read ?? {}).filter(([, r]) => !r.error));
+        if (Object.keys(read).length !== Object.keys(w.source.read ?? {}).length) {
+          w.source.read = read;
+          save(w);
+        }
+      }
       intake.seen.clear();
       await syncIntake();
       return json(intake.view);

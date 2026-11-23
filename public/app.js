@@ -889,7 +889,7 @@ function formsFilesNote() {
   const failed = s.files.some((n) => s.read?.[n]?.error);
   return `<div class="forms-files spaced"><p>MS Forms 첨부 ${s.files.length}개 · OneDrive <b>${esc(folder)}</b></p>
     <ul>${join(s.files, (name) => { const [cls, text] = state(name); return `<li><b>${esc(name)}</b><span class="${cls}">${esc(text)}</span></li>`; })}</ul>
-    ${failed ? '<p class="small muted">못 읽은 파일은 회사 뷰어로 열어 캡처해 올려 주세요.</p>' : ""}</div>`;
+    ${failed ? '<p class="small muted">목록 화면의 \'지금 가져오기\'를 누르면 못 읽은 파일을 다시 열어 봅니다. 그래도 안 되면 회사 뷰어로 열어 캡처해 올려 주세요.</p>' : ""}</div>`;
 }
 
 function intakePane() {
