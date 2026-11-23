@@ -55,39 +55,59 @@ async function pdfPages(pdf) {
 // Word는 '한 쪽 전체' 배율로, Excel은 시트마다 창을 캡처한다. 창은 앞으로 가져오지 않는다(가려져도 창 번호로 캡처).
 // 이 서버를 띄운 터미널에 Office '제어'와 '화면 기록' 권한이 있어야 한다.
 // 문서는 Launch Services(open -g -a)로 연다: Office 샌드박스가 파일 접근을 허락받고, 앱을 앞으로 가져오지 않는다.
-// (AppleScript의 open은 OneDrive 폴더 문서에서 '매개변수 오류(-50)'를 냈다.) 그 뒤로는 문서 이름(n)으로 다룬다.
+// 그 뒤로는 문서 이름(n)으로 다룬다. Office의 AppleScript는 버전마다 받는 문장이 달라, 단계마다 문장을 따로 실행한다:
+//   prepare·close는 되는 것만 하고(실패해도 넘어감), count·go는 적힌 순서대로 처음 되는 문장을 쓴다.
 const STEPS = {
   powerpoint: {
     app: "Microsoft PowerPoint",
     doc: "presentation",
-    open: `set show type of slide show settings of presentation n to slide show type window
-      run slide show (slide show settings of presentation n)
-      delay 2
-      return count of slides of presentation n`,
-    go: `go to slide (slide show view of slide show window 1) number i
-      delay 1`,
-    close: `exit slide show (slide show view of slide show window 1)
-      close presentation n saving no`,
+    // 전체 화면 대신 창 모드로, 애니메이션 없이(다음 슬라이드로 한 번에 넘어가게) 슬라이드 쇼를 띄운다.
+    prepare: [
+      `set show type of slide show settings of presentation n to slide show type window`,
+      `set show with animation of slide show settings of presentation n to false`,
+      `run slide show (slide show settings of presentation n)
+      delay 2`,
+    ],
+    count: [`return count of slides of presentation n`],
+    // 'go to slide'는 편집 창에서만 되고 슬라이드 쇼에서는 매개변수 오류(-50)가 난다. 쇼는 1번에서 시작해 하나씩 넘긴다.
+    go: [`if i > 1 then go to next slide (slide show view of slide show window 1)
+      delay 1`],
+    close: [`exit slide show (slide show view of slide show window 1)`, `close presentation n saving no`],
     window: "new", // 슬라이드 쇼를 시작하면서 새로 생긴 창을 캡처한다
   },
   word: {
     app: "Microsoft Word",
     doc: "document",
-    open: `set view type of view of active window to print view
-      set page fit of zoom of view of active window to page fit full page
-      return compute statistics document n statistic statistic pages`,
-    go: `select (go to document n what go to a page which go to absolute count i)
+    prepare: [
+      `set view type of view of active window to page view`,
+      `set page fit of zoom of view of active window to page fit full page`,
+    ],
+    count: [
+      `return compute statistics document n statistic statistic pages`,
+      `return compute statistics (text object of document n) statistic statistic pages`,
+      `return 30`, // 쪽수를 못 세면 같은 화면이 다시 나올 때까지 넘긴다
+    ],
+    go: [
+      `select (go to (text object of document n) what goto a page item which goto absolute count i)
       delay 1`,
-    close: `close document n saving no`,
+      `select (go to document n what goto a page item which goto absolute count i)
+      delay 1`,
+      `if i > 1 then page scroll (active window) down 1
+      delay 1`,
+      `if i > 1 then page scroll of active window down 1
+      delay 1`,
+    ],
+    close: [`close document n saving no`],
     window: "largest",
   },
   excel: {
     app: "Microsoft Excel",
     doc: "workbook",
-    open: `return count of worksheets of workbook n`,
-    go: `activate object worksheet i of workbook n
-      delay 1`,
-    close: `close workbook n saving no`,
+    prepare: [],
+    count: [`return count of worksheets of workbook n`],
+    go: [`activate object worksheet i of workbook n
+      delay 1`],
+    close: [`close workbook n saving no`],
     window: "largest",
   },
 };
@@ -98,7 +118,22 @@ const tell = (step, body, file, i = 0) =>
   tell application "${step.app}"
     ${body}
   end tell
-end run`, path.basename(file), String(i)], `${step.app.replace("Microsoft ", "")} 앱으로 문서를 열어 캡처하지 못했습니다(Office 로그인·'제어 허용' 확인)`);
+end run`, path.basename(file), String(i)], `${step.app.replace("Microsoft ", "")} 앱에서 문서를 캡처하지 못했습니다`).catch((e) => {
+    // -1743: macOS가 터미널의 앱 제어를 막았다
+    throw /-1743/.test(e.message) ? new Error(`터미널이 ${step.app}를 제어할 수 없습니다. 시스템 설정 > 개인정보 보호 및 보안 > 자동화에서 허용하세요.`) : e;
+  });
+// 적힌 순서대로 처음 되는 문장의 결과
+async function tellFirst(step, bodies, file, i = 0) {
+  let last;
+  for (const body of bodies) {
+    try { return await tell(step, body, file, i); } catch (e) { last = e; }
+  }
+  throw last;
+}
+// 되는 것만 한다
+async function tellEach(step, bodies, file) {
+  for (const body of bodies) await tell(step, body, file).catch(() => {});
+}
 // 앱에서 문서가 열릴 때까지(최대 90초) 기다린다. 보호 문서는 회사 계정 확인에 시간이 걸린다.
 async function openInApp(step, file) {
   await new Promise((resolve, reject) =>
@@ -154,31 +189,36 @@ async function officeCaptures(kind, file) {
   if (kind === "powerpoint") {
     const slides = await slideImages(file); // 내보내기가 막힌 보호 문서는 슬라이드 쇼로 캡처
     if (slides.length) {
-      await tell(step, step.close.split("\n").pop(), file).catch(() => {});
+      await tellEach(step, step.close.slice(-1), file);
       return slides;
     }
   }
   const out = await mkdtemp(path.join(os.tmpdir(), "office-"));
+  const pages = [];
   try {
     const before = new Set((await windows(step.app)).map((w) => w.id));
-    const count = Math.min(Number(await tell(step, step.open, file)) || 0, 60);
+    await tellEach(step, step.prepare, file);
+    const count = Math.min(Number(await tellFirst(step, step.count, file)) || 0, 60);
     const now = await windows(step.app);
     // 그 창만 캡처한다(다른 창에 가려져도 된다). 새 창을 못 찾으면(쇼가 전체 화면으로 뜬 경우) 화면 전체를 캡처한다.
     const windowId = largest(step.window === "new" ? now.filter((w) => !before.has(w.id)) : now);
-    const pages = [];
-    try {
-      for (let i = 1; i <= count; i++) {
-        await tell(step, step.go, file, i);
-        const png = path.join(out, i + ".png");
-        await capture(png, windowId);
-        pages.push(await readFile(png));
+    for (let i = 1; i <= count; i++) {
+      try {
+        await tellFirst(step, step.go, file, i);
+      } catch (e) {
+        if (!pages.length) throw e;
+        break; // 숨긴 슬라이드 등으로 쇼가 먼저 끝났다: 받은 데까지 쓴다
       }
-    } finally {
-      await tell(step, step.close, file).catch(() => {});
+      const png = path.join(out, i + ".png");
+      await capture(png, windowId);
+      const page = await readFile(png);
+      if (pages.length && page.equals(pages.at(-1))) break; // 더 넘어가지 않는다(마지막 쪽)
+      pages.push(page);
     }
     if (!pages.length) throw new Error("문서에서 캡처할 쪽을 찾지 못했습니다.");
     return pages;
   } finally {
+    await tellEach(step, step.close, file);
     await rm(out, { recursive: true, force: true });
   }
 }
