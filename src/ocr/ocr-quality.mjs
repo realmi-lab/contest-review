@@ -1,6 +1,5 @@
 const clean = (s) => s.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
-// A sign, comparison operator or finance unit can change the claim even when
-// two recognizers return exactly the same digits.
+// 두 판독의 숫자가 같아도 부호·비교 기호·금액 단위가 다르면 주장이 달라진다.
 function numericReading(text) {
   const normalized = text.normalize("NFKC").replaceAll("−", "-");
   const tokens = normalized.match(
@@ -44,7 +43,7 @@ export function reconcilePages(primary, detail) {
         .filter((p) => overlaps(p.line.box, alt.box) >= 0.35);
       if (!peers.length) {
         if (alt.text.trim().length < 2) continue;
-        // Uncorroborated chart values remain available for inspection.
+        // 한 번만 읽힌 그래프 값도 확인할 수 있게 남긴다.
         if (numericReading(alt.text))
           uncertain.push({
             text: alt.text,
@@ -80,8 +79,7 @@ export function reconcilePages(primary, detail) {
   lines.sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
   return { lines, uncertain, added: extra.length };
 }
-// Trust a native table row only when each nonempty cell is found in the
-// corresponding order on the very same printed line. Keep the pixel indexes.
+// 복원한 표의 행은 비지 않은 칸이 모두 같은 인쇄 줄에 같은 순서로 있을 때만 믿는다. 위치 번호는 그대로 둔다.
 export function nativeTables(blocks, lines) {
   const tables = [];
   for (const block of blocks) {

@@ -1,5 +1,5 @@
 // 요약 문장을 그 문장이 인용한 원문과 글자로 대조한다(수치·단위·목표와 실적·법적 역할 등).
-const compact = (s) => s.normalize("NFKC").replace(/\s+/g, "");
+import { compact } from "../text.mjs";
 const freeTerm = /무료|무상(?:으로|대여|제공|이용)/g;
 function statesFree(text) {
   return text.split(/[.!?。;\n,]/).some((part) => {
@@ -65,8 +65,8 @@ const goal = /목표|예상|예측|예정|기대|추정|계획|가정|전망/;
 const achieved =
   /달성(?:했|하였|됐다|되었|하였다)|단축(?:했|되었|됐다|하였)|감소(?:했|하였|했다|하였다)|절감(?:했|하였)|실측(?:된|으로확인)|측정결과/;
 
-// Detect a shift from "the activity under article A, which may proceed under
-// decree B" to "per A and B". Joint citations in the source stay valid.
+// 원문의 "A조에 따른 행위로서 B령에 따라 할 수 있는" 관계를 요약이 "A와 B에 따라"로 바꾼 경우를 찾는다.
+// 원문 자체가 함께 인용한 경우는 그대로 둔다.
 function combinesLegalRoles(summary, source) {
   const article = String.raw`제\d+조(?:의\d+)?(?:제\d+항)?`;
   const joint = new RegExp(
@@ -118,7 +118,7 @@ export function directChecks(
     findings.push("인용문에 무료 이용 조건이 없습니다.");
   const sourceAmounts = amounts(source);
   const present = new Set(sourceAmounts.map((x) => x.key));
-  // In a table, the unit can be in a separate header cited alongside bare values.
+  // 표에서는 단위가 따로 인용된 머리글에 있고 칸에는 숫자만 있을 수 있다.
   if (preserveDetails && /[%％]|퍼센트|백분율|\bpercent\b/i.test(source)) {
     for (const text of cited) {
       for (const row of text.split("\n").filter((line) => line.includes("|"))) {

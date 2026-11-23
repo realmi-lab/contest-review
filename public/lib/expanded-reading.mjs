@@ -1,5 +1,5 @@
-// The expanded view uses only this reading's saved statements and OCR.
-// Source excerpts stay verbatim and retain the coordinates of every line.
+// 펼쳐 보기는 이 요약에 저장된 문장과 글자 인식 결과만 쓴다.
+// 원문 발췌는 글자를 고치지 않고 줄마다의 좌표를 그대로 지닌다.
 const compact = (text) =>
   text.normalize("NFKC").toLowerCase().replace(/\s+/gu, "");
 const tag = (p, topic) => ({ ...p, topic });
@@ -105,8 +105,7 @@ function sourceExcerpts(reading, shown) {
     const [id, row] = entries[i];
     const prev = entries[i - 1];
     const adjacent = prev && consecutive(prev[1], row);
-    // A one-line heading can establish that the following explanation is a
-    // target or an example. Keep the heading even when the row is already cited.
+    // 한 줄 제목이 뒤따르는 설명을 목표나 예시로 묶을 수 있다. 그 줄이 이미 인용됐어도 제목은 남긴다.
     const labeled =
       adjacent &&
       scopedHeading.test(prev[1].text) &&
@@ -185,7 +184,7 @@ export function expandedReading(reading) {
   ];
 }
 
-// Older saved readings have the grounded lead and points but no new editorial pass.
+// 예전에 저장된 요약은 원문과 대조한 핵심·요점만 있고 새 편집본(edition)이 없다.
 export function readingViews(reading) {
   const backed = (p) => p?.text?.trim() && p.refs?.length &&
     p.refs.every((id) => reading.evidence?.[id] && reading.evidence[id].kind !== "OCR 수치 대조 필요");

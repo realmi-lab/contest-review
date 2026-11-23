@@ -1,4 +1,4 @@
-// Standard Messages API rates, USD per million tokens, verified 2026-11-20.
+// Messages API 표준 단가(달러, 100만 토큰당). 2026-11-20 확인.
 // https://platform.claude.com/docs/en/models/haiku-5-5/overview
 export function newHaikuUsage(runId) {
   return { runId, rateDate: "2026-11-20", requests: 0, measured: 0, inputTokens: 0,

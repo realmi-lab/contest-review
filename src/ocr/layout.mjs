@@ -1,5 +1,4 @@
-// Keep the original OCR indexes for the evidence overlay, even when cells are
-// reordered to match the row a reader sees on screen.
+// 칸을 화면에서 읽는 행 순서로 바꿔도, 근거 표시(위치 상자)를 위해 원래 글자 인식 번호는 그대로 둔다.
 export function readingBlocks(lines) {
   const cells = lines.map((line, index) => ({ ...line, index }));
   if (!cells.every((c) => c.box?.h > 0 && c.box?.w > 0)) {
@@ -22,8 +21,8 @@ export function readingBlocks(lines) {
       .join(row.cells.length > 1 ? " | " : "");
     const x = row.cells[0].box.x;
     const last = groups.at(-1);
-    // Wrapped prose is usually left aligned and has a regular line height.
-    // A table row, bullet, paragraph break or new heading starts its own block.
+    // 줄바꿈된 본문은 보통 왼쪽이 맞고 줄 높이가 일정하다.
+    // 표의 행, 글머리 기호, 문단 나눔, 새 제목은 새 묶음을 시작한다.
     const columns = row.cells.map(({ box }) => [box.x, box.x + box.w]);
     if (
       columns.length > 1 &&
@@ -77,8 +76,8 @@ export function readingBlocks(lines) {
   return groups.map(({ text, indexes }) => ({ text, indexes }));
 }
 
-// Only rectangular, two-column series with an explicit heading, increasing ISO
-// dates and numeric cells qualify. Never pair values from separate charts.
+// 머리글이 있고, ISO 날짜가 커지는 순서이며, 값이 숫자인 두 열짜리 표만 시계열로 본다.
+// 서로 다른 그래프의 값은 짝짓지 않는다.
 export function observedSeries(blocks) {
   const points = [];
   for (const block of blocks) {
@@ -129,8 +128,8 @@ export function observedSeries(blocks) {
   return points;
 }
 
-// Use Kordoc's table cells when every original line can be accounted for.
-// Already equivalent geometry-based groups retain the column header above them.
+// 원래 줄을 빠짐없이 설명할 수 있으면 Kordoc이 복원한 표 칸을 쓴다.
+// 위치로 묶은 결과가 이미 같으면 그 위의 열 머리글을 그대로 둔다.
 export function preferNativeGroups(groups, tables = []) {
   const result = groups.slice();
   for (const rows of tables) {
@@ -181,8 +180,8 @@ function citesMeasurementDate(text) {
     );
 }
 
-// An observation_date in a monthly series labels the observation period.
-// Keep the exact row keys in the evidence so citations can still locate them.
+// 월별 시계열의 observation_date는 관측 기간을 뜻한다.
+// 인용이 위치를 찾을 수 있도록 근거에는 원래 행 이름을 그대로 둔다.
 export function qualifyObservationDates(point, evidence) {
   if (!["요약", "표의 날짜·값 대조"].includes(point.mode)) return point;
   const sources = point.refs.map((id) => evidence[id]?.text || "");

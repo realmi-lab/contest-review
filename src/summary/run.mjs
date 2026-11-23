@@ -6,7 +6,8 @@ import { ideaOpinion } from "../check/idea-opinion.mjs";
 import { busy, schedule } from "../jobs.mjs";
 import { image, load, recordUsage, runsSince, save } from "../store.mjs";
 import { err } from "../validate.mjs";
-import { checkLogic, summarize } from "./reading.mjs";
+import { checkLogic } from "../check/logic.mjs";
+import { summarize } from "./reading.mjs";
 
 // 요약(이어서 사실·논리 점검) 또는 점검만(check) 대기열에 넣는다. 요청 처리와 자동 진행이 함께 쓴다.
 // 결과는 작품의 cloudReading(요약)·cloudLogic(점검)에 둔다. (예전 로컬 모델 결과와 구분하던 이름을 그대로 쓴다.)

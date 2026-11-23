@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { assembleSummary, supportedIssue } from "../src/summary/reading.mjs";
+import { assembleSummary } from "../src/summary/reading.mjs";
+import { supportedIssue } from "../src/check/logic.mjs";
 import { directChecks } from "../src/check/grounding.mjs";
 const evidence = {
   A: { text: "우산 10개를 현관에 비치한다." },
@@ -183,7 +184,7 @@ test("통계표의 첫 화면에 지표 설명과 날짜·값을 먼저 놓고 �
 });
 
 test("오류 후보는 묶어서 한 번에 재검토하고, 같은 캡처의 앞뒤 근거를 주어 충돌로 확인된 것만 남긴다", async () => {
-  const { issueContext, verifyLogicCandidates } = await import("../src/summary/reading.mjs");
+  const { issueContext, verifyLogicCandidates } = await import("../src/check/logic.mjs");
   const evidence = {
     A: { capture: "1", text: "검토를 요청한다." },
     B: { capture: "1", text: "시 단위로 시범 적용한다." },

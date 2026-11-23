@@ -7,8 +7,7 @@ const number = /(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?|\.\d+/g;
 const numbers = (text) =>
   (text.match(number) || []).map((n) => n.replaceAll(",", ""));
 
-// A date, axis tick or score written beside a percentage does not identify
-// which series, question or population the mark belongs to.
+// 비율 옆에 적힌 날짜·눈금·점수만으로는 그 값이 어느 계열·문항·대상의 것인지 알 수 없다.
 function numericFragment(text) {
   if (!/\d/.test(text)) return false;
   return !text
@@ -58,8 +57,7 @@ function rightHandSide(text) {
   );
 }
 function introducesDivision(claim, cited) {
-  // Ignore slashes in prose and URLs: there must be an explicit equation and
-  // a division within its right-hand side, not a separate following sentence.
+  // 본문과 주소의 빗금은 무시한다. 등식이 분명히 있고 그 오른쪽 안에 나눗셈이 있어야 한다(다음 문장이 아니라).
   const expression = rightHandSide(claim);
   if (!division.test(expression)) return false;
   const source = cited.map((e) => e.text).join("\n");

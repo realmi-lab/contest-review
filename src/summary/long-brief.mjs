@@ -100,8 +100,7 @@ export async function pickFocused(role, items, title) {
   return pool[0] || null;
 }
 
-// An excerpt can contain several complete sentences. Give the reader the exact
-// source sentence that supports the selected role, with the original references.
+// 발췌 하나에 완결된 문장이 여럿 있을 수 있다. 고른 역할을 뒷받침하는 원문 문장만 원래 근거와 함께 보여 준다.
 export function sentencesOf(text) {
   return (text.match(/[^]*?(?:[!?。]|(?<=[가-힣])\.(?=\d)|\.(?!\d)|$)/gu) || [])
     .map((s) => s.trim())
@@ -110,8 +109,7 @@ export function sentencesOf(text) {
 export function excerptSentences(text) {
   return sentencesOf(text).filter((s) => s.length >= 15);
 }
-// When two distinct methods are explicitly named with their targets, quoting
-// both pairs keeps the relationship intact even if they span different pages.
+// 서로 다른 두 방법이 각각의 대상과 함께 분명히 적혀 있으면, 쪽이 달라도 두 짝을 함께 인용해 관계를 지킨다.
 export function pairedMethods(point, evidence) {
   const pairs = [];
   const named =
@@ -173,7 +171,7 @@ async function shorten(selected, evidence) {
     .map((x) => ({ ...x, sentences: excerptSentences(x.item.point.text) }))
     .filter((x) => x.sentences.length > 1);
   if (!long.length) return selected.map((x) => x.item.point);
-  // Bound the prompt by offering up to eight complete candidate sentences per point.
+  // 프롬프트가 길어지지 않게 요점마다 완결된 후보 문장을 여덟 개까지만 준다.
   const fields = {},
     options = [];
   for (const x of long) {
@@ -242,8 +240,8 @@ export async function longBrief(points, title, evidence) {
   );
 }
 
-// A broad roadmap and the actual review cycle sometimes cite the same passage.
-// Refine the plan only when there is one explicit future cadence in that passage.
+// 큰 로드맵과 실제 점검 주기가 같은 구절을 인용할 때가 있다.
+// 그 구절에 앞으로의 주기가 하나만 분명히 있을 때만 그 계획으로 좁힌다.
 export function preferScheduledPlan(chosen, items) {
   const cadence =
     /(?:매\s*\d+\s*(?:일|주|개월|분기|년)(?![가-힣])|\d+\s*(?:일|주|개월|분기|년)\s*(?:마다|간격|주기))/u;
@@ -275,8 +273,7 @@ export function preferScheduledPlan(chosen, items) {
   return matches.length === 1 ? matches[0] : chosen;
 }
 
-// Keep a displayed survey percentage next to its separately stated sample when
-// the source describes exactly one survey population immediately before it.
+// 설문 비율 바로 앞에 설문 대상이 하나만 적혀 있으면, 따로 적힌 표본 수를 그 비율 곁에 붙인다.
 export function attachSurveyContext(lead, points, evidence) {
   const ordered = Object.keys(evidence);
   const size = /\d[\d,]*\s*명(?:을|의|이|이상|\s)/;
@@ -319,8 +316,8 @@ export function attachSurveyContext(lead, points, evidence) {
   const measured = points
     .map((p) => ({ p, combined: withSample(p) }))
     .filter((x) => x.p !== x.combined);
-  // Prefer the adjacent survey observation to a qualitative paraphrase of it.
-  // Two possible cohorts or questions make the association ambiguous.
+  // 설문 결과를 풀어 쓴 문장보다 바로 옆의 측정값을 먼저 쓴다.
+  // 대상이나 문항이 둘일 수 있으면 짝을 정하지 않는다.
   return lead.map((p) => {
     if (
       !/긍정적.{0,12}평가|만족도가?\s*(?:높|낮)|부정적.{0,12}평가/.test(

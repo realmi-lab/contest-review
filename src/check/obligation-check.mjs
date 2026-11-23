@@ -1,4 +1,4 @@
-const compact = s => s.normalize("NFKC").replace(/\s+/gu, "").toLowerCase();
+import { compactLower as compact } from "../text.mjs";
 const sentences = s => s.split(/[.!?。！？;\n]/u).map(x => x.trim()).filter(Boolean);
 const noun = /^[가-힣A-Za-z0-9]+(?:\s+[가-힣A-Za-z0-9]+){0,4}$/u;
 const multiple = /[,，·ㆍ/]|\s(?:및|또는|혹은|아니면)\s|(?:과|와)\s|(?:이?나)\s/u;
@@ -25,7 +25,7 @@ function pair(sentence, disjunctive) {
     if (scopeEnding.test(words[i])) split = i + 1;
   const scope = words.slice(0, split).join(" "), left = words.slice(split).join(" ");
   if (!noun.test(left) || [left,right].some(s => compact(s).length < 2) || compact(left) === compact(right)) return null;
-  // The selected quote must occur literally in the supplied summary/source.
+  // 고른 인용 구절은 요약이나 원문에 글자 그대로 있어야 한다.
   const rawLeft = [...before.matchAll(/\S+/gu)][split];
   const quote = sentence.slice(rawLeft.index, start + 3);
   return { left: compact(left), right: compact(right), scope, quote };
@@ -33,8 +33,7 @@ function pair(sentence, disjunctive) {
 
 function sameSubject(a,b) {
   if (compact(a) === compact(b)) return true;
-  // Both clauses explicitly name the same multiword counterparty. One can
-  // also introduce that counterparty with the document's longer description.
+  // 두 절이 같은 상대(여러 낱말)를 분명히 가리킨다. 한쪽은 문서의 더 긴 설명으로 그 상대를 소개할 수도 있다.
   if (![a,b].every(s => /(?:와의|과의)$/u.test(s) && s.split(/\s+/u).length >= 2)) return false;
   const [short,long] = [a,b].sort((x,y) => x.length-y.length);
   return long.endsWith(" " + short);

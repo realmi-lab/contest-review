@@ -1,6 +1,5 @@
-// Keep repairs local to the source that supports them. The long-document
-// selector and table reconciler handle their respective kinds of evidence.
-const compact = (s) => s.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+// 요약을 고칠 때는 그 문장을 뒷받침하는 원문 안에서만 고친다. 긴 문서의 요점 선택과 표 대조는 각자의 모듈이 맡는다.
+import { compactLower as compact } from "../text.mjs";
 const proposal = /제안|건의|요청|검토해\s*주|주시기\s*바랍니다/u;
 const usable = (row) =>
   row?.text && row.capture && (!row.kind || ["OCR", "원문"].includes(row.kind));
@@ -13,8 +12,7 @@ function vocabulary(text) {
 const hits = (words, text) => words.filter((w) => compact(text).includes(w)).length;
 const restricted = /(?:오직|예시|예를\s*들|가령|제외|생략|한정|중에서|중\s*(?:하나|둘|일부)|만\s*(?:운영|시행|실시|대상|포함|선택|해당|제공|선정|적용|수행|가능)|하지\s*않)/u;
 
-// Match the words on both sides of a summary's existing conjunction. The
-// middle member must be a short nominal item in the cited comma list.
+// 요약에 있는 접속어 양쪽 낱말을 원문과 맞춘다. 가운데 항목은 인용한 쉼표 목록의 짧은 명사여야 한다.
 function restoreCommaMember(text, source, cited) {
   if (restricted.test(text)) return text;
   for (const part of source.split(/(?:^|\s+)(?:\d{1,2}[.)](?!\d)|[①-⑳•·])|[!?。;\n]/u)) {
@@ -36,8 +34,7 @@ function restoreCommaMember(text, source, cited) {
   return text;
 }
 
-// A short labelled problem often names the cause in both versions but
-// spells out the actual consequences only in the original.
+// 제목 붙은 짧은 문제 설명은 요약과 원문 모두 원인을 말하지만, 실제 결과는 원문에만 자세히 있곤 하다.
 function restoreLabeledCause(text, source) {
   const colon = Math.max(source.lastIndexOf(":"), source.lastIndexOf("："));
   if (colon < 0 || /기대\s*효과|예시|예를\s*들|목표|가정/u.test(source.slice(0, colon))) return text;
@@ -55,8 +52,7 @@ function restoreLabeledCause(text, source) {
   });
   if (matches.length !== 1) return text;
   const match = matches[0], end = match.index + match[0].length;
-  // Only replace a standalone first statement. If a preceding clause frames
-  // an example, condition, or quotation, it also scopes the following words.
+  // 홀로 선 첫 문장만 바꾼다. 앞 절이 예시·조건·인용을 이끌면 뒤의 말도 그 범위에 든다.
   if (match.index !== 0) return text;
   const rest = text.slice(end).replace(/^[,，.。]\s*/u, "").trim();
   return body.replace(/[.。]$/u, "") + "." + (rest ? " " + rest : "");
@@ -89,8 +85,7 @@ function extraDetails(row) {
   if (scope && source.length <= 110 && request.test(source) && !/[.。?!].+\S/u.test(source)) {
     return [{ text: source, topic: "제안 내용", terms: [scope] }];
   }
-  // Ordered alternatives must come from one bounded step, including its
-  // subject/condition. Do not detach a step from a conditional parent.
+  // 순서 있는 선택지는 주어·조건을 포함한 한 단계 안에서 나와야 한다. 조건 아래 단계를 떼어 내지 않는다.
   const details = [];
   for (const block of source.split(bullet)) {
     const [heading, ...steps] = block.split(numbered);
@@ -151,8 +146,7 @@ function repairRolesAndScope(p, entries, evidence) {
         return extract(text, [r.id]);
     }
   }
-  // Where the author describes concrete ability and actions, a generated
-  // list of beneficiary types can introduce a new, unsupported category.
+  // 제출자가 구체적인 능력과 행동을 말한 곳에서 모델이 수혜자 종류를 나열하면 근거 없는 새 범주가 생길 수 있다.
   const group = coordinated.exec(p.text);
   if (group) {
     const names = group[0].split(/\s+/u)[0].split(/[·ㆍ]/u);
@@ -166,8 +160,7 @@ function repairRolesAndScope(p, entries, evidence) {
       return extract(r.text.replace(/[.。]?$/u, "."), [r.id]);
     }
   }
-  // Rebind a schedule to the verb in its own evidence row. The other
-  // operation keeps its object and must have its own adjacent source.
+  // 일정은 그 일정이 적힌 원문 줄의 동사에 다시 붙인다. 다른 동작은 제 목적어를 지니고 바로 옆에 제 근거가 있어야 한다.
   const freq = cadence.exec(p.text);
   if (freq) {
     const pair = /^\s*(.{1,30}?)\s+(산출|집계|수집|측정|작성|계산|정산)\s*(?:및|후|하고|하여)\s*/u.exec(p.text.slice(freq.index + freq[0].length));
@@ -192,8 +185,7 @@ function repairRolesAndScope(p, entries, evidence) {
     const experiences = rows.filter(r => r.text.length <= 105 && /(?:마주하|겪[는게었]|맞닥뜨)/u.test(r.text) && hits(vocabulary(p.text), r.text) >= 3);
     if (experiences.length === 1) return extract(experiences[0].text + ".", [experiences[0].id]);
   }
-  // Keep the location denominator attached to its quantity, even when the
-  // same number also counts locations in a different sentence.
+  // 같은 숫자가 다른 문장에서 장소 수로 쓰여도, 장소 기준(분모)은 그 수량에 붙여 둔다.
   for (const r of rows) {
     const rate = perUnit.exec(r.text);
     if (!rate || compact(p.text).includes(compact(rate[0])) || r.text.length > 155 || contextual.test(r.text) ||
@@ -204,8 +196,7 @@ function repairRolesAndScope(p, entries, evidence) {
         /함$/u.test(clause) && !closed.test(r.text) && clause.length < 55)
       return { ...p, text: p.text.slice(0, finish.index) + finish[1] + "하며, " + clause.replace(/함$/u, "하는 방안이다.") };
   }
-  // An arrow inside an expected-effects section describes the author's
-  // expectation. A neighbouring observed-results section scopes its own rows.
+  // 기대 효과 절 안의 화살표는 제출자의 기대다. 이웃한 실측 결과 절은 그 절의 행만 다룬다.
   if (linked.length === 1 && linked[0].text.includes("→") && !closed.test(linked[0].text) &&
       !/기대|예상|전망|목표|가능|수\s*있/u.test(p.text)) {
     const end = /(향상|촉진|확산|강화|감소|증가|제고|개선|해소|절감|확대)[.]?$/u.exec(p.text);
@@ -242,8 +233,7 @@ function missingUnitCount(points, entries) {
   return null;
 }
 
-// A form may put a whole budget label, including 'estimated', above a
-// currency-only cell. Both contiguous rows constitute the evidence.
+// 양식은 '예상' 같은 예산 이름을 위 칸에, 금액만 아래 칸에 둘 수 있다. 붙어 있는 두 줄을 함께 근거로 삼는다.
 function missingCost(points, entries) {
   const money = /^(?:약\s*)?\d[\d,]*(?:\.\d+)?\s*(?:천|만|백만|천만|억)?\s*원$/u;
   const costs = entries.flatMap(([id, row]) => {
@@ -308,8 +298,7 @@ export function preserveProposalDetails(points, evidence) {
   }
   const cost = missingCost(revised, entries);
   if (cost) revised.push(cost);
-  // Once a numeric excerpt was surfaced, re-editing must not reveal another
-  // one each time for a long list of similar unit prices or allocations.
+  // 수치 발췌를 한 번 보여 줬으면, 비슷한 단가·배정이 긴 목록이어도 다시 편집할 때마다 다른 줄을 꺼내지 않는다.
   if (!revised.some(p => p.mode === "원문 발췌" && p.topic === "수치·일정·자원" && perUnit.test(p.text))) {
     const quantity = missingUnitCount(revised, entries);
     if (quantity) revised.push(quantity);

@@ -1,5 +1,5 @@
-// Short proposals often have several summaries of a single source list. Keep
-// the listed steps together so one list cannot consume the entire first screen.
+// 짧은 제안서는 원문 목록 하나를 요약한 문장이 여럿 생기곤 한다. 나열된 단계를 한데 묶어
+// 목록 하나가 첫 화면을 다 차지하지 않게 한다.
 function sourceLists(points, evidence) {
   const aliases = new Map();
   let run = [];
@@ -173,8 +173,7 @@ function eligibilityBrief(lead, points, evidence) {
         : p,
     );
   }
-  // Reserve a slot per observed role before taking further conditions within
-  // any role. A proposed rule and a current rule may cite the same paragraph.
+  // 같은 역할의 조건을 더 넣기 전에 역할마다 한 자리씩 먼저 잡는다. 제안한 규칙과 지금 규칙이 같은 문단을 인용할 수 있다.
   for (const role of Object.keys(eligibilityLabels))
     add(facts.find((p) => p.eligibilityRole === role));
   for (const p of facts) add(p);
@@ -190,8 +189,8 @@ function eligibilityBrief(lead, points, evidence) {
   return chosen;
 }
 
-// All candidates are existing, grounded statements. The original lead is the
-// tie breaker within each role. Branches with their own editor keep its choices.
+// 후보는 모두 원문과 대조한 기존 문장이다. 같은 역할 안에서는 원래 핵심 순서를 따르고,
+// 따로 편집한 경우는 그 선택을 그대로 둔다.
 export function selectProposalBrief(
   lead,
   points,
@@ -244,8 +243,7 @@ export function selectProposalBrief(
     itemCount.test(p.text) &&
     (scaleContext.test(p.text) || breakdown.test(p.text));
   pick(hasBudget);
-  // A per-unit allocation can also name the number of participating sites. If
-  // separate statements describe the site count and the allocation, keep both.
+  // 단위당 배정에 참여 장소 수가 함께 나올 수 있다. 장소 수와 배정을 따로 말한 문장이면 둘 다 남긴다.
   const distribution = (p) =>
     hasScale(p) &&
     (breakdown.test(p.text) ||
@@ -261,8 +259,7 @@ export function selectProposalBrief(
   pick((p) => boundary.test(p.text));
   pick((p) => alternatives.test(p.text));
   pick((p) => alternativeAccess.test(p.text));
-  // A broad request for a pilot and a later description of its bounded scope
-  // can coexist. Prefer the explicit scope before accepting the broad mention.
+  // 시범 운영을 넓게 요청한 문장과 뒤에서 범위를 정한 문장이 함께 있을 수 있다. 범위를 정한 문장을 먼저 쓴다.
   const scopedPilot = (p) =>
     pilot.test(p.text) &&
     /(?:작은|좁은|제한된|일부|우선|소규모|한정|\d+\s*(?:명|곳|개|주|개월))/.test(
@@ -279,8 +276,7 @@ export function selectProposalBrief(
   pick((p) => baselineGap.test(p.text));
   pick((p) => expectation.test(p.text));
   pick((p) => background.test(p.text) && !expectation.test(p.text));
-  // Fill remaining slots in the model's order. In a short proposal the
-  // remaining distinct requests may also be phrased as anticipated benefits.
+  // 남은 자리는 모델이 고른 순서로 채운다. 짧은 제안서에서는 남은 요청이 기대 효과처럼 쓰여 있기도 하다.
   for (const p of candidates.filter(
     (p) => concreteRequest.test(p.text) || expectation.test(p.text),
   ))

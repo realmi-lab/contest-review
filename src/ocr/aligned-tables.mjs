@@ -81,8 +81,7 @@ function columnsUnder(header, lines, refs) {
     const cell = percentEntry(l.text);
     if (!cell) break;
     const col = borders.findIndex((edge) => l.cx < edge) - 1;
-    // A box touching the divider can belong to either column. Preserve its OCR
-    // as evidence but do not turn the layout into a factual assignment.
+    // 구분선에 닿은 글자 상자는 어느 열에도 속할 수 있다. 근거로는 남기되 열 배정 사실로 바꾸지 않는다.
     if (l.box.x <= borders[col] || l.box.x + l.box.w >= borders[col + 1])
       return [];
     const column = columns[col];
@@ -105,8 +104,8 @@ function columnsUnder(header, lines, refs) {
 function columnPoint(column) {
   const { name, entries } = column;
   const numbered = entries.filter((cell) => cell.type === "number");
-  // A range like 10–15% is not an item numbered 10. Accept ambiguous numeric
-  // dashes only in a numbered list with a distinct named item as corroboration.
+  // "10–15%" 같은 범위는 10번 항목이 아니다. 애매한 숫자·대시는 이름 붙은 다른 항목이 함께 있는
+  // 번호 목록일 때만 번호로 받아들인다.
   const ordinalList =
     numbered.length >= 2 &&
     numbered.every((e, i) => e.label === String(i + 1)) &&
@@ -128,8 +127,7 @@ function columnPoint(column) {
   };
 }
 
-// Derive the column from its on-screen boundaries, not a position in a row
-// of text. Missing cells therefore do not shift later values one column left.
+// 열은 글자 줄 안의 순서가 아니라 화면 위 경계로 정한다. 그래서 빈 칸이 있어도 뒤 값이 한 열씩 당겨지지 않는다.
 export function alignedPercentColumns(captures, evidence) {
   const points = [];
   for (const capture of captures) {

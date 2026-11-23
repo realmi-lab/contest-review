@@ -1,5 +1,5 @@
-// Compare explicit definitions of the same named measure. These patterns never
-// infer a sign from business meaning, positive/negative examples or an outcome.
+// 같은 이름의 지표를 서로 다르게 정의한 곳(뺄셈의 순서)을 찾는다. 업무상 의미나 양수·음수 예시,
+// 결과로 부호를 추측하지 않고 원문에 적힌 정의만 비교한다.
 const word = "[가-힣A-Za-z][가-힣A-Za-z0-9_]{0,23}";
 const notation = new RegExp(
   `(?<![가-힣A-Za-z0-9_])(${word})\\s*[(（]\\s*(${word})\\s*[-−]\\s*(${word})(?:\\s+차이)?\\s*[)）]`,
@@ -13,8 +13,8 @@ const scopeWord =
   /(?:향후|직전|지난|이전|다음|최근)?\s*\d{1,4}\s*(?:개월|시간|분기|주일|년도|년|월|주|일|분)|작년|올해|내년|전년|금년|당기|전기|지난달|이번달|다음달|금월|전월|당월|월별|연간|월간|주간|일간/g;
 const clean = (s) => s.replace(/\s+/g, "");
 
-// A paragraph may also support unrelated claims. Mark only a statement that
-// repeats the disputed definition and cites the passage that actually uses it.
+// 한 문단이 다른 주장의 근거일 수도 있다. 다툼이 있는 정의를 되풀이하면서 그 정의를 쓴 구절을
+// 인용한 문장에만 표시한다.
 export function markDisputedDefinition(point, alerts) {
   const normalize = (s) => clean(s.normalize("NFKC")).replace(/[−–]/g, "-");
   const text = normalize(point.text);
@@ -48,8 +48,8 @@ function context(text, match) {
   const periods = [
     ...new Set([...scope.matchAll(scopeWord)].map((m) => clean(m[0]))),
   ].sort();
-  // A bare word before the name may qualify it, as in "영업 이익". A
-  // qualifier from just one definition must reappear in its counterpart.
+  // 이름 앞의 낱말이 그 이름을 한정할 수 있다("영업 이익"). 한쪽 정의에만 있는 한정어는
+  // 다른 쪽 정의에도 있어야 같은 지표로 본다.
   const previous = before.trimEnd().match(/([가-힣A-Za-z0-9_]+)$/)?.[1] || "";
   const qualifier = /(?:은|는|을|를|의|에서|별|대한|대해)$/.test(previous)
     ? ""
@@ -71,9 +71,8 @@ function compatible(a, b) {
   );
 }
 
-// A phrase must end in the named operand itself, a count unit, or a matching
-// counted object ("반납된 자전거 대수", "대여되어 나간 자전거 대수"). Matching
-// the whole tail keeps "대여소" from being mistaken for the operand "대여".
+// 구절은 그 피연산자 이름, 개수 단위, 또는 같은 대상의 개수("반납된 자전거 대수",
+// "대여되어 나간 자전거 대수")로 끝나야 한다. 끝까지 맞춰 봐야 "대여소"를 피연산자 "대여"로 잘못 보지 않는다.
 function quantity(phrase, operand) {
   if (
     /[+*/×÷−-]|제외|차감|제하고|뺀|곱한|더한|나눈|아닌|초과|미만|이상|이하|합산|또는|및|(?:과|와)\s/.test(

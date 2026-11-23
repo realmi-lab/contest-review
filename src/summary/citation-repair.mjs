@@ -1,6 +1,6 @@
-// Replace weak example citations only when each coordinated example has its
-// own distinctive words in a single, unambiguous passage on an already cited page.
-const compact = (s) => s.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
+// 예시를 나열한 요약의 근거가 약할 때, 예시마다 고유한 낱말이 이미 인용한 쪽의 한 구절에만
+// 분명히 있으면 그 구절로 근거를 바꾼다.
+import { compactLower as compact } from "../text.mjs";
 const generic = new Set([
   "예시",
   "예를",

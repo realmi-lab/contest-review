@@ -1,5 +1,5 @@
+import { compact } from "../text.mjs";
 const mode = "자격·선발 원문";
-const compact = s => s.normalize("NFKC").replace(/\s+/gu, "");
 const readable = r => r?.capture && r.text && (!r.kind || ["원문", "OCR"].includes(r.kind));
 const eligibility = /(?:지원|모집|신청|선발|응시|참여|변경\s*후|개정\s*후)\s*(?:자격|요건|기준)|자격\s*(?:요건|기준)/u;
 const preference = /가산점|가점|우대|우선\s*선발/u;
@@ -15,8 +15,7 @@ const quota = /((?:(?:연간|매년|월간|분기별|연도별|반기별|매월)
 function quotaChange(text, value, source) {
   const [digits, unit] = value.match(/[\d,.]+|[가-힣]+/gu);
   const literal = "(?<![\\d,.])" + [...digits].map(c => c === "." ? "\\." : c).join("") + "\\s*" + [...value.slice(value.indexOf(unit)).replace(/\s+/gu, "")].join("\\s*");
-  // If the same source gives an increment too, its amount is already
-  // qualified independently and a bare number is ambiguous.
+  // 같은 원문에 늘어나는 양도 적혀 있으면 그 양은 따로 설명된 것이고, 숫자만으로는 애매하다.
   if (new RegExp(literal + "\\s*(?:더|추가|씩|증원|증액)").test(source)) return text;
   const particle = source.match(new RegExp(literal + "\\s*(으로|로|까지)"))?.[1];
   if (!particle) return text;
@@ -118,8 +117,7 @@ export function preserveEligibility(points, evidence) {
   if (!eligibility.test(body) || !change.test(body) || !/모집|선발|신청|지원\s*대상/u.test(body)) return points;
   const { facts, quotas } = candidates(entries);
   const chosen = quotas.sort((a,b) => b.rank-a.rank)[0];
-  // One stand-alone count is safe only if all candidates name the same
-  // amount, on one page, with an explicit endpoint rather than an increment.
+  // 후보가 모두 한 쪽에서 같은 수를, 늘어나는 양이 아니라 분명한 끝값으로 말할 때만 그 수 하나를 쓴다.
   const stable = chosen && quotas.every(q => q.page === chosen.page && compact(q.value) === compact(chosen.value));
   if (stable) facts.push(detail("quota", chosen.text, [chosen.id]));
   if (!facts.length) return points;
@@ -130,8 +128,7 @@ export function preserveEligibility(points, evidence) {
     const text = quotaChange(p.text, chosen.value, cited.map(q=>q.source).join(" "));
     return text === p.text ? p : { ...p, text };
   });
-  // Keep the first model summary as context. Insert compact details beside
-  // the point that actually cites the applicable list or heading.
+  // 모델의 첫 요약은 맥락으로 두고, 해당 목록이나 제목을 실제로 인용한 요점 옆에 세부 내용을 짧게 넣는다.
   const insertions = new Map();
   const selected = new Set();
   for (const role of ["current", "proposed", "preference", "quota"]) {

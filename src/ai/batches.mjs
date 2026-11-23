@@ -23,6 +23,20 @@ export function pack(entries, limit) {
   return batches;
 }
 
+// 최대 limit개씩 동시에 실행하고 결과는 입력 순서대로 돌려준다.
+export async function mapLimit(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i], i);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
 // 문서 전체를 한 번에 보낼 때 한 요청에 담는 글자 수. 넘으면 원문 [ID, 구절]을 쪽 순서대로 나눠 보낸다.
 export const SCAN_CHARS = 60000;
 export const sourceParts = (evidence, room = SCAN_CHARS) =>

@@ -1,6 +1,5 @@
 import sharp from "sharp";
-// Reread the same pixel regions at a different scale. This verifies the glyph
-// string only. A matching number does not establish its chart legend or unit.
+// 같은 영역을 다른 배율로 다시 읽는다. 글자열만 확인할 뿐, 숫자가 같아도 그래프의 범례나 단위까지 확인한 것은 아니다.
 export async function corroborateValues(bytes, page, issues, parse) {
   if (!issues.length || Math.abs(page.deskewAngle || 0) > 0.05) return;
   const normalized = await sharp(bytes)

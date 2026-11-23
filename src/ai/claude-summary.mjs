@@ -143,8 +143,8 @@ export async function verifyKey(key, connection = ai) {
     throw Error("이 키에서 " + connection.label + "를 사용할 수 없습니다.");
 }
 
-// Dynamic citation enums and length limits stay in the prompt. Stable structural
-// schemas can be cached by the API across batches with different source IDs.
+// 묶음마다 바뀌는 근거 ID 허용값과 길이 제한은 프롬프트에 두고, 구조만 남긴 규격을 보낸다.
+// 그래야 근거 ID가 다른 묶음끼리도 API가 같은 규격을 캐시해 쓴다.
 function structure(schema) {
   if (schema.type === "object") return {
     type: "object", additionalProperties: false, required: Object.keys(schema.properties),

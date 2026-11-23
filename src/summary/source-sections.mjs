@@ -1,17 +1,14 @@
 import { chunk, pack } from "../ai/batches.mjs";
+import { object } from "../ai/schema.mjs";
 import { excerptSentences } from "./long-brief.mjs";
 import { danglingStart } from "./statement-filters.mjs";
 
-const object = (properties) => ({
-  type: "object", properties, required: Object.keys(properties), additionalProperties: false,
-});
 const compact = (s) => s.normalize("NFKC").replace(/[\p{P}\p{S}\s]/gu, "").toLowerCase();
 const conclusion = /^(?:기대\s*효과|예상\s*효과|연구\s*결과|실험\s*결과|검증\s*결과|평가\s*결과|연구의?\s*한계|적용\s*한계)(?:$|\s*[:：])/u;
 const supportPage = /^(?:팀\s*소개|협업\s*(?:방법|도구)|개발\s*일정|사용\s*기술|목차|참고\s*(?:문헌|자료)|감사합니다|부록|thank\s*you)/iu;
 const sectionHeading = /^([\p{L}][\p{L}\s·]{1,24})\s*[:：–—]\s*([\p{L}\d][^|\n]{0,36})$/u;
 
-// The first OCR blocks on a slide usually name its section. Keep the document
-// order and assign a source block to exactly the capture it came from.
+// 슬라이드의 첫 글자 묶음은 보통 그 절의 이름이다. 문서 순서를 지키고 원문 묶음은 그것이 나온 캡처에만 배정한다.
 export function sourceSections(reading, excluded, captures = []) {
   const originals = new Map(captures.map((c) => [c.id, c]));
   const pages = new Map();
@@ -83,8 +80,7 @@ async function selectSections(groups, limit, title, run) {
   return groups.filter((g) => selected.has(g));
 }
 
-// Each chapter gets its own citation list, even when two chapters share a
-// model request. Prefer explanatory sentences to UI labels on a crowded slide.
+// 두 장(章)을 한 요청으로 보내도 장마다 근거 목록을 따로 둔다. 빽빽한 슬라이드에서는 화면 표시 글자보다 설명 문장을 고른다.
 function chapterRows(group) {
   const rows = [];
   const limit = Math.floor(3200 / group.pages.length);
@@ -108,8 +104,7 @@ const literal = (s) => s.normalize("NFKC").toLowerCase().replace(/\s+/gu, "").re
 const fullSentence = (s) => s.length >= 16 && s.length <= 155 && /[가-힣A-Za-z][.!?。]$/u.test(s) &&
   !/[|\n]|https?:\/\/|[\w.+-]+@[\w.-]+/u.test(s) && !/^(?:있고|있으며|하여|등을|할 수 있|있습니다[.!]|돌아오기)/u.test(s);
 
-// OCR can split one sentence across rows of a screenshot. Recover it only
-// when the entire proposed sentence occurs in order on that same page.
+// 글자 인식이 한 문장을 화면의 여러 줄로 나눌 수 있다. 그 문장 전체가 같은 쪽에 순서대로 있을 때만 이어 붙인다.
 function matchSentence(text, parts) {
   const target = literal(text);
   for (let start = 0; start < parts.length; start++) {
@@ -133,8 +128,7 @@ function matchSentence(text, parts) {
   return [];
 }
 
-// Reassemble only aligned lines of comparable type size. A UI screenshot
-// beside a paragraph can put unrelated text between successive OCR blocks.
+// 줄이 맞고 글자 크기가 비슷한 줄만 이어 붙인다. 문단 옆의 화면 캡처는 이어지는 글자 묶음 사이에 관계없는 글자를 끼워 넣을 수 있다.
 function columnSentences(lines, words) {
   const leading = /^[·•]/u, end = /[.!?。]$/u;
   const ordered = lines.filter((line) => line.text?.trim()).sort((a, b) => a.y - b.y || a.x - b.x);
@@ -179,9 +173,8 @@ function columnSentences(lines, words) {
   return found;
 }
 
-// A submitted overview can group functions differently from the individual
-// chapters. Retain its own labelled list when the body of each item can be
-// matched back to the original lines, including sentences broken across cells.
+// 제출한 개요는 기능을 장(章)과 다르게 묶을 수 있다. 항목마다 본문을 원래 줄(칸으로 끊긴 문장 포함)과
+// 맞출 수 있으면 개요의 이름 붙은 목록을 그대로 쓴다.
 export function overviewItems(plan, points) {
   let best = [];
   for (const page of plan.overviews || []) {
@@ -238,7 +231,7 @@ function sourceQuotes(group, points) {
       for (const s of excerptSentences(raw)) add(s, [ref]);
     }
   }
-  // Give later pages a share of the context, including the second results slide.
+  // 뒤쪽 쪽(두 번째 결과 슬라이드 포함)에도 맥락 자리를 나눠 준다.
   const limit = Math.max(1, Math.floor(20 / group.pages.length));
   const rank = (q) => Math.min(65, q.text.length) +
     (q.text.match(/같은|포함|경우|조건|설정|승인|권한|신청|비교|측정|선택지|때문|작성자|예를 들/gu) || []).length * 10;
@@ -324,8 +317,7 @@ export async function draftSections(plan, title, progress, run, points = []) {
   return result;
 }
 
-// Combine complete, independently verified statements without synthesizing
-// another claim. 한 개요 쪽에 나란히 적힌 기능만 두 개씩 한 줄로 묶는다.
+// 따로 검증한 완결 문장을 새 주장을 만들지 않고 묶는다. 한 개요 쪽에 나란히 적힌 기능만 두 개씩 한 줄로 묶는다.
 // 서로 다른 쪽·절의 핵심 문장을 묶으면 뜻이 다른 두 문장이 한 줄에 붙으므로 따로 둔다.
 export function includeSections(edition, sections, overview = []) {
   const keys = (p) => literal(p.text).replace(/[.!?。]$/u, "");
