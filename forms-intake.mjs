@@ -166,8 +166,8 @@ export async function fromOneDrive(file, action, waitMs = 1000, tries = 10) {
     } catch (e) {
       if (e.errno !== ONLINE_ONLY) throw e;
       if (i >= tries)
-        throw new Error(`OneDrive에서 아직 내려받지 않은 파일이라 읽지 못했습니다: ${nfc(path.basename(file))}. ` +
-          "Finder에서 이 파일(또는 폴더)을 우클릭해 '항상 이 기기에 유지'(Always Keep on This Device)를 고른 뒤 다시 시도하세요.");
+        throw Object.assign(new Error(`OneDrive에서 아직 내려받지 않은 파일이라 읽지 못했습니다: ${nfc(path.basename(file))}. ` +
+          "Finder에서 이 파일(또는 폴더)을 우클릭해 '항상 이 기기에 유지'(Always Keep on This Device)를 고른 뒤 다시 시도하세요."), { onlineOnly: true });
       await new Promise((resolve) => setTimeout(resolve, waitMs));
     }
   }
@@ -238,8 +238,15 @@ export async function copyAttachments(names, index, target) {
   for (const name of names) {
     const source = index.get(nfc(name));
     if (!source) missing.push(name);
-    else if (!(await sameSize(source, path.join(target, name))))
-      await fromOneDrive(source, () => copyFile(source, path.join(target, name)));
+    else if (!(await sameSize(source, path.join(target, name)))) {
+      // 막 들어온 첨부가 아직 내려받는 중이면 기다리지 않고 '동기화 대기'로 두었다가 다음 읽기에서 복사한다.
+      try {
+        await fromOneDrive(source, () => copyFile(source, path.join(target, name)), 1000, 3);
+      } catch (e) {
+        if (!e.onlineOnly) throw e;
+        missing.push(name);
+      }
+    }
   }
   return missing;
 }
