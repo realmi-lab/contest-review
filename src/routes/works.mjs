@@ -102,7 +102,7 @@ export default {
     let w = current();
     const name = bounded(b.name ?? w.name, 140);
     if (!name) err("작품명을 입력하세요.");
-    const description = bounded(b.description ?? w.source?.description ?? "", 4000);
+    const description = bounded(b.description ?? w.source?.description ?? "", 4000).replace(/\r\n?/g, "\n");
     const inExcel = !!w.source?.formId && !!intake.config && (name !== w.name || description !== (w.source.description ?? ""));
     if (inExcel) {
       await updateResponse(w, { title: name, description }).catch((e) => err("응답 엑셀을 고치지 못해 저장하지 않았습니다 · " + e.message, 502));

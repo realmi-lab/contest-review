@@ -23,7 +23,8 @@ export const pageKind = (name) => {
 const osa = (args, what) =>
   new Promise((resolve, reject) =>
     execFile("osascript", args, { timeout: 300_000, maxBuffer: 8 << 20 }, (e, out, errText) =>
-      e ? reject(new Error(`${what}: ${String(errText || e.message).trim()}`)) : resolve(out.trim())));
+      // 까닭은 osascript가 알린 글만 쓴다(e.message에는 스크립트 전체가 들어 있다)
+      e ? reject(new Error(`${what}: ${String(errText).trim() || (e.killed ? "시간 초과" : "종료 코드 " + e.code)}`)) : resolve(out.trim())));
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // -1743: macOS가 터미널의 앱 제어를 막았다
@@ -249,7 +250,7 @@ const capture = (out, windowId) =>
     execFile("screencapture", ["-x", "-o", ...(windowId ? ["-l" + windowId] : []), out], { timeout: 30_000 }, (e) =>
       e ? reject(new Error("화면을 캡처하지 못했습니다. 시스템 설정 > 개인정보 보호 및 보안 > 화면 기록에서 터미널을 허용하세요.")) : resolve()));
 // 창을 캡처한 그림(crop이면 쪽만 잘라서)
-async function shot(dir, i, windowId, crop = true) {
+async function shot(dir, i, windowId, crop) {
   const png = path.join(dir, i + ".png");
   await capture(png, windowId);
   const image = await readFile(png);
@@ -291,7 +292,12 @@ async function protectedPdf(file, only) {
 
 // Edge의 '다른 이름으로 저장'(⌘S)으로 사본을 임시 폴더에 받는다. 저장 창에서 ⇧⌘G(폴더로 이동)에 폴더 경로를 붙여 넣는다
 // (한글 입력 상태에서도 되게 클립보드를 쓰고 되돌린다). 키는 자판 배열과 무관한 키 코드로 보낸다: 1 S · 5 G · 0 A · 9 V · 36 Return · 53 Esc
-const SAVE_AS = `on run argv
+const SAVE_AS = `on check()
+  tell application "System Events"
+    if not (frontmost of process "${EDGE}") then error "다른 앱이 앞으로 나와 저장을 멈췄습니다"
+  end tell
+end check
+on run argv
   set w to (item 1 of argv) as integer
   tell application "${EDGE}"
     set index of window id w to 1
@@ -306,23 +312,29 @@ const SAVE_AS = `on run argv
   set the clipboard to (item 2 of argv)
   try
     tell application "System Events" to tell process "${EDGE}"
+      my check()
       key code 1 using command down
       repeat 20 times
         if exists sheet 1 of window 1 then exit repeat
         delay 0.5
       end repeat
       if not (exists sheet 1 of window 1) then error "저장 창이 뜨지 않았습니다"
+      my check()
       key code 5 using {command down, shift down}
       delay 1
+      my check()
       key code 0 using command down
       key code 9 using command down
       delay 1
+      my check()
       key code 36
       delay 1.5
+      my check()
       key code 36
       delay 1.5
       repeat 3 times
         if not (exists sheet 1 of window 1) then exit repeat
+        my check()
         key code 53
         delay 0.5
       end repeat
@@ -334,7 +346,8 @@ const SAVE_AS = `on run argv
   set the clipboard to kept
 end run`;
 // 그 사본을 PDFKit으로 읽은 쪽들. 저장 권한이 있는 문서는 사본이 보호 없이 저장되어 원본 화질로 나온다. 사본은 읽자마자 지운다.
-// 터미널에 '손쉬운 사용'(키 입력) 권한이 필요하다. 저장이 안 되거나 사본도 보호되어 있으면 까닭을 던진다.
+// 터미널에 '손쉬운 사용'(키 입력) 권한이 필요하다. 키는 Edge가 맨 앞일 때만 보낸다(다른 앱에 ⌘V·Return이 들어가지 않게).
+// 저장이 안 되거나 사본도 보호되어 있으면(안내 쪽만 보이는 겉 PDF 포함) 까닭을 던진다.
 async function edgeSaved(windowId, only) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "edge-save-"));
   try {
@@ -343,9 +356,10 @@ async function edgeSaved(windowId, only) {
       const name = (await readdir(dir)).find((n) => /\.pdf$/i.test(n));
       if (name) {
         await wait(1500); // 다 써질 때까지
-        return await pdfKitPages(path.join(dir, name), only).catch(() => {
-          throw new Error("저장한 사본도 보호되어 있어 열 수 없습니다");
-        });
+        const copy = path.join(dir, name);
+        const pages = (await wrapped(copy)) ? null : await pdfKitPages(copy, only).catch(() => null);
+        if (!pages) throw new Error("저장한 사본도 보호되어 있어 열 수 없습니다");
+        return pages;
       }
       await wait(500);
     }
@@ -401,6 +415,7 @@ end run`, url, String(windowId), String(page)], "Edge에서 PDF를 열지 못했
     let why = "";
     const saved = await edgeSaved(windowId, only).catch((e) => void (why = e.message));
     if (saved?.length) return saved;
+    if (why.includes("다른 앱이 앞으로")) throw new Error(why + ". 목록의 '지금 가져오기'로 다시 읽으세요."); // 저장 창이 남았을 수 있어 캡처하지 않는다
     let shotId = "";
     for (let t = 0; t < 10 && !shotId; t++) {
       shotId = largest((await windows(EDGE)).filter((w) => !before.some((b) => b.id === w.id)));
@@ -411,7 +426,7 @@ end run`, url, String(windowId), String(page)], "Edge에서 PDF를 열지 못했
         await open(windowId, i);
         await loaded(windowId, 30);
       }
-      const page = await shot(out, i, shotId);
+      const page = await shot(out, i, shotId, true);
       if (!pages.length && (await blank(page)))
         throw new Error(`Edge가 이 보호 문서의 화면 캡처를 막았고, '다른 이름으로 저장'도 되지 않았습니다(${why}).`);
       if (pages.length && (await samePage(page, pages.at(-1)))) break; // 더 넘어가지 않는다(마지막 쪽)
@@ -457,7 +472,7 @@ end tell`], "Acrobat Reader에서 쪽을 넘기지 못했습니다").catch(acces
       if (i > 1) await keys(`key code 124
   delay 1`);
       if (only && i < only) continue;
-      const page = await shot(out, i, windowId);
+      const page = await shot(out, i, windowId, true);
       if (pages.length && (await samePage(page, pages.at(-1)))) break; // 더 넘어가지 않는다(마지막 쪽)
       pages.push(page);
     }

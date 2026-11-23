@@ -187,10 +187,12 @@ export async function rereadIntake(responsesToo = true) {
   await syncIntake();
 }
 
-// 접수 정보에서 고친 값(제목·설명)을 응답 엑셀에도 적는다. 도는 중인 읽기가 끝난 뒤에 쓰고, 다음 확인 때 엑셀을 다시 읽게 한다.
+// 접수 정보에서 고친 값(제목·설명)을 응답 엑셀에도 적는다. 도는 중인 읽기가 끝난 뒤, 쓰는 동안은 읽기가 시작되지 않게
+// intake.running을 잡고 쓴다. 다음 확인 때 엑셀을 다시 읽게 한다.
 export async function updateResponse(w, values) {
+  while (intake.running) await intake.running;
+  intake.running = writeResponse(intake.config, w.source.formId, values).finally(() => (intake.running = null));
   await intake.running;
-  await writeResponse(intake.config, w.source.formId, values);
   intake.responses = null;
 }
 

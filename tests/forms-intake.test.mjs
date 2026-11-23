@@ -103,12 +103,16 @@ test("응답 엑셀에서 그 응답의 칸만 고친다: 빈 칸에도 적고 �
     { name: "메모", rows: [["그대로"]] },
   ]));
   const withDescription = { ...config, columns: { ...config.columns, description: "설명" } };
-  await writeResponse(withDescription, "1", { title: "우산 2호", description: "새 설명 & <표>", email: "없는 열" });
+  await writeResponse(withDescription, "1", { title: "우산\v2호", description: "새 설명 & <표>", email: "없는 열" }); // \v: Word에서 붙여 넣은 줄 바꿈
   const buffer = await readFile(config.formsWorkbook);
   assert.deepEqual(readSheet(buffer), [["ID", "완료 시간", "제목", "설명", "소속", "이름", "분야", "첨부"], [1, "", "우산 2호", "새 설명 & <표>", "운영팀", "홍길동", "", "a.png"], [2, "", "알림", "원래 설명", "", "", "", "b.png"]]);
   assert.deepEqual(readSheet(buffer, "메모"), [["그대로"]]);
   assert.deepEqual((await readResponses(withDescription)).map((e) => e.title), ["우산 2호", "알림"]);
   await assert.rejects(writeResponse(withDescription, "9", { title: "x" }), /응답 9을 찾지 못했습니다/);
+});
+
+test("빈 응답 엑셀은 열 이름을 따지지 않고 응답 0건이다", () => {
+  assert.deepEqual(formEntries([[], ["", ""]], columns), []);
 });
 
 test("보호(암호화)된 엑셀은 이유를 알려 준다", () => {

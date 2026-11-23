@@ -138,7 +138,8 @@ const columnIndex = (letters) => [...letters.toUpperCase()].reduce((n, c) => n *
 // 응답 엑셀에서 머리글 행(at, 첫 번째로 값이 있는 행)과 항목별 열 번호(index). 빈 엑셀이면 at이 -1이다.
 function formColumns(rows, columns) {
   const at = rows.findIndex((r) => r.some((v) => v !== ""));
-  const head = (rows[at] ?? []).map((h) => nfc(h).trim());
+  if (at < 0) return { at, index: {} };
+  const head = rows[at].map((h) => nfc(h).trim());
   const index = {};
   for (const [key, name] of Object.entries(columns)) {
     if (!name) continue;
@@ -226,7 +227,7 @@ function excelApp(script, what, file, sheetName, input = "") {
   return new Promise((resolve, reject) =>
     execFile("osascript", ["-l", "JavaScript", "-e", script, file, sheetName, input], { timeout: 180_000, maxBuffer: 64 << 20 },
       (e, out, errText) => (e
-        ? reject(new Error(`Excel 앱으로 응답 엑셀을 ${what} 못했습니다(Excel 설치·회사 계정 로그인·Excel 제어 허용 확인): ` + String(errText || e.message).trim()))
+        ? reject(new Error(`Excel 앱으로 응답 엑셀을 ${what} 못했습니다(Excel 설치·회사 계정 로그인·Excel 제어 허용 확인): ` + (String(errText).trim() || (e.killed ? "시간 초과" : "종료 코드 " + e.code))))
         : resolve(out))));
 }
 const rowsOf = async (buffer, file, sheetName) =>

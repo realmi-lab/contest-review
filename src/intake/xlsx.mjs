@@ -115,7 +115,9 @@ export function readSheet(buffer, sheetName = "") {
 
 /* ─────────── 쓰기 ─────────── */
 
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+// XML에 넣을 수 없는 제어 문자(Word에서 붙여 넣은 줄 바꿈 \\v 등)는 빈칸으로 바꾼다. 남기면 엑셀이 파일이 손상됐다고 한다.
+const esc = (s) => String(s).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, " ")
+  .replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const columnName = (i) => (i >= 26 ? columnName(Math.floor(i / 26) - 1) : "") + String.fromCharCode(65 + (i % 26));
 
 function cellXml(value, ref, style) {

@@ -40,7 +40,9 @@ if (script.includes('"Microsoft Edge"')) { // Edge: 새 창에 #page=N으로 연
   if (script.includes("make new window")) { s.edge = true; done("7"); }
   if (script.includes("key code 1 using command down")) { // 다른 이름으로 저장(⌘S): saveAs가 없으면 키를 보낼 권한이 없다
     if (!s.saveAs) done("", 1);
-    fs.writeFileSync(path.join(args.at(-1), "보호 문서.pdf"), s.saveAs === "saved" ? "saved" : "still protected");
+    if (s.saveAs === "away") { console.error("execution error: 다른 앱이 앞으로 나와 저장을 멈췄습니다 (-2700)"); done("", 1); }
+    const copy = { saved: "saved", wrapped: "saved /Type /EncryptedPayload /Subtype /MicrosoftIRMServices" }[s.saveAs] ?? "still protected";
+    fs.writeFileSync(path.join(args.at(-1), "보호 문서.pdf"), copy);
     done();
   }
   if (script.includes("loading of active tab")) done("false");
@@ -142,6 +144,15 @@ test("보호 PDF: Edge에서 '다른 이름으로 저장'한 사본이 열리면
 test("보호 PDF: 저장한 사본도 보호되어 있으면 화면 캡처로 넘어간다", { skip }, async () => {
   const { pages } = await run("보호 문서.pdf", { saveAs: "protected", lastScreen: 2 });
   assert.deepEqual(pages, ["page 1", "page 2"]);
+});
+
+test("보호 PDF: 저장한 사본이 안내 쪽만 보이는 겉 PDF면 그 쪽을 쓰지 않고 화면 캡처로 넘어간다", { skip }, async () => {
+  const { pages } = await run("보호 문서.pdf", { saveAs: "wrapped", lastScreen: 2 });
+  assert.deepEqual(pages, ["page 1", "page 2"]);
+});
+
+test("보호 PDF: 저장하는 중에 다른 앱이 앞으로 나오면 키를 더 보내지 않고, 캡처도 하지 않고 멈춘다", { skip }, async () => {
+  await assert.rejects(run("보호 문서.pdf", { saveAs: "away" }), /다른 앱이 앞으로 나와.*지금 가져오기/s);
 });
 
 test("보호 PDF: Edge가 화면 캡처를 막아 검은 화면만 찍히면 저장이 안 된 까닭과 함께 알린다", { skip }, async () => {
