@@ -1,6 +1,6 @@
 // MS Forms 첨부를 캡처(쪽 이미지)로 바꾼다. 문서는 맥에서만 바꾼다.
 //   그림(PNG·JPG·WebP): 그대로 한 장
-//   PDF: 맥 PDFKit으로 쪽마다 PNG
+//   PDF: 맥 PDFKit으로 쪽마다 PNG. 보호(MIP) PDF는 Adobe Acrobat Reader가 열어 쪽마다 화면 캡처
 //   Word·PowerPoint·Excel: 맥의 Office 앱이 회사 계정으로 열어(MIP 보호 문서 포함) 쪽마다 화면 캡처
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
@@ -22,6 +22,12 @@ const osa = (args, what) =>
     execFile("osascript", args, { timeout: 300_000, maxBuffer: 8 << 20 }, (e, out, errText) =>
       e ? reject(new Error(`${what}: ${String(errText || e.message).trim()}`)) : resolve(out.trim())));
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// 문서를 앱으로 연다(Launch Services). 앱을 앞으로 가져오지 않고, Office 샌드박스도 파일 접근을 허락받는다.
+const launch = (app, file) =>
+  new Promise((resolve, reject) =>
+    execFile("open", ["-g", "-a", app, file], (e) => (e ? reject(new Error(`${app}로 문서를 열지 못했습니다.`)) : resolve())));
+
 // PDF 쪽마다 긴 변 1600px PNG (흰 바탕은 캡처 접수 때 깐다)
 const PDF_PAGES = `ObjC.import("PDFKit"); ObjC.import("AppKit");
 function run([pdf, out, only]) {
@@ -40,9 +46,11 @@ function run([pdf, out, only]) {
 async function pdfPages(pdf, only) {
   const out = await mkdtemp(path.join(os.tmpdir(), "pages-"));
   try {
-    await osa(["-l", "JavaScript", "-e", PDF_PAGES, pdf, out, String(only || "")], "PDF").catch(() => {
-      throw new Error("열 수 없는 PDF입니다(암호·보호 문서). 회사 뷰어로 열어 캡처해 올려 주세요.");
-    });
+    try {
+      await osa(["-l", "JavaScript", "-e", PDF_PAGES, pdf, out, String(only || "")], "PDF");
+    } catch {
+      return await readerCaptures(pdf, only); // 보호 PDF
+    }
     const names = (await readdir(out)).filter((n) => n.endsWith(".png")).sort();
     return Promise.all(names.map((n) => readFile(path.join(out, n))));
   } finally {
@@ -140,22 +148,21 @@ async function finish(step, file, close = step.close) {
 }
 // 앱에서 문서가 열릴 때까지(최대 90초) 기다린다. 보호 문서는 회사 계정 확인에 시간이 걸린다.
 async function openInApp(step, file) {
-  await new Promise((resolve, reject) =>
-    execFile("open", ["-g", "-a", step.app, file], (e) => (e ? reject(new Error(`${step.app}로 문서를 열지 못했습니다.`)) : resolve())));
+  await launch(step.app, file);
   for (let t = 0; t < 90; t++) {
     const opened = await tell(step, `if (name of every ${step.doc}) contains n then return "yes"
       return "no"`, file).catch(() => "no");
     if (opened === "yes") return;
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await wait(1000);
   }
   throw new Error(`${step.app}에서 문서가 열리지 않았습니다(회사 계정 로그인·보호 문서 권한 확인).`);
 }
-// 화면에 있는 그 앱의 창들 [{ id, area }] (screencapture -l에 쓸 창 번호와 넓이)
+// 화면에 있는 그 앱의 창들 [{ id, area, name }] (screencapture -l에 쓸 창 번호, 넓이, 제목)
 const WINDOWS = `ObjC.import("CoreGraphics");
 function run([owner]) {
   const all = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(1, 0))) || [];
   return JSON.stringify(all.filter((w) => w.kCGWindowOwnerName === owner && w.kCGWindowLayer === 0)
-    .map((w) => ({ id: w.kCGWindowNumber, area: w.kCGWindowBounds.Width * w.kCGWindowBounds.Height })));
+    .map((w) => ({ id: w.kCGWindowNumber, area: w.kCGWindowBounds.Width * w.kCGWindowBounds.Height, name: w.kCGWindowName || "" })));
 }`;
 const windows = async (app) => JSON.parse(await osa(["-l", "JavaScript", "-e", WINDOWS, app], "창을 찾지 못했습니다"));
 const largest = (list) => String(list.sort((a, b) => b.area - a.area)[0]?.id ?? "");
@@ -186,6 +193,62 @@ end run`, path.basename(file), path.join(dir, "slides")], "PowerPoint 슬라이�
 
 // 앱이 없으면 AppleScript가 '앱 찾기' 창을 띄우므로 먼저 확인한다.
 const installed = (app) => new Promise((resolve) => execFile("open", ["-Ra", app], (e) => resolve(!e)));
+
+// 보호(MIP) PDF: Adobe Acrobat Reader가 회사 계정으로 열면 창을 쪽마다 캡처한다. Reader는 AppleScript로 쪽을 넘기지
+// 못해 키보드로 넘긴다(앞으로 가져와 ⌘0 페이지 맞춤 → Home 첫 쪽 → → 다음 쪽). 같은 화면이 다시 나오면 마지막 쪽이다.
+// 서버를 띄운 터미널에 '화면 기록'과 '손쉬운 사용'(키 입력) 권한이 있어야 한다.
+const READERS = ["Adobe Acrobat Reader", "Adobe Acrobat Reader DC", "Adobe Acrobat"];
+async function readerCaptures(file, only) {
+  let app;
+  for (const name of READERS) if (!app && (await installed(name))) app = name;
+  if (!app) throw new Error("보호된 PDF입니다. Adobe Acrobat Reader를 설치하면 자동으로 캡처합니다. 지금은 회사 뷰어로 열어 캡처해 올려 주세요.");
+  const keys = (lines) =>
+    osa(["-e", `tell application "${app}" to activate
+delay 0.5
+tell application "System Events"
+  ${lines}
+end tell`], "Acrobat Reader에서 쪽을 넘기지 못했습니다").catch((e) => {
+      // -1719·-25211: 터미널에 손쉬운 사용 권한이 없어 키를 보낼 수 없다
+      throw /-1719|-25211|assistive|보조 접근/i.test(e.message)
+        ? new Error("터미널이 키 입력을 보낼 수 없습니다. 시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 터미널을 허용하세요.") : e;
+    });
+  const before = new Set((await windows(app).catch(() => [])).map((w) => w.id));
+  await launch(app, file);
+  // 그 문서 창이 뜰 때까지(최대 90초) 기다린다. 제목에 파일 이름이 있거나 새로 생긴 창
+  const title = path.basename(file, path.extname(file));
+  let windowId = "";
+  for (let t = 0; t < 90 && !windowId; t++) {
+    const now = await windows(app).catch(() => []);
+    windowId = largest(now.filter((w) => w.name.includes(title) || !before.has(w.id)));
+    if (!windowId) await wait(1000);
+  }
+  if (!windowId) throw new Error("Acrobat Reader에서 문서가 열리지 않았습니다(회사 계정 로그인·보호 문서 권한 확인).");
+  const out = await mkdtemp(path.join(os.tmpdir(), "reader-"));
+  const pages = [];
+  try {
+    await keys(`keystroke "0" using command down
+  delay 1
+  key code 115
+  delay 1`);
+    for (let i = 1; i <= (only || 150); i++) {
+      if (i > 1) await keys(`key code 124
+  delay 1`);
+      if (only && i < only) continue;
+      const png = path.join(out, i + ".png");
+      await capture(png, windowId);
+      const page = await readFile(png);
+      if (pages.length && page.equals(pages.at(-1))) break; // 더 넘어가지 않는다(마지막 쪽)
+      pages.push(page);
+    }
+    return pages;
+  } finally {
+    // 그 문서만 닫고(⌘W), 남은 창이 없으면 Reader도 끈다
+    await keys(`keystroke "w" using command down`).catch(() => {});
+    await wait(1000);
+    if (!(await windows(app).catch(() => [])).length) await osa(["-e", `tell application "${app}" to quit`], "").catch(() => {});
+    await rm(out, { recursive: true, force: true });
+  }
+}
 async function officeCaptures(kind, file, only) {
   const step = STEPS[kind];
   if (!(await installed(step.app))) throw new Error(`이 맥에 ${step.app} 앱이 없습니다. 회사 뷰어로 열어 캡처해 올려 주세요.`);

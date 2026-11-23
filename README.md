@@ -35,6 +35,7 @@ cd contest-review
 
 - 터미널이 Word·PowerPoint·Excel을 제어 (시스템 설정 > 개인정보 보호 및 보안 > 자동화)
 - 화면 기록 (같은 곳의 '화면 기록'. 허용한 뒤 터미널을 다시 실행)
+- 손쉬운 사용 (보호 PDF를 Acrobat Reader에서 넘길 때 키 입력에 씁니다)
 
 ## 3. 쓰는 방법
 
@@ -58,6 +59,7 @@ AI 비용은 목록 위에 **오늘 · 최근 7일**로 늘 보입니다. 아이
 | 인터넷 | 처음 설치와 AI 요약에 필요합니다. 회사 프록시는 `HTTPS_PROXY`로 넘깁니다 |
 | AI 키 | Anthropic API 키 또는 회사 LiteLLM 주소와 키 |
 | Microsoft Office (맥) | 회사 계정으로 로그인된 Word·PowerPoint·Excel. 보호(MIP) 문서를 열어 캡처하는 데 씁니다 |
+| Adobe Acrobat Reader (맥) | 보호(MIP) PDF를 열어 캡처하는 데 씁니다. 캡처하는 동안 Reader 창이 잠깐 앞으로 나옵니다 |
 | OneDrive | 응답 엑셀과 첨부 폴더가 이 PC에 동기화되어 있어야 합니다 |
 
 글자 읽기(OCR) 엔진과 한국어 모델은 저장소에 들어 있어 따로 받을 것이 없습니다.
@@ -67,7 +69,7 @@ AI 비용은 목록 위에 **오늘 · 최근 7일**로 늘 보입니다. 아이
 | 기능 | 맥 | 윈도우 |
 | --- | --- | --- |
 | 그림 올리기 · 글자 읽기 · AI 요약·점검 · 채점표 | ○ | ○ |
-| 첨부 문서 자동 캡처 (PDF·Word·PowerPoint·Excel) | ○ | ✕ 화면을 캡처해 올립니다 |
+| 첨부 문서 자동 캡처 (PDF·Word·PowerPoint·Excel, 보호 PDF는 Acrobat Reader) | ○ | ✕ 화면을 캡처해 올립니다 |
 | 보호(MIP)된 응답 엑셀 읽기 | ○ | ✕ |
 
 윈도우는 자동 점검(GitHub Actions)에서 `start.bat` 실행, 글자 읽기, 회귀 점검까지 확인합니다. 회사 PC에서 처음 쓸 때는 한 번 직접 확인해 주세요.
