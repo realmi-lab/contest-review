@@ -21,8 +21,8 @@ async function recognize(side, rec) {
     ocrDetLongSide: side,
     ocrLines: "all",
   });
-  if (!result.success || !result.ocrLines?.[0])
-    throw Error(result.error?.message || "OCR 읽기 실패");
+  if (!result.success) throw Error(result.error || "OCR 읽기 실패"); // 실패하면 error는 문자열이다
+  if (!result.ocrLines?.[0]) throw Error(result.warnings?.map((w) => w.message).join(" · ") || "인식한 줄이 없습니다");
   return { page: result.ocrLines[0], blocks: result.blocks };
 }
 const { page, blocks } = await recognize(1600, "printed");
