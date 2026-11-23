@@ -7,9 +7,10 @@ node_modules/
 deploy/site.json
 deploy/site.json.tmp
 deploy/web-access.json
-# 이 맥 전용 배포 인증 도구는 저장소에 올리지 않는다
-deploy/배포 인증 등록.command
+# 이 컴퓨터에서만 쓰는 도구(이름이 .local.command로 끝남)는 저장소에 올리지 않는다
+deploy/*.local.command
 
 # 로컬 시험용 가짜 OneDrive(scripts/forms-sample.mjs)와 예전 화면 백업
 qa-onedrive/
 backup/
+__pycache__/

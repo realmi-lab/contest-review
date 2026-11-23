@@ -33,13 +33,16 @@ if [ ! -d node_modules ] || [ package-lock.json -nt node_modules ]; then
   touch node_modules
 fi
 
-# 먼저 띄운 이 앱이 남아 있으면 끄고 다시 띄운다. 예전 ./start.sh가 등록한 맥 서비스(LaunchAgent)도 내린다.
-# (QA망 맥의 웹 서비스도 같은 이름이라, QA망 맥에서 이 스크립트를 돌리면 그 서비스가 내려간다. 되살리기: python3 deploy/start-nas.py)
-label="net.realmi.contest-review.web"
-if [ "$(uname)" = Darwin ] && launchctl print "gui/$(id -u)/$label" >/dev/null 2>&1; then
-  echo "예전에 등록된 맥 서비스($label)를 내립니다."
-  launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
-  rm -f "$HOME/Library/LaunchAgents/$label.plist"
+# 먼저 띄운 이 앱이 남아 있으면 끄고 다시 띄운다. 이 폴더의 server.mjs를 띄우는 맥 서비스(LaunchAgent)도 내린다
+# (예전 ./start.sh나 웹 모드 deploy/start-web.py가 등록한 것. 웹 모드로 되살리기: python3 deploy/start-web.py).
+if [ "$(uname)" = Darwin ]; then
+  for plist in "$HOME"/Library/LaunchAgents/*.plist; do
+    [ -f "$plist" ] && grep -q "$PWD/server.mjs" "$plist" || continue
+    label=$(basename "$plist" .plist)
+    echo "이 앱을 띄우던 맥 서비스($label)를 내립니다."
+    launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
+    rm -f "$plist"
+  done
 fi
 for port in 18765 20883; do
   for pid in $(lsof -ti "tcp:$port" -sTCP:LISTEN 2>/dev/null); do

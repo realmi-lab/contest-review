@@ -1,4 +1,4 @@
-// QA망에서 MS Forms 연동을 시험할 가짜 OneDrive를 만든다: 응답 엑셀 + 첨부 + 연동 설정.
+// MS Forms 연동을 시험할 가짜 OneDrive를 만든다: 응답 엑셀 + 첨부 + 연동 설정.
 // 사용: node scripts/forms-sample.mjs <가짜 OneDrive 폴더>   (deploy/site.json의 forms를 이 폴더로 맞춘다)
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";

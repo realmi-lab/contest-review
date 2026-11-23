@@ -1,0 +1,137 @@
+// 화면 점검: 임시 서버를 띄우고 헤드리스 Chrome으로 주요 화면을 눌러 본다. 브라우저 오류가 하나도 없어야 한다.
+//   npm run ui-check   (Chrome 위치가 다르면 CHROME_PATH로 알려 준다)
+// AI 요청은 가짜 응답(scripts/fake-ai.mjs)으로 바꿔 요약·점검 화면까지 비용 없이 본다. 실제 데이터와 설정은 건드리지 않는다.
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import puppeteer from "puppeteer-core";
+
+const project = fileURLToPath(new URL("../", import.meta.url));
+const chrome = [process.env.CHROME_PATH, "/usr/bin/google-chrome", "/usr/bin/chromium",
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"].find((p) => p && existsSync(p));
+if (!chrome) {
+  console.log("Chrome을 찾지 못해 화면 점검을 건너뜁니다. CHROME_PATH로 위치를 알려 주세요.");
+  process.exit(0);
+}
+
+// 임시 폴더: 데이터·설정, 그리고 가짜 AI 키(맥·윈도우 설정 위치 모두)
+const temp = await mkdtemp(path.join(os.tmpdir(), "ui-"));
+const home = path.join(temp, "home"), appData = path.join(home, "AppData");
+for (const dir of [path.join(home, "Library", "Application Support", "ContestReviewDesk"), path.join(appData, "ContestReviewDesk")]) {
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, "anthropic.key"), "sk-ant-fake");
+}
+const port = 19000 + Math.floor(Math.random() * 700);
+const base = `http://localhost:${port}`;
+const server = spawn(process.execPath, ["--import", "./scripts/fake-ai.mjs", "server.mjs"], { cwd: project, stdio: ["ignore", "ignore", "inherit"],
+  env: { ...process.env, HOME: home, USERPROFILE: home, APPDATA: appData, REVIEW_WEB_MODE: "", REVIEW_NAS_MODE: "",
+    REVIEW_PORT: String(port), REVIEW_DATA_DIR: path.join(temp, "data"), REVIEW_SITE_FILE: path.join(temp, "site.json") } });
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// 조건이 될 때까지(최대 seconds초) 기다린다
+async function until(what, check, seconds = 20) {
+  for (let i = 0; i < seconds * 4; i++) {
+    if (await check().catch(() => false)) return;
+    await wait(250);
+  }
+  assert.fail(what + " — 시간 안에 되지 않았습니다");
+}
+const errors = [], failed = [];
+let passed = 0;
+async function step(name, run) {
+  try { await run(); passed++; console.log("  ✓ " + name); }
+  catch (e) { failed.push(name); console.log("  ✗ " + name + "\n      " + String(e.message).split("\n")[0]); }
+}
+
+const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ["--no-sandbox", "--disable-gpu"] });
+try {
+  await until("서버 시작", () => fetch(base + "/api/state").then((r) => r.ok), 30);
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1400, height: 900 });
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("dialog", (d) => d.accept()); // 요약 실행 확인 창
+  const state = () => page.evaluate(() => fetch("/api/state").then((r) => r.json()));
+  const isOpen = () => page.$eval("#dialog", (d) => d.open);
+  const click = (selector) => page.$eval(selector, (el) => el.click());
+  const press = async (key) => { await page.keyboard.press(key); await wait(600); };
+
+  await step("목록 화면에 빌드 번호와 접수 칸이 나온다", async () => {
+    await page.goto(base + "/", { waitUntil: "networkidle0" });
+    await until("빌드 번호", async () => /빌드|버전/.test(await page.$eval("#build", (e) => e.textContent)));
+    await until("접수 칸", async () => !!(await page.$("#create")));
+  });
+  await step("예제 작품을 만들면 캡처 자료 탭이 열리고 글자 인식이 끝난다", async () => {
+    await click('[data-action="sample"]');
+    await until("캡처 그림", async () => !!(await page.$(".capture-tile")));
+    await until("글자 인식", async () => (await state()).tasks.length === 0, 180);
+  });
+  await step("캡처를 크게 보고 Esc로 닫는다", async () => {
+    await click(".capture-tile");
+    await until("크게 보기", isOpen);
+    await press("Escape");
+    assert.equal(await isOpen(), false);
+  });
+  await step("단축키 1~4로 단계를 옮긴다", async () => {
+    for (const [key, title] of [["2", "내용 요약"], ["3", "사실·논리 점검"], ["4", "채점표"], ["1", "캡처 자료"]]) {
+      await press(key);
+      assert.match(await page.$eval(".panetitle", (e) => e.textContent), new RegExp(title));
+    }
+  });
+  await step("요약을 실행하면 점검까지 이어지고 요약·점검 탭에 결과가 나온다", async () => {
+    const started = await page.evaluate(async () => {
+      const { works } = await fetch("/api/state").then((r) => r.json());
+      const w = await fetch("/api/work/" + works[0].id).then((r) => r.json());
+      return (await fetch("/api/summarize", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: w.id, rev: w.rev }) })).status;
+    });
+    assert.equal(started, 202);
+    await until("요약·점검", async () => (await state()).works.some((w) => w.hasLogic), 60);
+    await press("2");
+    await until("요약 내용", async () => !!(await page.$(".reading-content")));
+    await press("3");
+    await until("점검 내용", async () => /점검/.test(await page.$eval("#main", (e) => e.textContent)));
+  });
+  await step("채점표를 채워 확정한다", async () => {
+    await press("4");
+    await until("채점표", async () => !!(await page.$("#final")));
+    for (const input of await page.$$('#final input[name="score"]')) {
+      await input.click({ clickCount: 3 });
+      await input.type("1");
+    }
+    await page.evaluate(() => {
+      for (const r of document.querySelectorAll('#final input[type="radio"]'))
+        if (!document.querySelector(`#final input[name="${r.name}"]:checked`)) r.checked = true;
+      document.querySelector("#sheetby").value = "화면 점검";
+      document.querySelector("#finalnote").value = "화면 점검";
+    });
+    await page.$eval("#final", (f) => f.requestSubmit());
+    await until("확정", async () => (await state()).works.some((w) => w.final));
+  });
+  await step("요약 설정·공모 연동 설정 대화상자를 열고 닫는다", async () => {
+    for (const action of ["summary-settings", "forms-settings"]) {
+      await click(`.sidebar [data-action="${action}"]`);
+      await until(action, isOpen);
+      await click("#close");
+      await wait(300);
+    }
+  });
+  await step("목록으로 돌아가 검색하고, 일괄 요약 대화상자를 연다", async () => {
+    await click("#home");
+    await until("목록", async () => !!(await page.$("#search")));
+    await page.type("#search", "우산");
+    await until("검색 결과", async () => /우산/.test(await page.$eval("#worklist", (e) => e.textContent)));
+    await click('[data-action="batch-summary"]');
+    await until("일괄 요약", isOpen);
+  });
+  await step("브라우저 오류가 없다", () => assert.deepEqual(errors, []));
+} finally {
+  await browser.close();
+  server.kill();
+  await rm(temp, { recursive: true, force: true });
+}
+console.log(failed.length ? `\n실패 ${failed.length}건: ${failed.join(" · ")}` : `\n화면 점검 ${passed}건 모두 통과`);
+process.exit(failed.length ? 1 : 0);

@@ -1,4 +1,4 @@
-// 서버가 놓인 망(QA망·회사망)마다 다른 설정: deploy/site.json 하나 (회사망 예시: deploy/site.example.json)
+// 서버마다 다른 설정: deploy/site.json 하나 (예시: deploy/site.example.json, 설명: deploy/README.md)
 //   network: 웹 주소·이 맥의 주소·포트·앞단 프록시 주소   forms: MS Forms 공모 연동
 // network는 서버를 다시 시작할 때, forms는 1분마다 다시 읽는다. AI 키·연결 주소·모델은 웹앱의 요약 설정에서 정한다.
 import { readFileSync, renameSync, writeFileSync } from "node:fs";

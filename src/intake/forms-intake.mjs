@@ -2,7 +2,7 @@
 // Power Automate가 Forms 응답을 OneDrive 엑셀에 쌓고, 첨부는 OneDrive의 Forms 폴더에 들어온다. 이 맥에 동기화된 두 곳을 읽어
 // ① 응답마다 작품 폴더를 만들어 첨부를 복사하고 ② 분야별 심사자 폴더에 배정 작품과 평가표 엑셀을 두고 공유를 요청하며
 // ③ 심사자가 채운 평가표를 다시 읽는다. 폴더 공유는 Power Automate가 '_공유 요청' 폴더의 요청 파일을 보고 처리한다.
-// 설정은 deploy/site.json의 forms다(QA망·회사망마다 다름. 회사망 예시: deploy/site.example.json).
+// 설정은 deploy/site.json의 forms다(서버마다 다름. 예시: deploy/site.example.json).
 import { execFile } from "node:child_process";
 import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";

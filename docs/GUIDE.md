@@ -7,17 +7,22 @@
 | 폴더 | 내용 |
 | --- | --- |
 | `start.sh` · `start.bat` · `server.mjs` | 실행 스크립트와 진입점(`server.mjs`는 `src/server.mjs`만 불러옵니다) |
-| `src/server.mjs` | 웹 서버: API, 작업 대기열, 자동 진행 (`src/sample.mjs`는 합성 예제 그림, `src/app-dir.mjs`는 데이터 폴더 위치) |
-| `src/intake/` | MS Forms 응답 엑셀 읽기, 첨부를 캡처로 바꾸기(Office·PDF), 엑셀 읽기·쓰기 |
-| `src/ocr/` | 글자 인식(Kordoc)과 판독 품질·표·수치 처리 |
-| `src/ai/` | AI 연결(키·모델), 사용량·비용 계산 |
-| `src/summary/` | 내용 요약 만들기 |
-| `src/check/` | 사실·논리 점검, AI가 본 아이디어 |
+| `src/server.mjs` | 서버를 열고 닫는 곳. 나머지를 이어 붙입니다 |
+| `src/config.mjs` · `store.mjs` · `jobs.mjs` | 폴더·포트·웹 모드 설정, 저장소(SQLite), 작업 대기열 |
+| `src/http.mjs` · `routes/` · `web-access.mjs` | 요청 처리 공통(보안 머리글·화면 파일), API(작품·설정), 웹 모드 접속 보호 |
+| `src/captures.mjs` | 캡처 접수: 그림 확인, 글자 인식 줄 세우기, 문서를 쪽 그림으로 접수, 다시 캡처 |
+| `src/intake/` | MS Forms 공모 연동(1분마다 동기화), 첨부를 캡처로 바꾸기(Office·PDF), 엑셀 읽기·쓰기 |
+| `src/ocr/` | 글자 인식(Kordoc)과 판독 품질·표 처리 |
+| `src/ai/` | AI 연결(키·모델), 요청 나누기, 사용량·비용 계산 |
+| `src/summary/` | 내용 요약 만들기와 실행(`run.mjs`: 요약 → 점검을 대기열에) |
+| `src/check/` | 사실·논리 점검(`logic.mjs`), 원문 대조 규칙, AI가 본 아이디어 |
 | `src/review/` | 채점표·채점 결과, 비슷한 제안 찾기 |
-| `public/` | 브라우저 화면(app.js·style.css 등) |
-| `tests/` | 단위 테스트: `npm test`. 화면에 보이는 결과와 돈·데이터에 닿는 부분(공모 접수, 채점표, 비용 계산, 요약 화면, 화면 도우미)만 둡니다 |
-| `scripts/` | 회귀 점검 `npm run smoke`(임시 서버로 접수·OCR·MS Forms 연동을 한 바퀴), 예제·준비 도구 |
-| `deploy/` | 웹 주소로 여는 QA망용 설정과 도구 |
+| `public/app/` | 브라우저 화면 모듈(`main.mjs`가 시작점, 화면 상태는 `state.mjs`) |
+| `public/lib/` | 화면과 서버·테스트가 함께 쓰는 순수 도우미(HTML·용어·요약 보기) |
+| `public/style/` | 화면 스타일(`index.html`이 순서대로 불러옵니다) |
+| `tests/` | 단위 테스트: `npm test`. 화면에 보이는 결과와 돈·데이터에 닿는 부분만 둡니다 |
+| `scripts/` | 회귀 점검 `npm run smoke`(임시 서버로 접수·OCR·MS Forms 연동), 화면 점검 `npm run ui-check`, 예제·준비 도구 |
+| `deploy/` | 웹 모드(다른 PC에서 웹 주소로 열기) 설정과 도구 |
 | `vendor/` | OCR 엔진 패키지와 한국어 모델 |
 | `docs/` | 이 문서 |
 | `DESIGN.md` · `PRODUCT.md` | 디자인 기준과 제품 메모(디자인 도구가 맨 위 폴더에서 읽습니다) |
@@ -56,7 +61,7 @@
 | `reviewDir` | 작품 폴더·심사자 폴더·공유 요청을 만들 심사 폴더 |
 | `evaluators` | 심사자 `name`·`email`·`categories`(담당 분야, 응답의 분야 값과 같은 글자). 한 분야에 여러 명 가능 |
 
-열 이름이 틀리면 목록의 'MS Forms 공모' 칸에 엑셀에 실제로 있는 열 이름을 보여 줍니다. QA망에서는 `node scripts/forms-sample.mjs qa-onedrive`로 가짜 OneDrive(응답 3건·첨부·심사자 2명)를 만들고 `forms`를 그 폴더로 맞춰 시험할 수 있습니다.
+열 이름이 틀리면 목록의 'MS Forms 공모' 칸에 엑셀에 실제로 있는 열 이름을 보여 줍니다. 시험할 때는 `node scripts/forms-sample.mjs qa-onedrive`로 가짜 OneDrive(응답 3건·첨부·심사자 2명)를 만들고 `forms`를 그 폴더로 맞춰 시험할 수 있습니다.
 
 ### AI 연결 (회사망: LiteLLM · Bedrock)
 
@@ -72,8 +77,8 @@
 - **OneDrive 동기화**: Forms 첨부 폴더와 심사 폴더는 Finder에서 '항상 이 기기에 유지'로 둡니다(클라우드 전용 파일은 읽을 때마다 내려받습니다).
 - **암호화 레이블**: 첨부는 보호된 채 복사합니다. 응답 엑셀과 심사자 평가표에 암호화 레이블이 자동으로 붙으면 서버가 읽지 못하고 '보호(암호화)된 엑셀'이라고 알립니다. 두 파일은 암호화 없는 레이블로 두거나 해당 폴더를 자동 레이블 대상에서 빼야 합니다.
 - **AI 연결**: 요약 설정에서 LiteLLM 주소와 API 키를 넣습니다. LiteLLM 주소가 사내 주소라 바깥 프록시가 필요 없으면 다음 항목은 건너뜁니다.
-- **프록시**: 회사망에서 AI 주소로 나갈 때 HTTP 프록시가 필요하면, `HTTPS_PROXY`(필요하면 `NO_PROXY`)를 설정한 터미널에서 `python3 deploy/start-nas.py`를 실행합니다. 서비스에 프록시 설정이 함께 들어갑니다(Node의 `NODE_USE_ENV_PROXY=1`).
-- **접속 코드**: 웹앱은 지금 로그인 없이 열려 있어서, 주소를 아는 사람은 누구나 심사 배포를 누를 수 있습니다. 회사망에서는 `deploy/접속 코드 변경.command`로 접속 코드를 켜는 것을 권합니다.
+- **프록시**: 회사망에서 AI 주소로 나갈 때 HTTP 프록시가 필요하면, `HTTPS_PROXY`(필요하면 `NO_PROXY`)를 설정한 터미널에서 `python3 deploy/start-web.py`를 실행합니다. 서비스에 프록시 설정이 함께 들어갑니다(Node의 `NODE_USE_ENV_PROXY=1`).
+- **접속 코드**: 웹앱은 지금 로그인 없이 열려 있어서, 주소를 아는 사람은 누구나 심사 배포를 누를 수 있습니다. 회사망에서는 `deploy/change-access-code.command`로 접속 코드를 켜는 것을 권합니다.
 
 ### Power Automate: 심사자 폴더 공유 흐름
 

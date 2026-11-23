@@ -1,5 +1,7 @@
 # 아이디어정리
 
+[![점검](https://github.com/realmi-lab/contest-review/actions/workflows/ci.yml/badge.svg)](https://github.com/realmi-lab/contest-review/actions/workflows/ci.yml)
+
 회사 아이디어 제안(MS Forms)을 받아 심사를 돕는 앱입니다.
 아이디어가 들어오면 **첨부 캡처 → 글자 읽기 → AI 요약 → AI 점검**까지 알아서 하고, 사람은 **채점표**만 작성하면 됩니다.
 
@@ -68,7 +70,7 @@ AI 비용은 목록 위에 **오늘 · 최근 7일**로 늘 보입니다. 아이
 | 첨부 문서 자동 캡처 (PDF·Word·PowerPoint·Excel) | ○ | ✕ 화면을 캡처해 올립니다 |
 | 보호(MIP)된 응답 엑셀 읽기 | ○ | ✕ |
 
-윈도우 실행은 아직 실제 윈도우 PC에서 확인하지 못했습니다.
+윈도우는 자동 점검(GitHub Actions)에서 `start.bat` 실행, 글자 읽기, 회귀 점검까지 확인합니다. 회사 PC에서 처음 쓸 때는 한 번 직접 확인해 주세요.
 
 ## 6. 자주 생기는 문제
 
@@ -80,4 +82,6 @@ AI 비용은 목록 위에 **오늘 · 최근 7일**로 늘 보입니다. 아이
 
 데이터는 맥 `~/Library/Application Support/ContestReviewDesk/`, 윈도우 `%APPDATA%\\ContestReviewDesk\\`에 저장됩니다.
 
-더 자세한 내용과 폴더 구조는 [docs/상세 안내.md](docs/상세%20안내.md)에 있습니다. 고친 뒤에는 `npm test`와 `npm run smoke`로 점검합니다.
+더 자세한 내용과 폴더 구조는 [docs/GUIDE.md](docs/GUIDE.md)에 있습니다. 고친 뒤에는 `npm test`, `npm run smoke`, `npm run ui-check`로 점검합니다.
+
+저작권은 realmi-lab에 있습니다([LICENSE](LICENSE)). 함께 쓰는 오픈소스는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 있습니다.

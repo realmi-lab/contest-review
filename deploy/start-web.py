@@ -1,4 +1,8 @@
-"""Prepare the HTTPS web instance and start its macOS LaunchAgent (QA망 웹 주소용. 운영망은 ./start.sh로 localhost 실행)."""
+"""웹 모드 시작: 내부 HTTPS 인증서를 준비하고 서버를 맥 서비스(LaunchAgent)로 띄운다.
+
+다른 PC에서 웹 주소로 열 때만 쓴다. 이 컴퓨터에서만 쓸 때는 ./start.sh(localhost)로 충분하다.
+설정은 deploy/site.json의 network에서 읽는다(예시: deploy/site.example.json, 설명: deploy/README.md).
+"""
 
 import json
 import os
@@ -20,6 +24,7 @@ if not network.get("publicHost") or not network.get("listenAddress"):
 host = network["publicHost"]
 address = network["listenAddress"]
 port = str(network.get("port", 20883))
+label = network.get("serviceLabel", "contest-review.web")  # 맥 서비스 이름
 
 
 def prepare_certificate():
@@ -46,7 +51,7 @@ def node_path():
 
 def service_env():
     # nvm으로 받은 Node를 쓸 때도 서버가 같은 Node를 찾도록 그 폴더를 PATH 맨 앞에 둔다.
-    env = {"REVIEW_NAS_MODE": "1", "REVIEW_PORT": port, "HOME": str(home),
+    env = {"REVIEW_WEB_MODE": "1", "REVIEW_PORT": port, "HOME": str(home),
            "PATH": os.path.dirname(node_path()) + ":/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"}
     # 회사망 프록시: 이 스크립트를 실행한 터미널의 HTTPS_PROXY·NO_PROXY를 서버에 넘기고 Node가 따르게 한다.
     proxy = {k: os.environ[k] for k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY") if os.environ.get(k)}
@@ -56,7 +61,6 @@ def service_env():
 
 
 def start():
-    label = "net.realmi.contest-review.web"
     node = node_path()
     env = service_env()
     config = {
