@@ -42,6 +42,24 @@ if [ ! -d node_modules ] || [ package-lock.json -nt node_modules ]; then
   touch node_modules
 fi
 
+# 먼저 띄운 이 앱이 남아 있으면 끄고 다시 띄운다. 예전 ./start.sh가 등록한 맥 서비스(LaunchAgent)도 내린다.
+# (QA망 맥의 웹 서비스도 같은 이름이라, QA망 맥에서 이 스크립트를 돌리면 그 서비스가 내려간다. 되살리기: python3 deploy/start-nas.py)
+label="net.realmi.contest-review.web"
+if [ "$(uname)" = Darwin ] && launchctl print "gui/$(id -u)/$label" >/dev/null 2>&1; then
+  echo "예전에 등록된 맥 서비스($label)를 내립니다."
+  launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
+  rm -f "$HOME/Library/LaunchAgents/$label.plist"
+fi
+for port in 18765 20883; do
+  for pid in $(lsof -ti "tcp:$port" -sTCP:LISTEN 2>/dev/null); do
+    if [ "$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p')" = "$PWD" ]; then
+      echo "먼저 띄운 서버(포트 $port)를 끄고 다시 띄웁니다."
+      kill "$pid"
+      for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
+    fi
+  done
+done
+
 if [ "$mode" = --server ]; then
   for tool in python3 openssl; do command -v $tool >/dev/null || { echo "$tool을 설치하세요."; exit 1; }; done
   # deploy/site.json에 network가 없으면 이 PC의 IP로 바로 여는 값을 넣는다(앞단 프록시를 두면 고친다).

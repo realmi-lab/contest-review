@@ -1074,6 +1074,11 @@ process.once("SIGTERM", stopServer);
 process.once("SIGINT", stopServer);
 const server = nasMode ? await nasServer(directory, handleRequest) : http.createServer(handleRequest);
 const listenAddress = nasMode ? macAddress : "127.0.0.1";
+server.on("error", (e) => {
+  if (e.code !== "EADDRINUSE") throw e;
+  console.error(`${listenAddress}:${port}를 이미 다른 프로그램이 쓰고 있습니다. 먼저 띄운 서버를 끈 뒤 다시 실행하세요.`);
+  process.exit(1);
+});
 server.listen(port, listenAddress, () =>
   console.log("아이디어정리 %s://%s:%d", nasMode ? "https" : "http", listenAddress, port),
 );
