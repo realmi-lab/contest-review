@@ -413,10 +413,13 @@ label.field {
 .menu-toggle {
   display: none;
 }
-.newbtn {
-  padding: 11px 14px;
-  font-size: var(--fs-body);
-  text-align: center;
+/* 앱 빌드 번호 */
+.build {
+  margin: 0;
+  color: var(--side-text);
+  font-size: var(--fs-label);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
 }
 .sidenav {
   flex: 1;
@@ -1271,13 +1274,14 @@ details.warning[open] > summary { margin-bottom: 6px; }
 }
 /* 1차 심사 채점표 */
 .scoretable.sheet td:first-child { width: auto; }
-.scoretable.sheet td:first-child small, .guide { display: block; max-width: 72ch; margin-top: 4px; color: var(--text-3); font-size: var(--fs-meta); line-height: 1.6; }
+.scoretable.sheet td:first-child > b { display: block; color: var(--text); font-family: var(--font-heading); font-size: var(--fs-section); }
+.scoretable.sheet td:first-child small, .guide { display: block; max-width: 72ch; margin-top: 6px; color: var(--text-2); font-size: var(--fs-body); line-height: 1.7; }
 .guide summary { cursor: pointer; }
 /* 채점표: 항목마다 판단에 쓰는 요약을 함께 둔다(요약 탭을 오가지 않고 읽고 매긴다) */
 .from-summary { max-width: 72ch; margin: 10px 0 0; padding: 10px 0 0; list-style: none; border-top: 1px dashed var(--line); }
 .from-summary li + li { margin-top: 8px; }
-.from-summary b { display: block; margin-bottom: 2px; color: var(--text-3); font-size: var(--fs-label); font-weight: 600; }
-.from-summary .claim { color: var(--text-2); font-size: var(--fs-ui); line-height: 1.75; }
+.from-summary b { display: block; margin-bottom: 2px; color: var(--text-3); font-size: var(--fs-meta); font-weight: 600; }
+.from-summary .claim { color: var(--text); font-size: var(--fs-body); line-height: 1.75; }
 .guide[open] summary { margin-bottom: 4px; color: var(--text-2); }
 /* AI 사실·논리 점검: 접어 둔 한 줄 */
 .ai-report { margin-bottom: 16px; }
@@ -1835,11 +1839,6 @@ dialog:has(.capture-stage) .iconbtn:hover {
     padding: 3px 2px;
     white-space: nowrap;
   }
-  .newbtn {
-    min-height: 44px;
-    padding: 8px 10px;
-    font-size: var(--fs-ui);
-  }
   .menu-toggle {
     display: grid;
     place-items: center;
@@ -2101,3 +2100,7 @@ html[data-nav="turn-prev"]::view-transition-new(sheet) { animation: card-in-left
 .forms-files ul { display: grid; gap: 4px; margin: 8px 0; padding: 0; list-style: none; }
 .forms-files li { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .forms-files li span { font-size: var(--fs-meta); }
+/* 캡처 크게 보기 아래: 이 쪽 다시 캡처 · 캡처 삭제 */
+.capture-actions { justify-content: flex-end; margin-top: 12px; }
+/* 목록 머리의 AI 비용 요약 */
+.listhead .cost-note { background: transparent; color: var(--text-3); font-size: var(--fs-meta); font-variant-numeric: tabular-nums; white-space: nowrap; }

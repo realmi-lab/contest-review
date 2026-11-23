@@ -24,11 +24,11 @@ const osa = (args, what) =>
 
 // PDF 쪽마다 긴 변 1600px PNG (흰 바탕은 캡처 접수 때 깐다)
 const PDF_PAGES = `ObjC.import("PDFKit"); ObjC.import("AppKit");
-function run([pdf, out]) {
+function run([pdf, out, only]) {
   const doc = $.PDFDocument.alloc.initWithURL($.NSURL.fileURLWithPath(pdf));
   if (!doc || doc.isNil() || doc.isLocked) throw new Error("열 수 없는 PDF(암호·보호 문서)");
-  const n = Math.min(doc.pageCount, 150);
-  for (let i = 0; i < n; i++) {
+  const n = Math.min(doc.pageCount, Number(only) || 150);
+  for (let i = Number(only) ? n - 1 : 0; i < n; i++) {
     const page = doc.pageAtIndex(i), box = page.boundsForBox(0).size;
     const scale = 1600 / Math.max(box.width, box.height);
     const image = page.thumbnailOfSizeForBox($.NSMakeSize(box.width * scale, box.height * scale), 0);
@@ -37,10 +37,10 @@ function run([pdf, out]) {
   }
   return String(n);
 }`;
-async function pdfPages(pdf) {
+async function pdfPages(pdf, only) {
   const out = await mkdtemp(path.join(os.tmpdir(), "pages-"));
   try {
-    await osa(["-l", "JavaScript", "-e", PDF_PAGES, pdf, out], "PDF").catch(() => {
+    await osa(["-l", "JavaScript", "-e", PDF_PAGES, pdf, out, String(only || "")], "PDF").catch(() => {
       throw new Error("열 수 없는 PDF입니다(암호·보호 문서). 회사 뷰어로 열어 캡처해 올려 주세요.");
     });
     const names = (await readdir(out)).filter((n) => n.endsWith(".png")).sort();
@@ -186,7 +186,7 @@ end run`, path.basename(file), path.join(dir, "slides")], "PowerPoint 슬라이�
 
 // 앱이 없으면 AppleScript가 '앱 찾기' 창을 띄우므로 먼저 확인한다.
 const installed = (app) => new Promise((resolve) => execFile("open", ["-Ra", app], (e) => resolve(!e)));
-async function officeCaptures(kind, file) {
+async function officeCaptures(kind, file, only) {
   const step = STEPS[kind];
   if (!(await installed(step.app))) throw new Error(`이 맥에 ${step.app} 앱이 없습니다. 회사 뷰어로 열어 캡처해 올려 주세요.`);
   await openInApp(step, file);
@@ -194,7 +194,7 @@ async function officeCaptures(kind, file) {
     const slides = await slideImages(file); // 내보내기가 막힌 보호 문서는 슬라이드 쇼로 캡처
     if (slides.length) {
       await finish(step, file, step.close.slice(-1));
-      return slides;
+      return only ? slides.slice(only - 1, only) : slides;
     }
   }
   const out = await mkdtemp(path.join(os.tmpdir(), "office-"));
@@ -206,13 +206,16 @@ async function officeCaptures(kind, file) {
     const now = await windows(step.app);
     // 그 창만 캡처한다(다른 창에 가려져도 된다). 새 창을 못 찾으면(쇼가 전체 화면으로 뜬 경우) 화면 전체를 캡처한다.
     const windowId = largest(step.window === "new" ? now.filter((w) => !before.has(w.id)) : now);
-    for (let i = 1; i <= count; i++) {
+    // 한 쪽만(only) 받을 때: 슬라이드 쇼는 1번부터 넘겨야 하고, Word·Excel은 그 쪽으로 바로 간다.
+    const first = only && kind !== "powerpoint" ? only : 1;
+    for (let i = first; i <= (only || count); i++) {
       try {
         await tellFirst(step, step.go, file, i);
       } catch (e) {
         if (!pages.length) throw e;
         break; // 숨긴 슬라이드 등으로 쇼가 먼저 끝났다: 받은 데까지 쓴다
       }
+      if (only && i < only) continue;
       const png = path.join(out, i + ".png");
       await capture(png, windowId);
       const page = await readFile(png);
@@ -227,10 +230,13 @@ async function officeCaptures(kind, file) {
   }
 }
 
-export async function attachmentPages(file) {
+// 문서의 쪽 이미지들. only(1부터)를 주면 그 쪽 한 장만 돌려준다(다시 캡처).
+export async function attachmentPages(file, only) {
   const kind = pageKind(file);
   if (!kind) throw new Error("자동으로 읽지 않는 형식입니다. 회사 뷰어로 열어 캡처해 올려 주세요.");
   if (kind === "image") return [await readFile(file)];
-  if (process.platform !== "darwin") throw new Error("문서를 쪽 이미지로 바꾸는 기능은 맥에서만 동작합니다.");
-  return kind === "pdf" ? pdfPages(file) : officeCaptures(kind, file);
+  if (process.platform !== "darwin") throw new Error("문서를 쪽 이미지로 바꾸는 기능은 맥에서만 동작합니다. 화면을 캡처해 올려 주세요.");
+  const pages = await (kind === "pdf" ? pdfPages(file, only) : officeCaptures(kind, file, only));
+  if (only && !pages.length) throw new Error(only + "쪽을 문서에서 찾지 못했습니다.");
+  return pages;
 }

@@ -68,8 +68,10 @@ export function formsConfig(raw) {
 
 /* ─────────── 설정 화면: 고를 수 있는 곳과 확인 ─────────── */
 
-// 고를 수 있는 곳: 이 맥에 동기화된 OneDrive·SharePoint 폴더(~/Library/CloudStorage/OneDrive…)와 지금 설정된 OneDrive 폴더
+// 고를 수 있는 곳: 이 PC에 동기화된 OneDrive·SharePoint 폴더(맥은 ~/Library/CloudStorage/OneDrive…)와 지금 설정된 OneDrive 폴더
 export async function storageRoots(current = "") {
+  if (process.platform === "win32") // 윈도우는 OneDrive가 폴더 위치를 환경 변수로 알려 준다
+    return [...new Set([current, process.env.OneDriveCommercial, process.env.OneDrive].filter(Boolean).map((p) => path.resolve(p)))];
   const cloud = path.join(os.homedir(), "Library", "CloudStorage");
   const synced = (await readdir(cloud).catch(() => [])).filter((n) => /^OneDrive/i.test(n)).map((n) => path.join(cloud, n));
   return [...new Set([current, ...synced].filter(Boolean))];

@@ -2,8 +2,8 @@ import http from "node:http";
 import { shownRefs } from "./reading-edition.mjs";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
-import { execFile, spawn } from "node:child_process";
-import { readFile, writeFile, mkdir, mkdtemp, rm, stat } from "node:fs/promises";
+import { execFile, execFileSync, spawn } from "node:child_process";
+import { readFile, writeFile, mkdir, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,6 +20,7 @@ import {
   placeLabel, readEvaluations, readOneDrive, readResponses, rootOf, shareState, storageRoots, workFolder,
 } from "./forms-intake.mjs";
 import { readSite, writeSite } from "./deploy/site.mjs";
+import { appDir } from "./app-dir.mjs";
 import { attachmentPages, pageKind } from "./attachment-pages.mjs";
 import { macAddress, nasServer, publicOrigin } from "./deploy/nas-access.mjs";
 import { readAccess, verifyCode } from "./deploy/access-code.mjs";
@@ -30,8 +31,12 @@ process.umask(0o077);
 const root = path.dirname(fileURLToPath(import.meta.url));
 const nasMode = process.env.REVIEW_NAS_MODE === "1";
 // 데이터 폴더: REVIEW_DATA_DIR(./start.sh는 두 방식 모두 ContestReviewDesk), 없으면 웹 주소 방식은 ContestReviewWeb
-const directory = process.env.REVIEW_DATA_DIR ||
-  path.join(os.homedir(), "Library", "Application Support", nasMode ? "ContestReviewWeb" : "ContestReviewDesk");
+const directory = process.env.REVIEW_DATA_DIR || appDir(nasMode ? "ContestReviewWeb" : "ContestReviewDesk");
+// 빌드 번호: 깃 커밋 수 · 짧은 해시 · 날짜(깃이 없으면 package.json 버전). 왼쪽 메뉴에 보여 준다.
+const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+let build;
+try { build = `빌드 ${git("rev-list", "--count", "HEAD")} · ${git("log", "-1", "--format=%h · %cs")}`; }
+catch { build = "버전 " + JSON.parse(await readFile(path.join(root, "package.json"), "utf8")).version; }
 await mkdir(directory, { recursive: true, mode: 0o700 });
 const db = new DatabaseSync(path.join(directory, "desk.sqlite3"));
 db.exec(
@@ -434,18 +439,43 @@ function enqueueOcr(wid, cid) {
     save(w);
   });
 }
-async function addImage(wid, b, bytes) {
+// 받은 그림을 확인해 흰 바탕 PNG로 맞춘다.
+async function pngOf(bytes) {
   if (!bytes?.length || bytes.length > 14 * 1024 * 1024)
     err("한 장에 14MB 이하의 PNG, JPG 또는 WebP를 사용하세요.");
   const input = sharp(bytes, { limitInputPixels: 32e6, failOn: "error" });
   const meta = await input.metadata();
   if (!["png", "jpeg", "webp"].includes(meta.format) || (meta.pages || 1) > 1)
     err("PNG, JPG 또는 WebP 단일 이미지를 사용하세요.");
-  const { data, info } = await input
-    .rotate()
-    .flatten({ background: "white" })
-    .png()
-    .toBuffer({ resolveWithObject: true });
+  return input.rotate().flatten({ background: "white" }).png().toBuffer({ resolveWithObject: true });
+}
+// 캡처 한 장을 새 그림으로 바꾸고 글자를 다시 읽는다(다시 캡처). 그림 주소가 id라 새 id를 준다(브라우저가 예전 그림을 기억한다).
+async function replaceImage(wid, cid, bytes) {
+  const { data, info } = await pngOf(bytes);
+  const w = load(wid), c = w.captures.find((x) => x.id === cid);
+  if (!c) return;
+  for (const key of ["ocrInfo", "amounts", "sumCheck"]) delete c[key];
+  Object.assign(c, { id: randomUUID(), hash: createHash("sha256").update(data).digest("hex"), lines: [], status: "queued",
+    issue: "", width: info.width, height: info.height });
+  changed(w, true);
+  atomic(() => {
+    db.prepare("DELETE FROM images WHERE id=?").run(cid);
+    db.prepare("INSERT INTO images(id,work,image) VALUES(?,?,?)").run(c.id, w.id, data);
+    save(w);
+  });
+  enqueueOcr(w.id, c.id);
+}
+// 올린 문서는 다시 캡처할 때 쓰려고 데이터 폴더에 둔다. MS Forms 첨부는 OneDrive의 작품 폴더에 있다.
+const uploadDir = (wid) => path.join(directory, "documents", wid);
+async function sourceFile(w, c) {
+  if (path.basename(c.document) !== c.document) return "";
+  const places = [uploadDir(w.id)];
+  if (intake.config && w.source?.files.includes(c.document)) places.push(path.join(intake.config.reviewDir, "작품", w.source.folder));
+  for (const dir of places) if (await stat(path.join(dir, c.document)).catch(() => null)) return path.join(dir, c.document);
+  return "";
+}
+async function addImage(wid, b, bytes) {
+  const { data, info } = await pngOf(bytes);
   const w = load(wid);
   if (w.captures.length >= 150) err("작품당 캡처는 150장까지입니다.");
   const document = bounded(b.document || "제안서", 100),
@@ -545,17 +575,26 @@ function addCookie(res, name, value) {
 function cloudAccess(req, key) {
   return !!key && (!nasMode || validTicket(key, "browser", cookie(req, "__Host-review-session")));
 }
-// 맥의 파일 선택 창(AppleScript). 취소하면 "". 선택 창이 떠 있는 동안 요청이 기다린다.
-function chooseOnMac(file, start) {
+// 서버 화면에 파일·폴더 선택 창을 띄운다(맥: AppleScript, 윈도우: PowerShell). 취소하면 "". 창이 떠 있는 동안 요청이 기다린다.
+function choosePath(file, start) {
+  const run = (command, args, env = {}) =>
+    new Promise((resolve, reject) =>
+      execFile(command, args, { timeout: 600_000, env: { ...process.env, ...env } }, (e, out, errText) =>
+        e ? (/-128/.test(errText) ? resolve("") : reject(new Error("선택 창을 열지 못했습니다: " + String(errText).trim())))
+          : resolve(out.trim() && path.resolve(out.trim()))));
+  if (process.platform === "win32") {
+    const dialog = file
+      ? "$d = New-Object System.Windows.Forms.OpenFileDialog; $d.Filter = 'Excel (*.xlsx)|*.xlsx'; $d.InitialDirectory = $env:START_DIR; $pick = { $d.FileName }"
+      : "$d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.SelectedPath = $env:START_DIR; $pick = { $d.SelectedPath }";
+    return run("powershell", ["-NoProfile", "-STA", "-Command", "Add-Type -AssemblyName System.Windows.Forms; " + dialog +
+      "; [Console]::OutputEncoding = [Text.Encoding]::UTF8; if ($d.ShowDialog() -eq 'OK') { & $pick }"], { START_DIR: start || "" });
+  }
   const quote = (t) => '"' + String(t).replace(/[\\"]/g, "\\$&") + '"';
   const where = start ? ` default location (POSIX file ${quote(start)})` : "";
   const ask = file
     ? `choose file with prompt "MS Forms 응답 엑셀을 고르세요" of type {"org.openxmlformats.spreadsheetml.sheet"}${where}`
     : `choose folder with prompt "첨부 파일이 내려받아지는 폴더를 고르세요"${where}`;
-  return new Promise((resolve, reject) =>
-    execFile("osascript", ["-e", "activate", "-e", `POSIX path of (${ask})`], { timeout: 600_000 }, (e, out, errText) =>
-      e ? (/-128/.test(errText) ? resolve("") : reject(new Error("선택 창을 열지 못했습니다: " + errText.trim())))
-        : resolve(path.resolve(out.trim()))));
+  return run("osascript", ["-e", "activate", "-e", `POSIX path of (${ask})`]);
 }
 // AI 키를 바꿀 수 있는 곳: 맥 앱, 키를 아직 등록하지 않았을 때, 키를 등록(연결)한 브라우저
 async function canManage(req) {
@@ -709,6 +748,15 @@ async function autoSummarize(wid) {
   startSummary(w, false, true, key);
 }
 
+// 최근 7일(UTC) AI 사용량: 응답마다 받은 토큰 수에 공식 단가를 곱해 이 서버에서 계산한 날짜별 기록
+const utcDay = (offset) => new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
+const recentUsage = () => dailyUsage(readRuns.all(utcDay(-6) + "T00:00:00Z").map((r) => ({ at: r.at, usage: JSON.parse(r.usage) })));
+// 목록 화면에 늘 보여 주는 비용 요약(달러): 오늘(UTC)과 최근 7일
+function costSummary() {
+  const days = recentUsage();
+  const usd = (list) => list.reduce((sum, d) => sum + (d.estimatedUsd ?? 0), 0);
+  return { today: usd(days.filter((d) => d.day === utcDay(0))), week: usd(days) };
+}
 async function handleRequest(req, res) {
   function json(data, status = 200) {
     res.writeHead(status, {
@@ -752,12 +800,11 @@ async function handleRequest(req, res) {
     }
     // 최근 7일(UTC)의 Haiku 사용량: 앱이 기록한 합계와 Anthropic이 집계한 토큰을 나란히 돌려준다.
     if (req.method === "GET" && pathname === "/api/haiku-cost") {
-      const day = (offset) => new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
-      const since = day(-6) + "T00:00:00Z";
-      const days = dailyUsage(readRuns.all(since).map((r) => ({ at: r.at, usage: JSON.parse(r.usage) })));
+      const since = utcDay(-6) + "T00:00:00Z";
+      const days = recentUsage();
       const key = await savedKey();
       let reported = null, reportError = key ? "" : "API 키가 없습니다.";
-      if (key) try { reported = reportedUsage(await usageReport(key, since, day(1) + "T00:00:00Z"), haiku); }
+      if (key) try { reported = reportedUsage(await usageReport(key, since, utcDay(1) + "T00:00:00Z"), haiku); }
         catch (e) { reportError = e.status ? "status " + e.status : e.message; }
       return json({ days, reported, reportError, recordingSince: firstRun.get().at });
     }
@@ -772,6 +819,8 @@ async function handleRequest(req, res) {
     if (req.method === "GET" && pathname === "/api/state") {
       return json({
         app: "contest-review-desk",
+        build,
+        cost: costSummary(),
         works: summaryList(),
         tasks: [...tasks.values()],
         health: await health(),
@@ -888,11 +937,11 @@ async function handleRequest(req, res) {
       );
       return json({ id: w.id }, 201);
     }
-    // 찾아보기: 서버 맥 화면에 파일·폴더 선택 창을 띄워(맥 앞에 있는 사람만 고를 수 있다) 응답 엑셀(kind=workbook)이나 첨부 폴더(attachments)를 고른다.
+    // 찾아보기: 서버 화면에 파일·폴더 선택 창을 띄워(서버 앞에 있는 사람만 고를 수 있다) 응답 엑셀(kind=workbook)이나 첨부 폴더(attachments)를 고른다.
     if (pathname === "/api/forms-choose") {
       const roots = await storageRoots(intake.config?.root);
       const now = b.kind === "workbook" ? intake.config?.formsWorkbook : intake.config?.attachmentsDir;
-      const chosen = await chooseOnMac(b.kind === "workbook", now ? path.dirname(now) : roots[0]);
+      const chosen = await choosePath(b.kind === "workbook", now ? path.dirname(now) : roots[0]);
       if (chosen && !rootOf(roots, chosen)) err("이 맥에 동기화된 OneDrive 폴더 안에서 고르세요.");
       return json({ path: chosen, label: chosen && placeLabel(roots, chosen) });
     }
@@ -966,21 +1015,15 @@ async function handleRequest(req, res) {
       save(w);
       return json({ ok: true });
     }
-    // 문서 올리기: 받은 파일을 임시 폴더에 두고 쪽마다 캡처로 접수한다(Office 앱·PDFKit을 쓰므로 차례로 처리).
+    // 문서 올리기: 받은 파일을 데이터 폴더에 두고 쪽마다 캡처로 접수한다(Office 앱·PDFKit을 쓰므로 차례로 처리).
     if (pathname === "/api/upload-document") {
       const name = path.basename(bounded(b.name ?? "", 200));
       if (!pageKind(name) || pageKind(name) === "image") err("PDF·Word·PowerPoint·Excel 문서를 올리세요.");
       const bytes = Buffer.from(b.data || "", "base64");
       if (!bytes.length || bytes.length > 40 * 1024 * 1024) err("문서는 40MB 이하만 올릴 수 있습니다.");
-      const dir = await mkdtemp(path.join(os.tmpdir(), "upload-"));
-      await writeFile(path.join(dir, name), bytes);
-      schedule("doc-" + randomUUID(), w.id, name + " · 열어서 캡처하는 중", async () => {
-        try {
-          await addPages(w.id, name, path.join(dir, name));
-        } finally {
-          await rm(dir, { recursive: true, force: true });
-        }
-      });
+      await mkdir(uploadDir(w.id), { recursive: true });
+      await writeFile(path.join(uploadDir(w.id), name), bytes);
+      schedule("doc-" + randomUUID(), w.id, name + " · 열어서 캡처하는 중", () => addPages(w.id, name, path.join(uploadDir(w.id), name)));
       return json({ queued: true }, 202);
     }
     if (pathname === "/api/upload") {
@@ -1000,6 +1043,7 @@ async function handleRequest(req, res) {
         db.prepare("DELETE FROM images WHERE work=?").run(w.id);
         db.prepare("DELETE FROM works WHERE id=?").run(w.id);
       });
+      await rm(uploadDir(w.id), { recursive: true, force: true });
       summaries = null;
       return json({ ok: true });
     }
@@ -1052,6 +1096,15 @@ async function handleRequest(req, res) {
         changed(w);
         save(w);
         enqueueOcr(w.id, c.id);
+      } else if (b.action === "recapture") {
+        // 원본 문서에서 이 쪽만 다시 받아 바꿔 끼운다.
+        if ([...tasks.values()].some((t) => t.work === w.id)) err("현재 작품의 작업을 완료한 뒤 실행하세요.", 409);
+        const file = await sourceFile(w, c);
+        if (!file) err("원본 문서가 없어 다시 캡처할 수 없습니다. 화면을 캡처해 올린 뒤 이 캡처를 지우세요.");
+        schedule("recapture-" + c.id, w.id, c.label + " · 다시 캡처하는 중", async () => {
+          const [bytes] = await attachmentPages(file, c.page || 1);
+          await replaceImage(w.id, c.id, bytes);
+        });
       } else if (b.action === "remove") {
         w.captures = w.captures.filter((x) => x.id !== c.id);
         changed(w, true);

@@ -330,6 +330,7 @@ function showHealth() {
   $("health").className = ocrReady ? "online" : "";
   $("health").textContent = ocrReady ? "자료 읽기 준비됨" : "글자 인식 준비 필요";
   $("health").title = `글자 인식(Kordoc) ${ocrReady ? "준비" : "확인 필요"}`;
+  $("build").textContent = app.build;
 }
 
 // 목록의 점 색과 보조 줄
@@ -426,9 +427,11 @@ function viewKey() {
     "overview" +
     JSON.stringify(app.works.map((x) => [x.id, x.receivedOn, x.intakeTeam,
       x.submitterName, x.name, x.count, x.hasReading, x.hasLogic, x.gist, x.final, x.score, x.decision, x.category,
-      x.evalDone, x.evalAvg, x.followStage, x.followDue, x.stalled, x.duplicates])) + JSON.stringify(app.intake)
+      x.evalDone, x.evalAvg, x.followStage, x.followDue, x.stalled, x.duplicates])) + JSON.stringify(app.intake) + costText()
   );
 }
+// 목록 머리의 AI 비용 요약(센트 단위, 서버가 토큰 수 × 단가로 계산)
+const costText = () => `AI 비용 · 오늘 $${app.cost.today.toFixed(2)} · 최근 7일 $${app.cost.week.toFixed(2)}`;
 
 // 화면을 다시 그린다. 작품이나 단계가 바뀌었으면 그 방향으로 넘기며 그린다(interactions.mjs).
 // 다 그리면 끝나는 약속을 돌려준다.
@@ -537,6 +540,8 @@ function overviewView() {
       <h1>전체 작품${count(works.length)}</h1>
       <p id="queue-summary"></p>
       <span class="spacer"></span>
+      <button type="button" class="link cost-note" data-action="summary-settings" title="토큰 수에 단가를 곱해 이 서버에서 계산한 추정값입니다. 누르면 날짜별로 봅니다.">${costText()}</button>
+      ${button("create", "직접 접수")}
       ${button("export-all", "채점 결과 받기 (엑셀)")}
       ${button("batch-summary", "일괄 요약·점검")}
     </section>
@@ -636,7 +641,7 @@ function howTo() {
     </ol>`;
 }
 
-// 상단 '새 작품 접수': 목록 화면의 접수 칸으로 이동
+// 목록의 '직접 접수': 작품이 없으면 목록 화면의 접수 칸으로, 있으면 대화상자로
 async function openCreate() {
   if (selected) await select("");
   if (!app.works.length) return $("name")?.focus();
@@ -1444,8 +1449,7 @@ function drawViewer(c) {
     <ol class="ocrlines">${join(c.lines, (l, i) => `<li class="${cited.has(i) ? "cited" : ""}">${esc(l.text)}</li>`)}</ol>
     ${c.ocrError ? `<p class="warning">${esc(c.ocrError)}</p>` : ""}
     ${c.sumCheck ? `<p class="warning">${esc(c.sumCheck.text)}</p>` : ""}
-    ${sumForm(c)}
-    <button type="button" data-edit="${esc(c.id)}">판독 정보 편집</button>`;
+`;
   pane.hidden = false;
   document.body.classList.add("has-evidence");
   pane.scrollTop = 0;
@@ -1500,7 +1504,8 @@ function openCaptureGallery(opener, captureId, evidence) {
     <nav class="capture-nav" aria-label="캡처 이동">
       <button type="button" class="iconbtn" data-gallery-step="-1" aria-label="이전 캡처" title="이전 캡처 (←)">${icon("prev", 24)}</button>
       <span aria-live="polite" aria-atomic="true"></span>
-      <button type="button" class="iconbtn" data-gallery-step="1" aria-label="다음 캡처" title="다음 캡처 (→)">${icon("next", 24)}</button></nav>`);
+      <button type="button" class="iconbtn" data-gallery-step="1" aria-label="다음 캡처" title="다음 캡처 (→)">${icon("next", 24)}</button></nav>
+    <div class="actions capture-actions"><button type="button" data-change="recapture">이 쪽 다시 캡처</button><button type="button" class="danger" data-change="remove">캡처 삭제</button></div>`);
   const body = $("dialogbody");
   const stage = body.querySelector(".capture-stage");
   const view = stage.querySelector(".viewbox");
@@ -1510,6 +1515,7 @@ function openCaptureGallery(opener, captureId, evidence) {
   function showPage(i) {
     index = i;
     const c = captures[i];
+    for (const b of body.querySelectorAll("[data-change]")) b.dataset.capture = c.id;
     $("dialogtitle").textContent = c.label;
     nav.querySelector("span").textContent = `${i + 1} / ${captures.length}`;
     prev.disabled = i === 0;
@@ -1559,47 +1565,12 @@ function zoomCaptureDetail(view, event) {
     view.offsetTop + (y - before.top) / before.height * view.offsetHeight - stage.clientHeight / 2);
 }
 
-function sumForm(c) {
-  if (!c.amounts?.length) return "";
-  const label = (x) => esc(x.number + x.unit + " · " + c.lines[x.line].text);
-  return `
-    <details class="diag">
-      <summary>화면에 보이는 수치 합계 검산</summary>
-      <form class="stack diag-body" id="sumform" data-id="${c.id}">
-        <p class="small muted">동일 단위인 항목만 선택하세요. 화면 밖 수식이나 숨은 행은 포함되지 않습니다.</p>
-        ${join(c.amounts, (x) => `<label class="check"><input name="parts" type="checkbox" value="${esc(x.id)}">${label(x)}</label>`)}
-        ${field("원문에 표시된 합계", `<select id="reported" required><option value="">선택</option>${join(c.amounts, (x) => `<option value="${esc(x.id)}">${label(x)}</option>`)}</select>`)}
-        ${field("원문에서 확인한 공통 단위", input("amountunit", "", "text", 'required maxlength="16" placeholder="예: 만원"'))}
-        <div><button>검산 결과 저장</button></div>
-      </form>
-    </details>`;
-}
+/* ─────────────────────────── 캡처 다시 캡처·삭제 ─────────────────────────── */
 
-/* ─────────────────────────── 캡처 편집 ─────────────────────────── */
-
-function editCapture(c) {
-  dialog(
-    "캡처 편집",
-    `<form id="editcapture" data-id="${c.id}" class="stack">
-      ${field("표시 이름", input("clabel", c.label, "text", 'required maxlength="180"'))}
-      ${field("문서 또는 시트 이름", input("cdoc", c.document, "text", 'required maxlength="100"'))}
-      <div class="actions">
-        ${field("현재 쪽", input("cpage", c.page, "number", 'min="1" max="2000"'))}
-        ${field("전체 쪽", input("ctotal", c.total, "number", 'min="1" max="2000"'))}
-      </div>
-      ${field("다시 캡처할 부분 · 선택", input("cissue", c.issue, "text", 'placeholder="예: 예산표 오른쪽 단위가 잘림"'))}
-      <label class="check"><input type="checkbox" id="cvisual" ${c.visual ? "checked" : ""}>도식 검토 · 요약할 때 이 쪽은 이미지도 AI에 보내 읽기</label>
-      <div class="actions">
-        <button class="primary">저장</button>
-        <button type="button" data-retry="${c.id}">OCR 다시 읽기</button>
-        <button type="button" class="danger" data-remove="${c.id}">캡처 삭제</button>
-      </div>
-    </form>`,
-  );
-}
-
+// 다시 캡처: 원본 문서에서 그 쪽만 다시 받아 바꿔 끼운다. 삭제: 그 캡처만 지운다.
 async function changeCapture(captureId, change) {
   if (change === "remove" && !confirm("선택한 캡처를 삭제할까요?")) return;
+  if (change === "recapture" && !confirm("이 쪽만 원본 문서에서 다시 캡처할까요?\n지금의 요약·점검·확정 채점표는 다시 만들어야 합니다.")) return;
   await api("capture", {
     id: work.id,
     rev: work.rev,
@@ -1890,6 +1861,7 @@ async function setComplete(complete) {
 const actions = {
   "summary-settings": openSummarySettings,
   "batch-summary": openBatchSummary,
+  create: openCreate,
   "export-all": () => (location.href = "/api/export"), // 서버가 첨부 파일로 보내 화면은 그대로다
   "intake-sync": async () => {
     const v = await api("intake-sync", {});
@@ -2023,7 +1995,6 @@ async function onClick(e) {
   const fromMobileNav = menuOpen && $("sidenav").contains(b);
   if (menuOpen) menu.setAttribute("aria-expanded", "false");
   if (b.id === "home") acknowledgeHome(b);
-  if (b.id === "new") return openCreate();
   if (["home", "back", "navall"].includes(b.id)) {
     await select("");
     $("main").focus();
@@ -2055,9 +2026,7 @@ async function onClick(e) {
   if (d.gallery) return openCaptureGallery(b, d.gallery, d.sourceRef ? currentEvidence()?.[d.sourceRef] : null);
   if ("ocrIndex" in d) return showUncertain(d.capture, Number(d.ocrIndex));
   if (d.ref) return showRef(d.ref);
-  if (d.edit) return editCapture(findCapture(d.edit));
-  if (d.remove) return changeCapture(d.remove, "remove");
-  if (d.retry) return changeCapture(d.retry, "retry");
+  if (d.capture && d.change) return changeCapture(d.capture, d.change);
   if ("delk" in d) {
     b.closest(".rubedit").remove();
     unsavedForm = true;
@@ -2126,31 +2095,6 @@ const forms = {
       rubric: { categories: work.rubric.categories, criteria },
     });
     notify("이 작품의 기준을 저장했습니다.");
-  },
-  sumform: async (form) => {
-    const result = await api("sum", {
-      ...workRef(),
-      capture: form.dataset.id,
-      parts: [...form.querySelectorAll("[name=parts]:checked")].map(
-        (x) => x.value,
-      ),
-      reported: fieldValue("reported"),
-      unit: fieldValue("amountunit"),
-    });
-    notify(result.text);
-  },
-  editcapture: async (form) => {
-    await api("capture", {
-      ...workRef(),
-      capture: form.dataset.id,
-      label: fieldValue("clabel"),
-      document: fieldValue("cdoc"),
-      page: Number(fieldValue("cpage")) || null,
-      total: Number(fieldValue("ctotal")) || null,
-      visual: $("cvisual").checked,
-      issue: fieldValue("cissue"),
-    });
-    closeDialog();
   },
   distribute: async () => {
     const { report } = await api("distribute", {});

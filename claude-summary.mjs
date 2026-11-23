@@ -1,8 +1,8 @@
+import { appDir } from "./app-dir.mjs";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { homedir } from "node:os";
 
 // AI 연결은 요약 설정 화면에서 정한다(키·연결 주소·모델). 주소를 비우면 Anthropic API에 직접 붙고, 회사망처럼
 // LiteLLM(Bedrock) 주소를 넣으면 그 프록시의 Anthropic 형식 엔드포인트(/v1/messages)로 보낸다. 모델은 기본 Haiku 5.5.
@@ -22,7 +22,7 @@ export function aiSettings(raw = {}) {
     plainJson: raw.plainJson === true,
   };
 }
-const settingsDir = join(homedir(), "Library", "Application Support", "ContestReviewDesk");
+const settingsDir = appDir("ContestReviewDesk");
 const connectionFile = join(settingsDir, "ai.json");
 export const ai = aiSettings(await readFile(connectionFile, "utf8").then((text) => JSON.parse(text)).catch(() => ({}))); // 없거나 깨졌으면 기본값
 export let haiku = ai.model;
