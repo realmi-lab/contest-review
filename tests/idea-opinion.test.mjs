@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ideaOpinion } from "../idea-opinion.mjs";
+import { ideaOpinion } from "../src/check/idea-opinion.mjs";
 
 test("AI 의견은 근거 요점 번호를 그 요점의 원문 근거로 잇고, 번호가 없는 좋은 점·약한 점은 버린다", async () => {
   const reading = {

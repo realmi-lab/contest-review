@@ -3,7 +3,7 @@
 // 고른 요점을 한 줄씩 다듬기만 하면 무엇이 문제이고 무엇을 하려는지가 빠져, 읽어도 이해되지 않았다.
 // 이미 원문 근거가 붙은 요점 전체를 재료로 주고, 답마다 쓴 요점 번호를 받아 그 근거를 그대로 잇는다.
 import { pageTag, sentencesOf } from "./long-brief.mjs";
-import { withEffort } from "./claude-summary.mjs";
+import { withEffort } from "../ai/claude-summary.mjs";
 import { describesDocument, notStatement, unprintedNumbers } from "./statement-filters.mjs";
 
 const writer =

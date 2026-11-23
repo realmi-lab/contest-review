@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { documentOf, similarWorks } from "../similar.mjs";
+import { documentOf, similarWorks } from "../src/review/similar.mjs";
 
 const work = (id, name, ...brief) => ({ id, name, cloudReading: { edition: { brief: brief.map((text, i) => ({ topic: i ? "무엇을 하려는가" : "한 줄 요약", text })) } } });
 

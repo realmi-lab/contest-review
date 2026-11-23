@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { excerptSentences } from "../long-brief.mjs";
+import { excerptSentences } from "../src/summary/long-brief.mjs";
 
 test("긴 발췌에서 소수와 단위를 보존한 실제 원문 문장만 선택할 수 있다", () => {
   const source =
@@ -19,7 +19,7 @@ test("앞자리 0이 생략된 소수의 크기를 발췌 과정에서 바꾸지
 });
 
 test("같은 설문에서 바로 앞에 명시된 표본을 백분율과 함께 보존한다", async () => {
-  const { attachSurveyContext } = await import("../long-brief.mjs");
+  const { attachSurveyContext } = await import("../src/summary/long-brief.mjs");
   const s = { text: "방문자 16명을 대상으로 설문을 진행했다.", refs: ["A"] };
   const result = { text: "전체 응답자의 68.8%가 만족했다.", refs: ["B"] };
   const evidence = {
@@ -39,7 +39,7 @@ test("같은 설문에서 바로 앞에 명시된 표본을 백분율과 함께 
 });
 
 test("정성 평가 직전 원문에 단일 설문의 표본과 실제 결과가 있으면 수치로 표현한다", async () => {
-  const { attachSurveyContext } = await import("../long-brief.mjs");
+  const { attachSurveyContext } = await import("../src/summary/long-brief.mjs");
   const sample = { text: "방문자 16명을 대상으로 설문했다.", refs: ["A"] };
   const result = {
     text: "설문에서 전체 응답자의 68.8%가 만족했다.",
@@ -62,7 +62,7 @@ test("정성 평가 직전 원문에 단일 설문의 표본과 실제 결과가
 });
 
 test("같은 원문 근거의 같은 후속 활동에 구체적인 시행 주기가 있으면 선택한다", async () => {
-  const { preferScheduledPlan } = await import("../long-brief.mjs");
+  const { preferScheduledPlan } = await import("../src/summary/long-brief.mjs");
   const item = (text, ref, id) => ({ id, point: { text, refs: [ref] } });
   const plan = item(
     "향후 설비 점검 및 시설 관리 대장을 정비할 계획입니다.",
@@ -85,7 +85,7 @@ test("같은 원문 근거의 같은 후속 활동에 구체적인 시행 주기
 });
 
 test("다른 근거의 두 방법과 각각의 목적을 온전한 원문 문장으로 짝짓는다", async () => {
-  const { pairedMethods } = await import("../long-brief.mjs");
+  const { pairedMethods } = await import("../src/summary/long-brief.mjs");
   const a =
     "이 사업에서 채택한 주요 방식은 표본 추출입니다.측정 대상은 입고 물량입니다.";
   const b =

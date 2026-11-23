@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { alignedPercentColumns } from "../aligned-tables.mjs";
-import { readingBlocks } from "../layout.mjs";
+import { alignedPercentColumns } from "../src/ocr/aligned-tables.mjs";
+import { readingBlocks } from "../src/ocr/layout.mjs";
 
 const line = (text, x, y, w = 52) => ({
   text,

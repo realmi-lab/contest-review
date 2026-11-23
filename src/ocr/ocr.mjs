@@ -6,7 +6,7 @@ import { needsDetail, reconcilePages, nativeTables } from "./ocr-quality.mjs";
 sharp.concurrency(1);
 sharp.cache(false);
 process.env.KORDOC_MODEL_CACHE = fileURLToPath(
-  new URL("./vendor/models", import.meta.url),
+  new URL("../../vendor/models", import.meta.url),
 );
 process.env.KORDOC_OFFLINE = "1";
 const { parse } = await import("kordoc");

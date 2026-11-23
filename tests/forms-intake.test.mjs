@@ -6,9 +6,9 @@ import path from "node:path";
 import {
   attachmentNames, copyAttachments, dayOf, distribute, evaluationFile, fileIndex, formEntries, formsConfig, fromOneDrive, workbookRows,
   readEvaluations, readResponses, safeName, shareState, workFolder,
-} from "../forms-intake.mjs";
-import { readSheet, writeWorkbook } from "../xlsx.mjs";
-import { defaults, sheet } from "../review.mjs";
+} from "../src/intake/forms-intake.mjs";
+import { readSheet, writeWorkbook } from "../src/intake/xlsx.mjs";
+import { defaults, sheet } from "../src/review/review.mjs";
 
 const columns = { id: "ID", submittedAt: "완료 시간", title: "제목", team: "소속", submitter: "이름", category: "분야", files: "첨부" };
 

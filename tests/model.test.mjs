@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chat, endpoint, model, modelInfo } from "../model.mjs";
-import { haiku, withEffort, withHaiku } from "../claude-summary.mjs";
-import { newHaikuUsage, recordHaikuUsage, usageSnapshot } from "../haiku-usage.mjs";
+import { chat, endpoint, model, modelInfo } from "../src/ai/model.mjs";
+import { haiku, withEffort, withHaiku } from "../src/ai/claude-summary.mjs";
+import { newHaikuUsage, recordHaikuUsage, usageSnapshot } from "../src/ai/haiku-usage.mjs";
 
 test("하이쿠 응답이 잘리면 해당 호출의 출력 한도만 늘려 완전한 결과를 받는다", async (t) => {
   const calls = [];

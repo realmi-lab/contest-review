@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { preserveProposalDetails as preserve } from "../proposal-details.mjs";
+import { preserveProposalDetails as preserve } from "../src/summary/proposal-details.mjs";
 
 const row = (text, capture = "page", kind = "OCR") => ({ capture, text, kind });
 const point = (text, refs = ["S1.2"]) => ({ text, refs, topic: "제안 내용", mode: "요약" });

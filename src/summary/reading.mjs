@@ -3,21 +3,21 @@ import { repairExampleRefs } from "./citation-repair.mjs";
 import {
   checkSubtractionDefinitions,
   markDisputedDefinition,
-} from "./formula-check.mjs";
+} from "../check/formula-check.mjs";
 import { preserveProposalDetails } from "./proposal-details.mjs";
 import { selectProposalBrief } from "./proposal-brief.mjs";
 import { preserveEligibility } from "./proposal-eligibility.mjs";
-import { checkStrengthenedObligation } from "./obligation-check.mjs";
-import { alignedPercentColumns } from "./aligned-tables.mjs";
+import { checkStrengthenedObligation } from "../check/obligation-check.mjs";
+import { alignedPercentColumns } from "../ocr/aligned-tables.mjs";
 import { longBrief, attachSurveyContext } from "./long-brief.mjs";
 import { composeEdition } from "./reading-edition.mjs";
 import { createHash, randomUUID } from "node:crypto";
-import { capturePng, chat, chunk, collectEvidence, pack, model, modelInfo, SCAN_CHARS, sourceParts } from "./model.mjs";
-import { activeHaikuKey, extractEffort, withEffort } from "./claude-summary.mjs";
+import { capturePng, chat, chunk, collectEvidence, pack, model, modelInfo, SCAN_CHARS, sourceParts } from "../ai/model.mjs";
+import { activeHaikuKey, extractEffort, withEffort } from "../ai/claude-summary.mjs";
 import { describesDocument, notStatement, withoutEventPreamble } from "./statement-filters.mjs";
-import { directChecks } from "./grounding.mjs";
-import { coverage } from "./review.mjs";
-import { observedSeries, qualifyObservationDates } from "./layout.mjs";
+import { directChecks } from "../check/grounding.mjs";
+import { coverage } from "../review/review.mjs";
+import { observedSeries, qualifyObservationDates } from "../ocr/layout.mjs";
 
 export const topics = [
   "제안 내용",

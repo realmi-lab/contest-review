@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { preserveEligibility as preserve } from "../proposal-eligibility.mjs";
+import { preserveEligibility as preserve } from "../src/summary/proposal-eligibility.mjs";
 
 const row = (text, capture = "first", kind = "OCR") => ({ text, capture, kind });
 const point = (text, refs) => ({ text, refs, mode: "요약", topic: "제안 내용" });

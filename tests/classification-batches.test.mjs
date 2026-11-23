@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classificationBatches } from "../reading.mjs";
-import { withHaiku } from "../claude-summary.mjs";
+import { classificationBatches } from "../src/summary/reading.mjs";
+import { withHaiku } from "../src/ai/claude-summary.mjs";
 
 test("역할 분류: 로컬 모델은 12개씩, Haiku는 글자 수 기준으로 묶는다", async () => {
   const points = Array.from({ length: 30 }, (_, i) => ({ text: "진술 " + (i + 1) }));

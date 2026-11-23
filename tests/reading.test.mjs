@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { assembleSummary, supportedIssue } from "../reading.mjs";
-import { directChecks } from "../grounding.mjs";
+import { assembleSummary, supportedIssue } from "../src/summary/reading.mjs";
+import { directChecks } from "../src/check/grounding.mjs";
 const evidence = {
   A: { text: "우산 10개를 현관에 비치한다." },
   B: { text: "4주 시험 운영한 뒤 대여 횟수를 집계한다." },
@@ -128,7 +128,7 @@ test("표본과 전체 직원의 비율을 혼동한 지적은 근거 부족으�
   assert.equal(issue.type, "근거 부족·인과 비약");
 });
 test("인쇄된 표는 같은 행의 날짜·값을 복원하고 원본 셀 위치를 보존한다", async () => {
-  const { readingBlocks } = await import("../layout.mjs");
+  const { readingBlocks } = await import("../src/ocr/layout.mjs");
   const cell = (text, x, y) => ({ text, box: { x, y, w: 35, h: 12 } });
   const blocks = readingBlocks([
     cell("3.7", 90, 20),
@@ -151,7 +151,7 @@ test("인쇄된 표는 같은 행의 날짜·값을 복원하고 원본 셀 위�
   );
 });
 test("시계열은 인접한 관측값과 날짜를 연결하고 빈 셀이나 겹친 날짜를 건너뛴다", async () => {
-  const { observedSeries } = await import("../layout.mjs");
+  const { observedSeries } = await import("../src/ocr/layout.mjs");
   const block = {
     id: "t",
     text: "날짜 | 지수\n2024-01-01 | 7.3\n2024-04-01 | 7.3\n2024-06-01 | 6.5",
@@ -168,7 +168,7 @@ test("시계열은 인접한 관측값과 날짜를 연결하고 빈 셀이나 �
 });
 
 test("통계표의 첫 화면에 지표 설명과 날짜·값을 먼저 놓고 이용 약관은 상세에 남긴다", async () => {
-  const { prioritizeSeries } = await import("../reading.mjs");
+  const { prioritizeSeries } = await import("../src/summary/reading.mjs");
   const policy = { text: "원자료의 이용 약관을 확인한다." };
   const unit = { text: "물가지수의 단위는 지수 포인트다." };
   const row = {
@@ -183,7 +183,7 @@ test("통계표의 첫 화면에 지표 설명과 날짜·값을 먼저 놓고 �
 });
 
 test("오류 후보는 묶어서 한 번에 재검토하고, 같은 캡처의 앞뒤 근거를 주어 충돌로 확인된 것만 남긴다", async () => {
-  const { issueContext, verifyLogicCandidates } = await import("../reading.mjs");
+  const { issueContext, verifyLogicCandidates } = await import("../src/summary/reading.mjs");
   const evidence = {
     A: { capture: "1", text: "검토를 요청한다." },
     B: { capture: "1", text: "시 단위로 시범 적용한다." },
@@ -226,7 +226,7 @@ test("오류 후보는 묶어서 한 번에 재검토하고, 같은 캡처의 �
 });
 
 test("같은 글자의 셀 좌표가 바뀌어 열이 없어지면 캐시된 요약과 첫 화면을 함께 갱신한다", async () => {
-  const { replaceAlignedColumns } = await import("../reading.mjs");
+  const { replaceAlignedColumns } = await import("../src/summary/reading.mjs");
   const old = { text: "과제 15%", refs: ["S1.1"], mode: "표의 열·값 대조" };
   const result = replaceAlignedColumns(
     {

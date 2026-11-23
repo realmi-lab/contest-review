@@ -2,8 +2,10 @@
 //   network: 웹 주소·이 맥의 주소·포트·앞단 프록시 주소   forms: MS Forms 공모 연동
 // network는 서버를 다시 시작할 때, forms는 1분마다 다시 읽는다. AI 키·연결 주소·모델은 웹앱의 요약 설정에서 정한다.
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 
-const file = new URL("./site.json", import.meta.url);
+// REVIEW_SITE_FILE: 다른 설정 파일을 쓴다(회귀 점검 scripts/smoke.mjs가 실제 설정을 건드리지 않게)
+const file = process.env.REVIEW_SITE_FILE ? pathToFileURL(process.env.REVIEW_SITE_FILE) : new URL("./site.json", import.meta.url);
 
 export function readSite() {
   try {
@@ -16,7 +18,7 @@ export function readSite() {
 
 // 웹앱의 '공모 연동 설정'이 forms를 바꿀 때 쓴다. 반쯤 쓴 파일이 남지 않게 임시 파일에 쓰고 바꿔 넣는다.
 export function writeSite(site) {
-  const temp = new URL("./site.json.tmp", import.meta.url);
+  const temp = new URL(file.href + ".tmp");
   writeFileSync(temp, JSON.stringify(site, null, 2) + "\n");
   renameSync(temp, file);
 }

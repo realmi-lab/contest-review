@@ -13,7 +13,7 @@ import {
   total,
   validateReport,
   scopeConflicts,
-} from "../review.mjs";
+} from "../src/review/review.mjs";
 
 const ref = { text: "근거 있음", refs: ["S1.1"] };
 function fixture() {
@@ -84,7 +84,7 @@ test("비품 제안에 자료 밖의 신원확인 또는 거래 규제를 감점
   assert.deepEqual(scopeConflicts(r, "원화 출금"), []);
 });
 
-import { amountTokens, checkSum } from "../amounts.mjs";
+import { amountTokens, checkSum } from "../src/ocr/amounts.mjs";
 test("검산은 OCR 원문 수치와 같은 단위를 사용하며 중복 합산을 거부한다", () => {
   const lines = [
     { text: "우산 2.3만원" },

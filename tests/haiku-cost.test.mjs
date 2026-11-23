@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { dailyUsage, newHaikuUsage, recordHaikuUsage, reportedUsage, usageSnapshot } from "../haiku-usage.mjs";
+import { dailyUsage, newHaikuUsage, recordHaikuUsage, reportedUsage, usageSnapshot } from "../src/ai/haiku-usage.mjs";
 
 const run = (at, ...responses) => {
   const usage = newHaikuUsage(at);

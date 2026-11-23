@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkStrengthenedObligation as check } from "../obligation-check.mjs";
+import { checkStrengthenedObligation as check } from "../src/check/obligation-check.mjs";
 
 const point = { id: "P3", text: "신청자는 전자 서명 및 서면 확인 의무화를 제안한다.", refs: ["S1.3"] };
 const source = "신청자는 전자 서명이나 서면 확인을 의무화하자고 제안했다.";

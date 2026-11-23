@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { directChecks, auditReport, withholdClaims } from "../grounding.mjs";
-import { total } from "../review.mjs";
+import { directChecks, auditReport, withholdClaims } from "../src/check/grounding.mjs";
+import { total } from "../src/review/review.mjs";
 const cite = (text, refs = ["A"]) => ({ text, refs });
 test("평균 절대 오차를 오차율로 바꾼 표 요약을 걸러낸다", () => {
   const source = { A: { text: "AVG MAE | 1.869" } };

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { needsDetail, reconcilePages, nativeTables } from "../ocr-quality.mjs";
-import { preferNativeGroups } from "../layout.mjs";
+import { needsDetail, reconcilePages, nativeTables } from "../src/ocr/ocr-quality.mjs";
+import { preferNativeGroups } from "../src/ocr/layout.mjs";
 const cell = (text, x, y, h = 12) => ({
   text,
   confidence: 0.98,

@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import sharp from "sharp";
-import { collectEvidence, model } from "../model.mjs";
-import { preservePairedTableValues, summarize } from "../reading.mjs";
+import { collectEvidence, model } from "../src/ai/model.mjs";
+import { preservePairedTableValues, summarize } from "../src/summary/reading.mjs";
 
 test("표와 도식은 같은 쪽의 OCR·캡처만 함께 보내고, OCR 전용 결과는 다시 추출한다", async (t) => {
   const captures = ["그래프와 수요", "직원 휴게실 안내", "차트와 이용 시간"].map((text, i) => ({

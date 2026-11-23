@@ -1,10 +1,10 @@
-import { chat, pack, sourceParts } from "./model.mjs";
-import { directChecks } from "./grounding.mjs";
+import { chat, pack, sourceParts } from "../ai/model.mjs";
+import { directChecks } from "../check/grounding.mjs";
 import { visualClaimProblem } from "./visual-claims.mjs";
-import { checkStrengthenedObligation } from "./obligation-check.mjs";
-import { markDisputedDefinition } from "./formula-check.mjs";
+import { checkStrengthenedObligation } from "../check/obligation-check.mjs";
+import { markDisputedDefinition } from "../check/formula-check.mjs";
 import { excerptSentences, sentencesOf } from "./long-brief.mjs";
-import { activeHaikuKey } from "./claude-summary.mjs";
+import { activeHaikuKey } from "../ai/claude-summary.mjs";
 import { claimsAbsence, danglingStart, describesDocument, digits, notStatement, plainVoice, unprintedNumbers } from "./statement-filters.mjs";
 import { storyBrief } from "./story-brief.mjs";
 import { sourceSections, draftSections, includeSections, overviewItems } from "./source-sections.mjs";

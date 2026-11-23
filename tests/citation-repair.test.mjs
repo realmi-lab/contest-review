@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { repairExampleRefs } from "../citation-repair.mjs";
+import { repairExampleRefs } from "../src/summary/citation-repair.mjs";
 const row = (text, capture = "page") => ({ text, capture, kind: "OCR" });
 const point = {
   text: "서울 이용 불편(교통카드 구매 어려움, 택시 바가지 요금)과 계절 제약(폭염, 한파).",

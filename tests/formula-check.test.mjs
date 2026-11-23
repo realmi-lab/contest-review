@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { checkSubtractionDefinitions } from "../formula-check.mjs";
+import { checkSubtractionDefinitions } from "../src/check/formula-check.mjs";
 
 const compare = (a, b) =>
   checkSubtractionDefinitions({
@@ -66,7 +66,7 @@ test("서로 다른 문서나 미확인 OCR은 같은 지표의 원문 충돌로
 });
 
 test("원문의 상반된 정의를 실제로 인용한 문장에만 표시한다", async () => {
-  const { markDisputedDefinition } = await import("../formula-check.mjs");
+  const { markDisputedDefinition } = await import("../src/check/formula-check.mjs");
   const alerts = compare(
     "차액(수입−지출 차이)을 집계한다.",
     "차액이란 지출에서 수입을 뺀 값이다.",
@@ -86,7 +86,7 @@ test("원문의 상반된 정의를 실제로 인용한 문장에만 표시한�
 });
 
 test("긴 인용을 줄인 뒤 계산식이 빠지면 해당 문장의 계산 경고도 제거한다", async () => {
-  const { markDisputedDefinition } = await import("../formula-check.mjs");
+  const { markDisputedDefinition } = await import("../src/check/formula-check.mjs");
   const alerts = compare(
     "차액(수입−지출 차이)을 집계한다.",
     "차액이란 지출에서 수입을 뺀 값이다.",

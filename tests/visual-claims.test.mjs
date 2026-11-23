@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { visualClaimProblem } from "../visual-claims.mjs";
+import { visualClaimProblem } from "../src/summary/visual-claims.mjs";
 
 function check(text, sources, mode = "요약") {
   const evidence = Object.fromEntries(

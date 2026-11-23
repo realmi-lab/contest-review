@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { selectProposalBrief } from "../proposal-brief.mjs";
+import { selectProposalBrief } from "../src/summary/proposal-brief.mjs";
 
 const point = (text, ref, topic = "제안 내용") => ({
   text,

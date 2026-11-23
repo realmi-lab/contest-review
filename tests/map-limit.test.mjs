@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mapLimit } from "../reading.mjs";
+import { mapLimit } from "../src/summary/reading.mjs";
 
 test("동시 실행은 지정한 개수를 넘지 않고, 결과는 입력 순서를 지킨다", async () => {
   let running = 0, peak = 0;

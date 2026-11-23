@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { briefAnchors, composeEdition, restatesSource } from "../reading-edition.mjs";
+import { briefAnchors, composeEdition, restatesSource } from "../src/summary/reading-edition.mjs";
 import { readingViews, representativeCaptures, explainOcr } from "../public/expanded-reading.mjs";
-import { withHaiku } from "../claude-summary.mjs";
+import { withHaiku } from "../src/ai/claude-summary.mjs";
 
 const point = (topic, text, ref) => ({ topic, text, refs: [ref], mode: "요약" });
 
@@ -189,7 +189,7 @@ test("실제로 관측한 판독 차이와 확대 대조 결과를 구분한다"
 });
 
 test("없다고 쓴 문장은 원문 전체와 대조해 원문에 있는 항목만 지우고, 다 있으면 문장을 빼 그 물음을 비워 둔다", async () => {
-  const { correctAbsences } = await import("../reading-edition.mjs");
+  const { correctAbsences } = await import("../src/summary/reading-edition.mjs");
   const r = { evidence: { "S8.3": { text: "train set 2019-01~2019-12" }, "S9.1": { text: "결과 표" } } };
   const edition = { version: 1, missing: [], brief: [
     { topic: "한계·확인할 점", text: "제출자는 신상품 대응을 한계로 들었다. 자료에 예측 정확도, 학습 데이터 기간이 제시되지 않았다.", refs: ["S9.1"] },
@@ -216,7 +216,7 @@ test("없다고 쓴 문장은 원문 전체와 대조해 원문에 있는 항목
   assert.equal(edition.missing.length, 0); // 받은 편집본은 바꾸지 않는다
 });
 
-import { shownRefs } from "../reading-edition.mjs";
+import { shownRefs } from "../src/summary/reading-edition.mjs";
 test("근거 칩은 문장의 수치가 적힌 문장을 먼저 남기고, 단 근거에 없으면 원문에서 한 곳뿐인 문장을 잇는다", () => {
   const evidence = {
     "S55.3": { text: "최종 군집 1번" }, "S40.6": { text: "Test f1-score : 0.376" },

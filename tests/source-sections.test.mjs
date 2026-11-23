@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sourceSections, overviewItems, draftSections, includeSections, sectionLabel } from "../source-sections.mjs";
+import { sourceSections, overviewItems, draftSections, includeSections, sectionLabel } from "../src/summary/source-sections.mjs";
 
 const row = (capture, text, kind = "OCR") => ({ capture, text, kind });
 const item = (topic, text, ...refs) => ({ topic, text, refs, mode: "요약" });

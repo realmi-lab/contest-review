@@ -1,5 +1,5 @@
-import { chat, pack } from "./model.mjs";
-import { activeHaikuKey } from "./claude-summary.mjs";
+import { chat, pack } from "../ai/model.mjs";
+import { activeHaikuKey } from "../ai/claude-summary.mjs";
 import { describesFigure, notStatement } from "./statement-filters.mjs";
 
 const roles = [

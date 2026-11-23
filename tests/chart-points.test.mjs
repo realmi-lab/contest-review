@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { replaceChartPoints } from "../reading.mjs";
+import { replaceChartPoints } from "../src/summary/reading.mjs";
 
 test("도식 검토로 바뀐 쪽의 요점만 바꿔 끼운다", () => {
   const evidence = { "S1.1": {}, "S1.2": {}, "S2.V": {} };

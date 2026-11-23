@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { qualifyObservationDates } from "../layout.mjs";
+import { qualifyObservationDates } from "../src/ocr/layout.mjs";
 
 const info = {
   text: "RATE | Unemployment Rate, Percent, Monthly, Seasonally Adjusted",

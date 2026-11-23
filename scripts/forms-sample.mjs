@@ -2,7 +2,7 @@
 // 사용: node scripts/forms-sample.mjs <가짜 OneDrive 폴더>   (deploy/site.json의 forms를 이 폴더로 맞춘다)
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { writeWorkbook } from "../xlsx.mjs";
+import { writeWorkbook } from "../src/intake/xlsx.mjs";
 
 const root = path.resolve(process.argv[2] || "qa-onedrive");
 const files = path.join(root, "Apps/Microsoft Forms/아이디어 공모/첨부 파일");

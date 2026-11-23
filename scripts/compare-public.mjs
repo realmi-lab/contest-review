@@ -10,16 +10,16 @@ import {
   reportSchema,
   total,
   validateReport,
-} from "../review.mjs";
+} from "../src/review/review.mjs";
 import { sampleImage } from "./sample.mjs";
-import { evaluate } from "../model.mjs";
+import { evaluate } from "../src/ai/model.mjs";
 if (process.argv.length !== 2)
   throw Error("이 명령은 내장 공유 우산 합성 예제만 비교합니다.");
 if (!process.env.OPENAI_API_KEY)
   throw Error("공개 예제 비교를 위해 OPENAI_API_KEY가 필요합니다.");
 const root = fileURLToPath(new URL("../", import.meta.url));
 const bytes = await sampleImage("umbrella");
-const run = spawnSync(process.execPath, [path.join(root, "ocr.mjs")], {
+const run = spawnSync(process.execPath, [path.join(root, "src", "ocr", "ocr.mjs")], {
   input: bytes,
   maxBuffer: 2e6,
 });

@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import { activeHaikuKey, extractEffort, haiku, haikuChat, haikuEffort } from "./claude-summary.mjs";
-import { preferNativeGroups, readingBlocks } from "./layout.mjs";
-import { auditReport, feedbackFor, withholdClaims } from "./grounding.mjs";
+import { preferNativeGroups, readingBlocks } from "../ocr/layout.mjs";
+import { auditReport, feedbackFor, withholdClaims } from "../check/grounding.mjs";
 import {
   coverage,
   gradingPrompt,
@@ -12,7 +12,7 @@ import {
   validateReport,
   scopeGuide,
   scopeConflicts,
-} from "./review.mjs";
+} from "../review/review.mjs";
 
 export const endpoint =
   "http://127.0.0.1:" + Number(process.env.REVIEW_OLLAMA_PORT || 11548);

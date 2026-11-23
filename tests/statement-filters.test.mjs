@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { describesDocument, describesFigure, looksLikeHeading, notStatement, plainVoice, withoutEventPreamble, claimsAbsence, unprintedNumbers } from "../statement-filters.mjs";
+import { describesDocument, describesFigure, looksLikeHeading, notStatement, plainVoice, withoutEventPreamble, claimsAbsence, unprintedNumbers } from "../src/summary/statement-filters.mjs";
 
 test("문서·쪽 구성만 설명하는 문장은 잡고 실제 내용 문장은 남긴다", () => {
   for (const meta of [

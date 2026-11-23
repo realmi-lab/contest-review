@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { echoesInstructions } from "../reading.mjs";
-import { longBrief, pickFocused } from "../long-brief.mjs";
-import { haiku, withHaiku } from "../claude-summary.mjs";
+import { echoesInstructions } from "../src/summary/reading.mjs";
+import { longBrief, pickFocused } from "../src/summary/long-brief.mjs";
+import { haiku, withHaiku } from "../src/ai/claude-summary.mjs";
 
 test("지시문을 되풀이한 요점은 걸러내고, 원문에 있는 같은 구절은 남긴다", () => {
   const evidence = {

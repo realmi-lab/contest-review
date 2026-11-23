@@ -1,4 +1,4 @@
-import { appDir } from "./app-dir.mjs";
+import { appDir } from "../app-dir.mjs";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
