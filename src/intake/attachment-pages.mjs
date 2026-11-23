@@ -286,9 +286,11 @@ end run`, path.basename(file), path.join(dir, "slides")], "PowerPoint 슬라이�
 export const installed = (app) => new Promise((resolve) => execFile("open", ["-Ra", app], (e) => resolve(!e)));
 
 // 터미널(서버를 띄운 앱)에 화면 기록·손쉬운 사용 권한이 있는가. 묻는 창은 띄우지 않는다. 확인하지 못하면 null.
+// 새 함수는 JXA가 미리 알지 못해 bindFunction으로 형식(bool 반환, 인자 없음)을 알려 준다.
 export async function macPermissions() {
   const ask = (framework, call) =>
-    osa(["-l", "JavaScript", "-e", `ObjC.import("${framework}"); String($.${call}())`], "권한 확인").then((v) => v === "true", () => null);
+    osa(["-l", "JavaScript", "-e", `ObjC.import("${framework}"); ObjC.bindFunction("${call}", ["bool", []]); String($.${call}())`], "권한 확인")
+      .then((v) => v === "true", () => null);
   return { screen: await ask("CoreGraphics", "CGPreflightScreenCaptureAccess"), accessibility: await ask("ApplicationServices", "AXIsProcessTrusted") };
 }
 
