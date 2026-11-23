@@ -30,6 +30,8 @@ if (tool === "screencapture") {
   done();
 }
 const script = args[args.indexOf("-e") + 1], i = Number(args.at(-1));
+if (script.includes("CGPreflightScreenCaptureAccess")) done(String(s.screen ?? true)); // 화면 기록 권한
+if (script.includes("AXIsProcessTrusted")) done(String(s.accessibility ?? true)); // 손쉬운 사용 권한
 if (script.includes("PDFKit")) { // 보호 PDF는 PDFKit이 열지 못한다. Edge가 저장한 사본("saved")은 연다
   const [pdf, out, only] = args.slice(-3);
   if (!fs.existsSync(pdf) || !fs.readFileSync(pdf, "utf8").startsWith("saved")) done("", 1);
@@ -89,11 +91,11 @@ process.env.HOME = dir; // PowerPoint 내보내기 폴더(~/Library/Group Contai
 const { attachmentPages } = await import("../src/intake/attachment-pages.mjs");
 
 // 가짜 Office 상태를 정하고 문서 하나를 캡처한다
-async function run(name, office, only) {
+async function run(name, office, only, options) {
   writeFileSync(state, JSON.stringify({ export: false, show: false, page: 1, pages: 3, lastScreen: 99, missing: [], log: [], saveAs: "", ...office }));
   Object.defineProperty(process, "platform", { value: "darwin", configurable: true });
   try {
-    const pages = await attachmentPages(path.join(dir, name), only);
+    const pages = await attachmentPages(path.join(dir, name), only, options);
     return { pages: pages.map(String), log: JSON.parse(readFileSync(state, "utf8")).log };
   } finally {
     Object.defineProperty(process, "platform", { value: os.platform(), configurable: true });
@@ -164,6 +166,32 @@ test("보호 PDF: PDFKit이 열 수 있는 겉 PDF(안내 쪽)여도 보호 표�
   writeFileSync(path.join(dir, "겉 문서.pdf"), "saved /Type /EncryptedPayload /Subtype /MicrosoftIRMServices"); // 가짜 PDFKit은 'saved'로 시작하면 연다
   const { pages } = await run("겉 문서.pdf", { lastScreen: 2 });
   assert.deepEqual(pages, ["page 1", "page 2"]);
+});
+
+test("Forms 첨부 PDF(보호 문서로 표시)는 PDFKit이 열 수 있어도 처음부터 Edge로 연다. Edge가 없으면 PDFKit으로 읽는다", { skip }, async () => {
+  writeFileSync(path.join(dir, "평범한 첨부.pdf"), "saved 보호 표시 없음"); // 가짜 PDFKit이 여는 PDF
+  assert.deepEqual((await run("평범한 첨부.pdf", { lastScreen: 2 })).pages, ["saved 1", "saved 2", "saved 3"]);
+  assert.deepEqual((await run("평범한 첨부.pdf", { lastScreen: 2 }, undefined, { secured: true })).pages, ["page 1", "page 2"]);
+  assert.deepEqual((await run("평범한 첨부.pdf", { missing: ["Microsoft Edge"] }, undefined, { secured: true })).pages, ["saved 1", "saved 2", "saved 3"]);
+});
+
+test("운영 맥 점검: 권한과 앱을 시험 문서로 확인하고, 없는 앱·막힌 권한은 고칠 곳을 알린다", { skip }, async () => {
+  const { runSelfCheck, selfCheck } = await import("../src/self-check.mjs");
+  writeFileSync(state, JSON.stringify({ export: true, show: false, page: 1, pages: 2, lastScreen: 2, missing: ["Microsoft PowerPoint"], log: [], saveAs: "saved", accessibility: false }));
+  Object.defineProperty(process, "platform", { value: "darwin", configurable: true });
+  try {
+    await runSelfCheck();
+  } finally {
+    Object.defineProperty(process, "platform", { value: os.platform(), configurable: true });
+  }
+  assert.equal(selfCheck.running, false);
+  assert.deepEqual(selfCheck.items.map((item) => [item.name, item.state]), [
+    ["화면 기록 권한", "ok"], ["손쉬운 사용 권한", "error"], ["PDF", "ok"], ["보호 PDF (Microsoft Edge)", "ok"],
+    ["Word", "ok"], ["PowerPoint", "warn"], ["Excel", "ok"],
+  ]);
+  assert.match(selfCheck.items[1].text, /손쉬운 사용에서 터미널을 허용/);
+  assert.match(selfCheck.items[3].text, /2쪽 읽음 · Edge에서 다른 이름으로 저장/);
+  assert.match(selfCheck.items[5].text, /설치되어 있지 않습니다/);
 });
 
 const noEdge = ["Microsoft Edge"];

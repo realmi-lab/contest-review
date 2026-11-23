@@ -3,7 +3,7 @@ import { esc, join } from "../lib/html.mjs";
 import { filteredWorks } from "./list.mjs";
 import { aiLabel, cloudScope, state, summaryModel } from "./state.mjs";
 import { usd } from "./summary.mjs";
-import { api, button, dialog, field, input } from "./ui.mjs";
+import { $, api, button, dialog, field, input } from "./ui.mjs";
 
 /* ─────────────────────────── 일괄 요약·점검 ───────────────────────────
    여러 작품을 한 번에 대기열에 넣는다. 서버가 한 작품씩 차례로 처리하고, 요약을 만들면 점검까지 이어서 한다. */
@@ -94,3 +94,31 @@ export async function openFormsSettings() {
   </form>`);
 }
 
+
+// 운영 맥 점검: 첨부를 읽는 데 필요한 권한·앱을 시험 문서로 확인한다(src/self-check.mjs). 도는 동안 1.5초마다 새로 그린다.
+const MARK = { ok: "✓", warn: "!", error: "✕" };
+function selfCheckHtml(r) {
+  const items = r.items.map((item) => `<li class="check-${item.state}"><b>${MARK[item.state]} ${esc(item.name)}</b><small>${esc(item.text)}</small>
+    ${item.image === undefined ? "" : `<img src="/api/self-check-image?n=${item.image}&at=${encodeURIComponent(r.at)}" alt="${esc(item.name)}에서 읽은 첫 쪽">`}</li>`);
+  const when = r.running ? `<p class="small">${esc(r.label || "운영 맥 점검")} 중…</p>`
+    : r.at ? `<p class="small muted">${esc(new Date(r.at).toLocaleString("ko-KR"))}에 점검했습니다. 그림은 실제로 읽힌 첫 쪽입니다.</p>` : "";
+  return `<p class="small muted">공모 첨부를 읽는 데 필요한 권한과 앱을 시험 문서로 확인합니다. 1~3분 동안 Edge·Word 등이 잠깐 열렸다 닫힙니다.</p>
+    ${when}<ul class="self-check">${items.join("")}</ul>
+    <div class="actions"><button type="button" class="primary" data-action="self-check-run"${r.running ? " disabled" : ""}>${r.at ? "다시 점검" : "점검 시작"}</button></div>`;
+}
+let watching = 0;
+export async function showSelfCheck() {
+  const mine = ++watching; // 대화상자를 다시 열면 앞의 새로 그리기는 멈춘다
+  for (;;) {
+    const report = await api("self-check");
+    const body = $("self-check-body");
+    if (mine !== watching || !body || !$("dialog").open) return;
+    body.innerHTML = selfCheckHtml(report);
+    if (!report.running) return;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+}
+export function openSelfCheck() {
+  dialog("운영 맥 점검", `<div id="self-check-body" class="stack"></div>`);
+  return showSelfCheck();
+}

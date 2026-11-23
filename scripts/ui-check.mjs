@@ -115,10 +115,11 @@ try {
     await page.$eval("#final", (f) => f.requestSubmit());
     await until("확정", async () => (await state()).works.some((w) => w.final));
   });
-  await step("요약 설정·공모 연동 설정 대화상자를 열고 닫는다", async () => {
-    for (const action of ["summary-settings", "forms-settings"]) {
+  await step("요약 설정·공모 연동 설정·운영 맥 점검 대화상자를 열고 닫는다", async () => {
+    for (const action of ["summary-settings", "forms-settings", "self-check"]) {
       await click(`.sidebar [data-action="${action}"]`);
       await until(action, isOpen);
+      if (action === "self-check") await until("점검 시작 버튼", async () => !!(await page.$('[data-action="self-check-run"]')));
       await click("#close");
       await wait(300);
     }

@@ -5,7 +5,7 @@ import { workRef } from "./forms.mjs";
 import { filteredWorks, intakeInputs, openCreate, openDistribute } from "./list.mjs";
 import { currentEvidence, select, sync } from "./navigation.mjs";
 import { render } from "./render.mjs";
-import { formsPick, openBatchSummary, openFormsSettings, openSummarySettings } from "./settings.mjs";
+import { formsPick, openBatchSummary, openFormsSettings, openSelfCheck, openSummarySettings, showSelfCheck } from "./settings.mjs";
 import { criterionRow } from "./sheet.mjs";
 import { aiLabel, cloudScope, state, submittingSummaries } from "./state.mjs";
 import { markSimilar, summaryUnavailable } from "./summary.mjs";
@@ -130,6 +130,11 @@ const actions = {
     await sync(true);
   },
   "forms-settings": openFormsSettings,
+  "self-check": openSelfCheck,
+  "self-check-run": async () => {
+    await api("self-check", {});
+    await showSelfCheck();
+  },
   "choose-source": async (b) => {
     const { path, label } = await api("forms-choose", { kind: b.dataset.pick });
     if (!path) return; // 선택 창에서 취소

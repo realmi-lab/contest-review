@@ -194,7 +194,8 @@ export default {
       const file = await originalFile(w, c);
       if (!file) err("원본 문서가 없어 다시 캡처할 수 없습니다. 화면을 캡처해 올린 뒤 이 캡처를 지우세요.");
       schedule("recapture-" + c.id, w.id, c.label + " · 다시 캡처하는 중", async () => {
-        const [bytes] = await attachmentPages(file, c.page || 1); // 그 쪽이 없으면 attachmentPages가 알린다
+        const secured = !!w.source?.files?.includes(c.document); // Forms 첨부(보호 문서)
+        const [bytes] = await attachmentPages(file, c.page || 1, { secured }); // 그 쪽이 없으면 attachmentPages가 알린다
         await replaceImage(w.id, c.id, bytes);
       });
     } else if (b.action === "remove") {

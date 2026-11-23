@@ -1,4 +1,4 @@
-// 설정 API: 접속 코드, AI 요약 설정·사용량, MS Forms 공모 연동
+// 설정 API: 접속 코드, AI 요약 설정·사용량, MS Forms 공모 연동, 운영 맥 점검
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { readSite, writeSite } from "../../deploy/site.mjs";
@@ -11,7 +11,9 @@ import { webMode } from "../config.mjs";
 import { choosePath } from "../intake/choose-path.mjs";
 import { checkSources, distribute, FORMS_DEFAULTS, formsConfig, homePath, placeLabel, readResponses, rootOf, storageRoots } from "../intake/forms-intake.mjs";
 import { formWorks, intake, rereadIntake, syncIntake, syncNow } from "../intake/sync.mjs";
+import { schedule, tasks } from "../jobs.mjs";
 import { defaults, sheet } from "../review/review.mjs";
+import { runSelfCheck, selfCheck } from "../self-check.mjs";
 import { firstRunAt } from "../store.mjs";
 import { recentUsage, utcDay } from "../summary/run.mjs";
 import { bounded, err } from "../validate.mjs";
@@ -125,5 +127,22 @@ export default {
     const report = await distribute(intake.config, formWorks(), defaults.criteria, sheet);
     await rereadIntake(false);
     json({ report, intake: intake.view });
+  },
+  // 운영 맥 점검(src/self-check.mjs). 캡처 작업이 끝난 뒤 같은 작업 줄에서 돈다. label: 대기·진행 표시
+  "GET /api/self-check": ({ json }) => {
+    const { running, at, items } = selfCheck;
+    json({ running, at, items, label: tasks.get("self-check")?.label ?? "" });
+  },
+  "POST /api/self-check": ({ json }) => {
+    if (process.platform !== "darwin") err("운영 맥 점검은 맥에서 띄운 서버에서만 할 수 있습니다.");
+    schedule("self-check", "self-check", "운영 맥 점검", runSelfCheck);
+    selfCheck.running = true;
+    json({ ok: true });
+  },
+  "GET /api/self-check-image": ({ res, query }) => {
+    const png = selfCheck.images[Number(query.get("n"))];
+    if (!png) err("그림이 없습니다.", 404);
+    res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "no-store" });
+    res.end(png);
   },
 };

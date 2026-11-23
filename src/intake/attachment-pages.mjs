@@ -136,8 +136,12 @@ async function pdfKitPages(pdf, only) {
 // MIP 보호 PDF는 '보호된 문서' 안내 쪽만 보이는 겉 PDF 안에 암호화된 본문을 담는다. PDFKit은 겉만 열어 안내 쪽을 내놓으므로,
 // 그 표시(EncryptedPayload·MicrosoftIRMServices)가 있으면 PDFKit을 거치지 않고 보호 PDF로 다룬다.
 const wrapped = (pdf) => readFile(pdf).then((b) => b.includes("EncryptedPayload") || b.includes("MicrosoftIRMServices"), () => false);
-const pdfPages = async (pdf, only) =>
-  (await wrapped(pdf)) ? protectedPdf(pdf, only) : pdfKitPages(pdf, only).catch(() => protectedPdf(pdf, only));
+// 겉 PDF 표시가 있거나, Forms 첨부(secured: 모두 보호 문서)이고 Edge가 있으면 처음부터 보호 PDF로 연다(겉 PDF 판별이 빗나가도 안전하게).
+// 그 밖에는 PDFKit으로 읽고, 못 열면 보호 PDF로 다룬다.
+async function pdfPages(pdf, only, options) {
+  if ((await wrapped(pdf)) || (options.secured && (await installed(EDGE)))) return protectedPdf(pdf, only, options);
+  return pdfKitPages(pdf, only).catch(() => protectedPdf(pdf, only, options));
+}
 
 // Office 문서: 앱으로 열어 쪽(슬라이드·시트)마다 받는다. MIP로 보호된 문서는 PDF로 내보내도 암호화되어
 // 읽을 수 없으므로, PowerPoint는 슬라이드를 PNG로 내보내고(화면을 쓰지 않음, 막혀 있으면 창 모드 슬라이드 쇼 캡처),
@@ -279,15 +283,25 @@ end run`, path.basename(file), path.join(dir, "slides")], "PowerPoint 슬라이�
 }
 
 // 앱이 없으면 AppleScript가 '앱 찾기' 창을 띄우므로 먼저 확인한다.
-const installed = (app) => new Promise((resolve) => execFile("open", ["-Ra", app], (e) => resolve(!e)));
+export const installed = (app) => new Promise((resolve) => execFile("open", ["-Ra", app], (e) => resolve(!e)));
+
+// 터미널(서버를 띄운 앱)에 화면 기록·손쉬운 사용 권한이 있는가. 묻는 창은 띄우지 않는다. 확인하지 못하면 null.
+export async function macPermissions() {
+  const ask = (framework, call) =>
+    osa(["-l", "JavaScript", "-e", `ObjC.import("${framework}"); String($.${call}())`], "권한 확인").then((v) => v === "true", () => null);
+  return { screen: await ask("CoreGraphics", "CGPreflightScreenCaptureAccess"), accessibility: await ask("ApplicationServices", "AXIsProcessTrusted") };
+}
 
 // 보호(MIP) PDF는 PDFKit이 열지 못한다. 회사 계정으로 로그인한 Microsoft Edge로 열고, Edge가 없으면 Adobe Acrobat Reader로 연다.
 // 보호를 푸는 것이 아니라 그 앱이 허락하는 기능(저장·화면 표시)만 쓴다. 문서 권한이 막으면 읽지 못한다.
 const EDGE = "Microsoft Edge";
 const READERS = ["Adobe Acrobat Reader", "Adobe Acrobat Reader DC", "Adobe Acrobat"];
-async function protectedPdf(file, only) {
-  if (await installed(EDGE)) return edgePages(file, only);
-  for (const app of READERS) if (await installed(app)) return readerCaptures(app, file, only);
+async function protectedPdf(file, only, options) {
+  if (await installed(EDGE)) return edgePages(file, only, options);
+  for (const app of READERS) if (await installed(app)) {
+    options.how = app + " 화면 캡처";
+    return readerCaptures(app, file, only);
+  }
   throw new Error("보호된 PDF라 Microsoft Edge(회사 계정 로그인)로 열어 캡처해야 하는데 이 맥에 Edge가 없습니다. Edge를 설치한 뒤 목록의 '지금 가져오기'를 누르세요.");
 }
 
@@ -376,7 +390,7 @@ async function edgeSaved(windowId, only) {
 // 쓰던 Edge 창·탭은 건드리지 않고, 끝나면 그 창만 닫는다(원래 Edge가 꺼져 있었으면 Edge도 끈다).
 // 캡처할 때는 쪽마다 빈 화면을 거쳐 새로 열어 그 쪽에서 시작하게 한다.
 // 쪽 수는 알 수 없어 넘기다 같은 화면이 다시 나오면 마지막 쪽으로 본다. 터미널에 Edge 제어(자동화)와 화면 기록 권한이 필요하다.
-async function edgePages(file, only) {
+async function edgePages(file, only, options) {
   const url = pathToFileURL(file).href;
   const edge = (body, windowId = 0, page = 0) =>
     osa(["-e", `on run argv
@@ -415,6 +429,7 @@ end run`, url, String(windowId), String(page)], "Edge에서 PDF를 열지 못했
     await loaded(windowId, 90); // 보호 문서는 회사 계정 확인에 시간이 걸린다
     let why = "";
     const saved = await edgeSaved(windowId, only).catch((e) => void (why = e.message));
+    options.how = saved?.length ? "Edge에서 다른 이름으로 저장" : `Edge 화면 캡처(저장 안 됨: ${why})`;
     if (saved?.length) return saved;
     if (why.includes("다른 앱이 앞으로")) throw new Error(why + ". 목록의 '지금 가져오기'로 다시 읽으세요."); // 저장 창이 남았을 수 있어 캡처하지 않는다
     let shotId = "";
@@ -529,12 +544,14 @@ async function officeCaptures(kind, file, only) {
 }
 
 // 문서의 쪽 이미지들. only(1부터)를 주면 그 쪽 한 장만 돌려준다(다시 캡처).
-export async function attachmentPages(file, only) {
+// only: 그 쪽만(다시 캡처). options.secured: MS Forms 첨부처럼 보호 문서로 보고 PDF를 처음부터 Edge로 연다.
+// options.how: 보호 PDF를 어떻게 읽었는지 적어 돌려준다(운영 맥 점검이 보여 준다).
+export async function attachmentPages(file, only, options = {}) {
   const kind = pageKind(file);
   if (!kind) throw new Error("자동으로 읽지 않는 형식입니다. 회사 뷰어로 열어 캡처해 올려 주세요.");
   if (kind === "image") return [await readFile(file)];
   if (process.platform !== "darwin") throw new Error("문서를 쪽 이미지로 바꾸는 기능은 맥에서만 동작합니다. 화면을 캡처해 올려 주세요.");
-  const pages = await (kind === "pdf" ? pdfPages(file, only) : officeCaptures(kind, file, only));
+  const pages = await (kind === "pdf" ? pdfPages(file, only, options) : officeCaptures(kind, file, only));
   if (!pages.length) throw new Error(only ? only + "쪽을 문서에서 찾지 못했습니다." : "문서에서 쪽을 찾지 못했습니다.");
   return pages;
 }

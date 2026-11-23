@@ -87,6 +87,12 @@ try {
     assert.deepEqual(Object.keys(state.cost), ["today", "week"]);
   });
   let id, capture;
+  await step("운영 맥 점검: 결과를 알려 주고, 맥이 아닌 서버에서는 시작하지 않는다", async () => {
+    const report = await get("/api/self-check").then((r) => r.json());
+    assert.deepEqual([report.running, report.items], [false, []]);
+    if (process.platform !== "darwin") assert.equal((await post("self-check", {})).status, 400);
+    assert.equal((await get("/api/self-check-image?n=0")).status, 404);
+  });
   await step("직접 접수하고 그림을 올리면 글자를 읽는다", async () => {
     id = (await post("create", { name: "회귀 점검 작품", receivedOn: "2026-11-23", intakeTeam: "QA", submitterName: "점검" })).body.id;
     assert.ok(id);

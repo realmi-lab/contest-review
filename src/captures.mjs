@@ -160,8 +160,8 @@ export async function replaceImage(wid, cid, bytes) {
 }
 
 // 파일 하나를 쪽 그림으로 바꿔 캡처로 접수하고 쪽수를 돌려준다(그림은 그대로, PDF·Word·PowerPoint·Excel은 쪽마다).
-export async function addPages(wid, name, file) {
-  const pages = await attachmentPages(file);
+export async function addPages(wid, name, file, options) {
+  const pages = await attachmentPages(file, 0, options);
   for (const [i, bytes] of pages.entries())
     await addImage(wid, { document: name, page: i + 1, total: pages.length }, bytes).catch((e) => {
       if (e.status !== 409) throw e; // 이미 접수한 같은 쪽

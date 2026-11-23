@@ -129,7 +129,7 @@ function ingestAttachments(config, w) {
       progress(name + " · 열어서 캡처하는 중");
       let result;
       try {
-        result = { pages: await addPages(w.id, name, path.join(attachmentFolder(config, w), name)) };
+        result = { pages: await addPages(w.id, name, path.join(attachmentFolder(config, w), name), { secured: true }) }; // Forms 첨부는 모두 보호 문서
       } catch (e) {
         result = { error: String(e.message).slice(0, 300) };
       }
