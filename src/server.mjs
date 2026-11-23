@@ -14,7 +14,7 @@ import { similarWorks } from "./review/similar.mjs";
 import { summarize, checkLogic } from "./summary/reading.mjs";
 import { ideaOpinion } from "./check/idea-opinion.mjs";
 import { evaluate, compareResults, modelInfo, model } from "./ai/model.mjs";
-import { sampleImage } from "../scripts/sample.mjs";
+import { sampleImage } from "./sample.mjs";
 import {
   checkSources, copyAttachments, distribute, evaluationFile, fileIndex, FORMS_DEFAULTS, formsConfig, homePath,
   placeLabel, readEvaluations, readOneDrive, readResponses, rootOf, shareState, storageRoots, workFolder,
@@ -559,11 +559,7 @@ const assets = {
   "/fonts/BithumbGothic-Basic.woff2": ["fonts/BithumbGothic-Basic.woff2", "font/woff2"],
   "/fonts/BithumbGothic-Original.woff2": ["fonts/BithumbGothic-Original.woff2", "font/woff2"],
   "/fonts/BithumbGothic-OFL.txt": ["fonts/BithumbGothic-OFL.txt", "text/plain"],
-  "/fonts/nanum-myeongjo.css": ["fonts/nanum-myeongjo.css", "text/css"],
-  "/fonts/nanum-myeongjo/OFL.txt": ["fonts/nanum-myeongjo/OFL.txt", "text/plain"],
 };
-// 나눔명조는 글자 범위별 파일이 많아 이름 꼴로 허용한다(public/fonts/nanum-myeongjo/nanum-myeongjo-<번호|latin>-<굵기>-normal.woff2).
-const myeongjoFile = /^\/fonts\/nanum-myeongjo\/(nanum-myeongjo-(?:\d+|latin)-(?:400|700)-normal\.woff2)$/;
 const redeemedLinks = new Map();
 const cookie = (req, name) =>
   new RegExp("(?:^|;\\s*)" + name + "=([^;]+)").exec(req.headers.cookie || "")?.[1];
@@ -808,9 +804,8 @@ async function handleRequest(req, res) {
         catch (e) { reportError = e.status ? "status " + e.status : e.message; }
       return json({ days, reported, reportError, recordingSince: firstRun.get().at });
     }
-    const myeongjo = req.method === "GET" && myeongjoFile.exec(pathname)?.[1];
-    if (req.method === "GET" && (assets[pathname] || myeongjo)) {
-      const [f, m] = assets[pathname] || ["fonts/nanum-myeongjo/" + myeongjo, "font/woff2"];
+    if (req.method === "GET" && assets[pathname]) {
+      const [f, m] = assets[pathname];
       const font = m.startsWith("font/");
       res.setHeader("Content-Type", m.startsWith("text/") ? m + "; charset=utf-8" : m);
       if (font) res.setHeader("Cache-Control", "public, max-age=31536000, immutable");

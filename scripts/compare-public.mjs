@@ -11,7 +11,7 @@ import {
   total,
   validateReport,
 } from "../src/review/review.mjs";
-import { sampleImage } from "./sample.mjs";
+import { sampleImage } from "../src/sample.mjs";
 import { evaluate } from "../src/ai/model.mjs";
 if (process.argv.length !== 2)
   throw Error("이 명령은 내장 공유 우산 합성 예제만 비교합니다.");
