@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, readdir, rename, writeFile } from "node:fs/pr
 import os from "node:os";
 import path from "node:path";
 import {
-  attachmentNames, copyAttachments, dayOf, distribute, evaluationFile, fileIndex, formEntries, formsConfig, fromOneDrive, workbookRows,
+  attachmentNames, copyAttachments, dayOf, distribute, evaluationFile, fileIndex, formEntries, formsConfig, fromOneDrive, workbookRows, writeResponse,
   readEvaluations, readResponses, safeName, shareState, workFolder,
 } from "../src/intake/forms-intake.mjs";
 import { readSheet, writeWorkbook } from "../src/intake/xlsx.mjs";
@@ -94,6 +94,21 @@ test("심사 배포는 분야별 폴더·평가표·공유 요청을 만들고, 
   await mkdir(path.join(config.reviewDir, "_공유 요청/완료"), { recursive: true });
   await rename(path.join(config.reviewDir, "_공유 요청/김심사.json"), path.join(config.reviewDir, "_공유 요청/완료/김심사.json"));
   assert.equal(await shareState(config, kim), "공유 완료");
+});
+
+test("응답 엑셀에서 그 응답의 칸만 고친다: 빈 칸에도 적고 다른 행·시트는 그대로 둔다", async () => {
+  const { config } = await onedrive();
+  await writeFile(config.formsWorkbook, writeWorkbook([
+    { name: "Form1", rows: [["ID", "완료 시간", "제목", "설명", "소속", "이름", "분야", "첨부"], [1, "", "우산", "", "운영팀", "홍길동", "", "a.png"], [2, "", "알림", "원래 설명", "", "", "", "b.png"]] },
+    { name: "메모", rows: [["그대로"]] },
+  ]));
+  const withDescription = { ...config, columns: { ...config.columns, description: "설명" } };
+  await writeResponse(withDescription, "1", { title: "우산 2호", description: "새 설명 & <표>", email: "없는 열" });
+  const buffer = await readFile(config.formsWorkbook);
+  assert.deepEqual(readSheet(buffer), [["ID", "완료 시간", "제목", "설명", "소속", "이름", "분야", "첨부"], [1, "", "우산 2호", "새 설명 & <표>", "운영팀", "홍길동", "", "a.png"], [2, "", "알림", "원래 설명", "", "", "", "b.png"]]);
+  assert.deepEqual(readSheet(buffer, "메모"), [["그대로"]]);
+  assert.deepEqual((await readResponses(withDescription)).map((e) => e.title), ["우산 2호", "알림"]);
+  await assert.rejects(writeResponse(withDescription, "9", { title: "x" }), /응답 9을 찾지 못했습니다/);
 });
 
 test("보호(암호화)된 엑셀은 이유를 알려 준다", () => {

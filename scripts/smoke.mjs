@@ -5,12 +5,12 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import http from "node:http";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
-import { writeWorkbook } from "../src/intake/xlsx.mjs";
+import { readSheet, writeWorkbook } from "../src/intake/xlsx.mjs";
 
 const project = fileURLToPath(new URL("../", import.meta.url));
 const temp = await mkdtemp(path.join(os.tmpdir(), "smoke-"));
@@ -135,6 +135,17 @@ try {
     assert.deepEqual(ready.source.read, { "제안서_홍길동.png": { pages: 1 } });
     assert.equal(ready.source.email, "gildong@example.com");
     assert.match(ready.captures[0].lines.map((l) => l.text).join(" "), /2,500,000/);
+  });
+  await step("접수 정보에서 제목·설명을 고치면 응답 엑셀의 그 칸도 고친다", async () => {
+    const state = await get("/api/state").then((r) => r.json());
+    const form = await work(state.works.find((w) => w.formId === "1").id);
+    const edited = await post("intake", { id: form.id, intakeVersion: form.intakeVersion, name: "공유 우산 2호", description: "역마다 <우산> & 반납함" });
+    assert.equal(edited.status, 200, edited.body.error);
+    assert.equal(edited.body.inExcel, true);
+    const rows = readSheet(await readFile(workbook));
+    assert.deepEqual([rows[1][0], rows[1][6], rows[1][7], rows[1][8]], [1, "운영팀", "공유 우산 2호", "역마다 <우산> & 반납함"]);
+    const after = await work(form.id);
+    assert.deepEqual([after.name, after.source.description, after.intakeTeam], ["공유 우산 2호", "역마다 <우산> & 반납함", "운영팀"]);
   });
   await step("지금 가져오기를 다시 눌러도 작품과 캡처가 늘지 않는다", async () => {
     const before = await get("/api/state").then((r) => r.json());

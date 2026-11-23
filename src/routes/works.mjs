@@ -6,7 +6,7 @@ import { ai, haikuLabel, savedKey } from "../ai/claude-summary.mjs";
 import { addImage, addPages, enqueueOcr, ocrReady, replaceImage, uploadDir } from "../captures.mjs";
 import { build } from "../config.mjs";
 import { attachmentPages, pageKind } from "../intake/attachment-pages.mjs";
-import { intake, originalFile } from "../intake/sync.mjs";
+import { intake, originalFile, updateResponse } from "../intake/sync.mjs";
 import { busy, schedule, tasks } from "../jobs.mjs";
 import { defaults, finalSheet, followupSheet, rubric, scoreRows, sheet, toCsv } from "../review/review.mjs";
 import { similarWorks } from "../review/similar.mjs";
@@ -92,13 +92,26 @@ export default {
   },
 
   // 접수 정보 수정. 다른 화면이 먼저 고쳤으면 덮어쓰지 않는다.
-  "POST /api/intake": ({ b, json }) => {
-    const w = load(b.id);
-    const version = w.intakeVersion ?? 0;
-    if (b.intakeVersion !== version) err("다른 화면에서 접수 정보를 수정했습니다. 창을 닫고 최신 값을 확인하세요.", 409);
-    Object.assign(w, intakeFields(b, w), { intakeVersion: version + 1 });
+  // 접수 정보 수정. MS Forms로 들어온 작품은 제목·설명을 고치면 응답 엑셀의 그 칸도 고친다(엑셀을 못 고치면 저장하지 않는다).
+  "POST /api/intake": async ({ b, json }) => {
+    const current = () => {
+      const w = load(b.id);
+      if (b.intakeVersion !== (w.intakeVersion ?? 0)) err("다른 화면에서 접수 정보를 수정했습니다. 창을 닫고 최신 값을 확인하세요.", 409);
+      return w;
+    };
+    let w = current();
+    const name = bounded(b.name ?? w.name, 140);
+    if (!name) err("작품명을 입력하세요.");
+    const description = bounded(b.description ?? w.source?.description ?? "", 4000);
+    const inExcel = !!w.source?.formId && !!intake.config && (name !== w.name || description !== (w.source.description ?? ""));
+    if (inExcel) {
+      await updateResponse(w, { title: name, description }).catch((e) => err("응답 엑셀을 고치지 못해 저장하지 않았습니다 · " + e.message, 502));
+      w = current(); // 엑셀을 고치는 동안 캡처·요약이 저장됐을 수 있어 최신 것을 고친다
+    }
+    Object.assign(w, intakeFields(b, w), { name, intakeVersion: (w.intakeVersion ?? 0) + 1 });
+    if (w.source?.formId) w.source.description = description;
     save(w);
-    json({ ok: true });
+    json({ ok: true, inExcel });
   },
 
   // 비슷한 제안 판정: 중복·관련·무관 (빈 값이면 지운다). 두 작품 중 지금 작품에 남긴다.

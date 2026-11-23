@@ -10,7 +10,7 @@ import { defaults, sheet } from "../review/review.mjs";
 import { list, load, newWork, save } from "../store.mjs";
 import { autoSummarize } from "../summary/run.mjs";
 import {
-  copyAttachments, evaluationFile, fileIndex, formsConfig, readEvaluations, readOneDrive, readResponses, shareState, workFolder,
+  copyAttachments, evaluationFile, fileIndex, formsConfig, readEvaluations, readOneDrive, readResponses, shareState, workFolder, writeResponse,
 } from "./forms-intake.mjs";
 
 // config: 읽은 설정, responses: 응답 엑셀 캐시(수정 시각으로 확인), seen: 심사자별 평가표 수정 시각, view: 목록 화면용 현황
@@ -185,6 +185,13 @@ export async function rereadIntake(responsesToo = true) {
   intake.seen.clear();
   if (responsesToo) intake.responses = null;
   await syncIntake();
+}
+
+// 접수 정보에서 고친 값(제목·설명)을 응답 엑셀에도 적는다. 도는 중인 읽기가 끝난 뒤에 쓰고, 다음 확인 때 엑셀을 다시 읽게 한다.
+export async function updateResponse(w, values) {
+  await intake.running;
+  await writeResponse(intake.config, w.source.formId, values);
+  intake.responses = null;
 }
 
 // '지금 가져오기': 도는 중인 읽기가 끝나면 못 읽었던 첨부까지 처음부터 다시 읽는다.

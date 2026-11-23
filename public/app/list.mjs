@@ -104,7 +104,12 @@ export function filteredWorks() {
 
 export function intakeInputs(record, isNew = false) {
   const prefix = isNew ? "new-" : "edit-";
+  // 고칠 때는 제목도, MS Forms로 들어온 작품은 간략 설명도 고친다(저장하면 응답 엑셀에도 적는다)
+  const fromForms = !!record.source?.formId;
   return `
+    ${isNew ? "" : field("작품명", input("edit-name", record.name, "text", 'name="name" maxlength="140" required'))}
+    ${fromForms ? field("간략 설명", `<textarea id="edit-description" name="description" rows="4" maxlength="4000">${esc(record.source.description ?? "")}</textarea>`)
+      + `<p class="small muted">작품명과 간략 설명을 고치면 MS Forms 응답 엑셀의 그 칸도 함께 고칩니다.</p>` : ""}
     ${field("인입 날짜", input(prefix + "date", record.receivedOn, "date", 'name="receivedOn"' + (isNew ? " required" : "")))}
     ${field("팀", input(prefix + "team", record.intakeTeam, "text", 'name="intakeTeam" maxlength="80"'))}
     ${field("접수자 이름", input(prefix + "submitter", record.submitterName, "text", 'name="submitterName" maxlength="80"'))}`;

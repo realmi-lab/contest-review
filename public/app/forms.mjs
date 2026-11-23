@@ -41,13 +41,14 @@ const forms = {
     await chooseWork(id);
   },
   "edit-intake": async (form) => {
-    await api("intake", {
+    const { inExcel } = await api("intake", {
       id: form.dataset.id,
       intakeVersion: Number(form.dataset.version),
       ...readIntake(form),
     });
     closeDialog();
-    notify("접수 정보를 저장했습니다.");
+    notify(inExcel ? "접수 정보를 저장하고 응답 엑셀도 고쳤습니다." : "접수 정보를 저장했습니다.");
+    await sync(true);
   },
   rubric: async () => {
     const criteria = [...$("criteria").children].map((row) =>

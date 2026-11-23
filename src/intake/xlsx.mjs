@@ -1,5 +1,5 @@
 // 의존성 없는 최소 엑셀(xlsx) 읽기·쓰기.
-// 읽기: MS Forms 응답 엑셀, 심사자가 채운 평가표. 쓰기: 심사자 평가표.
+// 읽기: MS Forms 응답 엑셀, 심사자가 채운 평가표. 쓰기: 심사자 평가표, 응답 엑셀의 칸 고치기(patchCells).
 import { crc32, deflateRawSync, inflateRawSync } from "node:zlib";
 
 /* ─────────── 압축(zip) ─────────── */
@@ -76,7 +76,7 @@ const textOf = (xml) =>
   [...xml.replace(/<rPh\b[\s\S]*?<\/rPh>/g, "").matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => decode(m[1])).join("");
 const columnIndex = (ref) => [...ref.replace(/\d+$/, "")].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
 
-function sheetFile(files, wanted) {
+function sheetPath(files, wanted) {
   const book = files.get("xl/workbook.xml")?.toString() ?? "";
   const rels = files.get("xl/_rels/workbook.xml.rels")?.toString() ?? "";
   const sheets = [...book.matchAll(/<sheet\b[^>]*>/g)].map((m) => ({ name: decode(attr(m[0], "name") ?? ""), id: attr(m[0], "r:id") }));
@@ -84,19 +84,20 @@ function sheetFile(files, wanted) {
   if (!sheet) throw new Error(`'${wanted}' 시트가 없습니다. 있는 시트: ${sheets.map((s) => s.name).join(", ")}`);
   const rel = [...rels.matchAll(/<Relationship\b[^>]*>/g)].map((m) => m[0]).find((r) => attr(r, "Id") === sheet.id);
   const target = attr(rel ?? "", "Target") ?? "";
-  return files.get(target.startsWith("/") ? target.slice(1) : "xl/" + target.replace(/^\.\//, ""));
+  return target.startsWith("/") ? target.slice(1) : "xl/" + target.replace(/^\.\//, "");
 }
+const CELLS = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
 
 // 시트의 모든 행을 [[칸, …], …]로 돌려준다. 빈 칸은 "", 숫자는 number, 참·거짓은 boolean.
 export function readSheet(buffer, sheetName = "") {
   const files = unzip(buffer);
   const shared = [...(files.get("xl/sharedStrings.xml")?.toString() ?? "").matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) => textOf(m[1]));
-  const xml = sheetFile(files, sheetName)?.toString();
+  const xml = files.get(sheetPath(files, sheetName))?.toString();
   if (!xml) throw new Error("엑셀에서 시트를 찾지 못했습니다.");
   const rows = [];
   for (const [rowTag, cells] of xml.matchAll(/<row\b[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/g)) {
     const row = [];
-    for (const [, head, inner = ""] of (cells ?? "").matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+    for (const [, head, inner = ""] of (cells ?? "").matchAll(CELLS)) {
       const type = attr(head, "t");
       const raw = /<v>([\s\S]*?)<\/v>/.exec(inner)?.[1];
       const value =
@@ -123,6 +124,28 @@ function cellXml(value, ref, style) {
   if (typeof value === "number") return `<c r="${ref}"${s}><v>${value}</v></c>`;
   if (typeof value === "object") return `<c r="${ref}"${s}><f>${esc(value.formula)}</f></c>`; // 계산은 엑셀이 연다
   return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${esc(value)}</t></is></c>`;
+}
+
+// 있는 엑셀에서 칸 몇 개의 글자만 고친 새 파일. cells: [{ row, column, value }] (0부터). 표·서식·다른 시트는 그대로 둔다.
+export function patchCells(buffer, sheetName, cells) {
+  const files = unzip(buffer), name = sheetPath(files, sheetName);
+  let xml = files.get(name)?.toString();
+  if (!xml) throw new Error("엑셀에서 시트를 찾지 못했습니다.");
+  for (const { row, column, value } of cells) {
+    const ref = columnName(column) + (row + 1);
+    const rowXml = new RegExp(`(<row\\b[^>]*\\sr="${row + 1}"[^>]*>)([\\s\\S]*?)(</row>)`);
+    if (!rowXml.test(xml)) throw new Error(`엑셀에 ${row + 1}행이 없습니다.`);
+    xml = xml.replace(rowXml, (all, open, body, close) => {
+      const found = [...body.matchAll(CELLS)];
+      const old = found.find((m) => attr(m[1], "r") === ref);
+      // 그 칸이 없으면(빈 칸) 열 순서에 맞는 자리에 끼운다
+      const at = old?.index ?? found.find((m) => columnIndex(attr(m[1], "r") ?? "") > column)?.index ?? body.length;
+      const cell = cellXml(value, ref, old && attr(old[1], "s"));
+      return open + body.slice(0, at) + cell + body.slice(at + (old?.[0].length ?? 0)) + close;
+    });
+  }
+  files.set(name, xml);
+  return zip([...files]);
 }
 
 function sheetXml({ rows, widths = [], freeze = false, validations = [] }) {
