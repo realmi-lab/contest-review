@@ -181,12 +181,18 @@ const withoutTime = (x) => JSON.stringify(x && { ...x, at: 0 });
 async function importResponses(config) {
   const book = await stat(config.formsWorkbook).catch(() => null);
   if (!book) throw new Error("응답 엑셀이 아직 없습니다: " + config.formsWorkbook);
+  // 응답 엑셀은 바뀌었을 때만 다시 읽는다. 보호(MIP) 엑셀은 Excel 앱이 열어야 해서, 매번 읽으면 1분마다 Excel이 켜진다.
+  if (intake.responses?.mtime !== book.mtimeMs) intake.responses = { mtime: book.mtimeMs, list: await readResponses(config) };
+  const sameFiles = (w, entry) => JSON.stringify(w.source.files) === JSON.stringify(entry.files);
   const known = new Map(formWorks().map((w) => [w.source.formId, w]));
-  const waiting = [...known.values()].some((w) => w.source.missing.length);
-  if (intake.seen.get("forms") === book.mtimeMs && !waiting) return;
+  const todo = intake.responses.list.filter((entry) => {
+    const w = known.get(entry.id);
+    return !w || w.source.missing.length || !sameFiles(w, entry);
+  });
+  if (!todo.length) return;
   const index = await fileIndex(config.attachmentsDir);
   const problems = [];
-  for (const entry of await readResponses(config)) {
+  for (const entry of todo) {
     try {
       let w = known.get(entry.id);
       if (!w) {
@@ -197,18 +203,20 @@ async function importResponses(config) {
         w.source = { formId: entry.id, files: entry.files, folder: workFolder(entry), missing: entry.files,
           email: entry.email.slice(0, 200), description: entry.description.slice(0, 4000) };
         save(w);
-      }
-      if (JSON.stringify(w.source.files) !== JSON.stringify(entry.files)) // 첨부 이름 읽는 방식이 바뀐 예전 응답
+      } else if (!sameFiles(w, entry)) { // 첨부 이름 읽는 방식이 바뀐 예전 응답
         Object.assign(w.source, { files: entry.files, missing: entry.files, read: {} });
+        save(w);
+      }
       if (!w.source.missing.length) continue;
-      w.source.missing = await copyAttachments(w.source.files, index, path.join(config.reviewDir, "작품", w.source.folder));
-      save(w);
+      const missing = await copyAttachments(w.source.files, index, path.join(config.reviewDir, "작품", w.source.folder));
+      const latest = load(w.id); // 복사하는 동안 캡처·요약이 저장됐을 수 있어 최신 것을 고친다
+      latest.source.missing = missing;
+      save(latest);
     } catch (e) {
       problems.push(`응답 ${entry.id}: ${e.message}`);
     }
   }
   if (problems.length) throw new Error(problems.join(" · "));
-  intake.seen.set("forms", book.mtimeMs);
 }
 
 async function collectEvaluations(config) {
@@ -275,6 +283,12 @@ async function addPages(wid, name, file) {
 // 못 읽은 파일은 심사자가 직접 캡처한다.
 function ingestAttachments(config, w) {
   const key = "ingest-" + w.id;
+  // 자동 접수가 생기기 전에 사람이 캡처를 올려 둔 작품은 다시 열지 않는다.
+  if (!w.source.read && w.captures.length) {
+    w.source.read = Object.fromEntries(w.source.files.map((n) => [n, { manual: true }]));
+    save(w);
+    return;
+  }
   const todo = w.source.files.filter((n) => !w.source.missing.includes(n) && !w.source.read?.[n]);
   if (!todo.length || tasks.has(key)) return;
   schedule(key, w.id, "첨부 읽는 중", async (progress) => {
@@ -900,6 +914,7 @@ async function handleRequest(req, res) {
       await readResponses(formsConfig(forms)); // 고른 엑셀을 회사 Forms 열 구조로 읽을 수 있는지 확인한다
       writeSite({ ...site, forms });
       intake.seen.clear();
+      intake.responses = null;
       await syncIntake();
       return json({ ok: true });
     }
@@ -914,6 +929,7 @@ async function handleRequest(req, res) {
         }
       }
       intake.seen.clear();
+      intake.responses = null; // 응답 엑셀도 다시 읽는다
       await syncIntake();
       return json(intake.view);
     }

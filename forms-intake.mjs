@@ -182,7 +182,10 @@ const EXCEL_READER = `function run([file, sheetName]) {
   const excel = Application("Microsoft Excel");
   const name = file.split("/").pop();
   const opened = excel.workbooks().find((w) => w.name() === name);
-  if (!opened) excel.open(Path(file));
+  if (!opened) {
+    // 읽기 전용으로 연다(자동 저장으로 파일이 바뀌면 바뀐 줄 알고 계속 다시 읽게 된다). 안 되면 그냥 연다.
+    try { excel.openWorkbook({ workbookFileName: file, readOnly: true }); } catch (e) { excel.open(Path(file)); }
+  }
   const book = opened || excel.workbooks().find((w) => w.name() === name) || excel.activeWorkbook();
   const sheet = sheetName ? book.worksheets.byName(sheetName) : book.worksheets[0];
   let rows = sheet.usedRange.value();

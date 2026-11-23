@@ -884,6 +884,7 @@ function formsFilesNote() {
     const r = s.read?.[name];
     if (s.missing.includes(name)) return ["warn-text", "OneDrive 동기화 기다리는 중"];
     if (!r) return ["muted", "열어서 캡처하는 중"];
+    if (r.manual) return ["muted", "직접 올린 캡처 사용"];
     return r.error ? ["warn-text", r.error] : ["ok-text", `${r.pages}장 자동 접수`];
   };
   const failed = s.files.some((n) => s.read?.[n]?.error);
