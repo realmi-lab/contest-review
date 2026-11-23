@@ -875,12 +875,21 @@ function captureCard(c) {
 const suggestedVisual = () => work.captures.filter((c) => !c.visual && diagramHint(c.lines));
 
 // MS Forms 첨부는 보호 문서라 내용을 직접 읽지 못한다. 어디에 있는지 알려 주고 캡처를 받는다.
+// MS Forms 첨부: 서버가 열어서 캡처로 자동 접수한 결과(파일마다). 못 읽은 파일만 심사자가 직접 캡처한다.
 function formsFilesNote() {
   const s = work.source;
-  if (!s) return "";
+  if (!s?.files.length) return "";
   const folder = `${app.intake?.reviewDir ?? "심사 폴더"}/작품/${s.folder}`;
-  return `<div class="warning spaced">MS Forms 첨부 ${s.files.length}개는 OneDrive <b>${esc(folder)}</b> 폴더에 있습니다. 보호 문서라 회사 뷰어로 열어 캡처해 올려 주세요.${
-    s.missing.length ? ` 아직 동기화되지 않은 첨부: ${esc(s.missing.join(", "))}` : ""}</div>`;
+  const state = (name) => {
+    const r = s.read?.[name];
+    if (s.missing.includes(name)) return ["warn-text", "OneDrive 동기화 기다리는 중"];
+    if (!r) return ["muted", "열어서 캡처하는 중"];
+    return r.error ? ["warn-text", r.error] : ["ok-text", `${r.pages}장 자동 접수`];
+  };
+  const failed = s.files.some((n) => s.read?.[n]?.error);
+  return `<div class="forms-files spaced"><p>MS Forms 첨부 ${s.files.length}개 · OneDrive <b>${esc(folder)}</b></p>
+    <ul>${join(s.files, (name) => { const [cls, text] = state(name); return `<li><b>${esc(name)}</b><span class="${cls}">${esc(text)}</span></li>`; })}</ul>
+    ${failed ? '<p class="small muted">못 읽은 파일은 회사 뷰어로 열어 캡처해 올려 주세요.</p>' : ""}</div>`;
 }
 
 function intakePane() {
@@ -907,7 +916,7 @@ function intakePane() {
     .filter(Boolean)
     .join(" · ");
   const suggested = suggestedVisual();
-  return `
+  return `${formsFilesNote()}
     <section class="panel">
       ${suggested.length ? `<div class="diagram-note"><span><b>도식 검토 추천 ${suggested.length}쪽</b> · 그래프 값이 글자로 적혀 있지 않아 이미지로만 읽을 수 있습니다.</span>${button("mark-visual", "추천 쪽 도식 검토로 지정")}</div>` : ""}
       <div class="capgrid">${join(captures, captureCard)}</div>

@@ -20,6 +20,7 @@ import {
   placeLabel, readEvaluations, readOneDrive, readResponses, rootOf, shareState, storageRoots, workFolder,
 } from "./forms-intake.mjs";
 import { readSite, writeSite } from "./deploy/site.mjs";
+import { attachmentPages } from "./attachment-pages.mjs";
 import { macAddress, nasServer, publicOrigin } from "./deploy/nas-access.mjs";
 import { readAccess, verifyCode } from "./deploy/access-code.mjs";
 import { ai, aiSettings, haiku, haikuEffortNote, haikuLabel, matches, saveConnection, savedKey, saveKey, ticket, usageReport, validTicket, verifyKey, withHaiku } from "./claude-summary.mjs";
@@ -197,6 +198,8 @@ async function importResponses(config) {
           email: entry.email.slice(0, 200), description: entry.description.slice(0, 4000) };
         save(w);
       }
+      if (JSON.stringify(w.source.files) !== JSON.stringify(entry.files)) // 첨부 이름 읽는 방식이 바뀐 예전 응답
+        Object.assign(w.source, { files: entry.files, missing: entry.files, read: {} });
       if (!w.source.missing.length) continue;
       w.source.missing = await copyAttachments(w.source.files, index, path.join(config.reviewDir, "작품", w.source.folder));
       save(w);
@@ -258,6 +261,33 @@ async function intakeView(config, errors = {}) {
   };
 }
 
+// MS Forms 첨부를 캡처로 자동 접수한다(그림은 그대로, PDF·Word·PowerPoint·Excel은 쪽마다, attachment-pages.mjs).
+// 파일마다 결과를 source.read에 남긴다: { pages } 또는 { error }. 못 읽은 파일은 심사자가 직접 캡처한다.
+function ingestAttachments(config, w) {
+  const key = "ingest-" + w.id;
+  const todo = w.source.files.filter((n) => !w.source.missing.includes(n) && !w.source.read?.[n]);
+  if (!todo.length || tasks.has(key)) return;
+  schedule(key, w.id, "첨부 읽는 중", async (progress) => {
+    for (const name of todo) {
+      progress(name + " · 열어서 캡처하는 중");
+      let result;
+      try {
+        const pages = await attachmentPages(path.join(config.reviewDir, "작품", w.source.folder, name));
+        for (const [i, bytes] of pages.entries())
+          await addImage(w.id, { document: name, page: i + 1, total: pages.length }, bytes).catch((e) => {
+            if (e.status !== 409) throw e; // 이미 접수한 같은 쪽
+          });
+        result = { pages: pages.length };
+      } catch (e) {
+        result = { error: String(e.message).slice(0, 300) };
+      }
+      const fresh = load(w.id);
+      fresh.source.read = { ...fresh.source.read, [name]: result };
+      save(fresh);
+    }
+  });
+}
+
 function syncIntake() {
   intake.running ??= (async () => {
     let errors = {};
@@ -266,6 +296,7 @@ function syncIntake() {
       intake.error = "";
       if (intake.config) {
         await importResponses(intake.config).catch((e) => (intake.error = e.message)); // 응답에 문제가 있어도 평가표는 읽는다
+        for (const w of formWorks()) ingestAttachments(intake.config, w);
         errors = await collectEvaluations(intake.config);
       }
     } catch (e) {

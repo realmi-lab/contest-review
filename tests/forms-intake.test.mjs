@@ -151,3 +151,9 @@ test("MIP로 암호화된 엑셀(zip이 아님)은 맥의 Excel 앱으로 읽고
   assert.deepEqual((await workbookRows(plain))[1], [1, "공유 우산"]);
   if (process.platform !== "darwin") await assert.rejects(workbookRows(locked), /Excel 앱/);
 });
+
+test("OneDrive 문서 링크(Doc.aspx?…&file=)에서는 file= 값을 첨부 이름으로 읽는다", () => {
+  const link = (n) => "https://co-my.sharepoint.com/:w:/r/personal/a/_layouts/15/Doc.aspx?sourcedoc=%7BAB-12%7D&file=" + encodeURIComponent(n) + "&action=default&mobileredirect=true";
+  assert.deepEqual(attachmentNames(link("제안서_김일홍.docx")), ["제안서_김일홍.docx"]);
+  assert.deepEqual(attachmentNames([link("제안서.pptx"), link("표.xlsx")].join(";")), ["제안서.pptx", "표.xlsx"]);
+});

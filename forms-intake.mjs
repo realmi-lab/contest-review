@@ -107,7 +107,9 @@ export function dayOf(value) {
 // Forms 파일 업로드 답은 [{"name": "기획서_홍길동.pptx", "link": …}, …] 형식이거나 OneDrive 링크·파일 이름을 ;·쉼표·줄바꿈으로 나열한다.
 // 한글 이름은 %EA%B8%B0…처럼 URL 인코딩되어 쌓이므로(두 번 인코딩된 것 포함) 풀어서 OneDrive에 내려받은 파일 이름과 맞춘다.
 function plainName(s) {
-  let name = String(s ?? "").split("?")[0].split("/").pop().trim();
+  const text = String(s ?? "").trim();
+  // OneDrive·SharePoint 문서 링크(…/_layouts/15/Doc.aspx?sourcedoc=…&file=제안서.docx)는 file= 값이 파일 이름이다.
+  let name = /[?&]file=([^&#]+)/i.exec(text)?.[1] ?? text.split("?")[0].split("/").pop().trim();
   for (let i = 0; i < 2 && /%[0-9a-f]{2}/i.test(name); i++) {
     try { name = decodeURIComponent(name); } catch { break; }
   }

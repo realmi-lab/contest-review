@@ -2094,3 +2094,9 @@ html[data-nav="turn-prev"]::view-transition-new(sheet) { animation: card-in-left
 /* MS Forms 작품 머리: 이메일과 간략 설명 */
 .forms-note { display: grid; gap: 4px; max-width: 72ch; margin: 10px 0 0; color: var(--text-2); font-size: var(--fs-ui); }
 .forms-note a { justify-self: start; color: var(--accent-text); }
+/* MS Forms 첨부 목록: 파일 이름과 자동 접수 결과 */
+.forms-files { padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper); font-size: var(--fs-ui); }
+.forms-files p { margin: 0; }
+.forms-files ul { display: grid; gap: 4px; margin: 8px 0; padding: 0; list-style: none; }
+.forms-files li { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.forms-files li span { font-size: var(--fs-meta); }
