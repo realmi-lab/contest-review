@@ -62,7 +62,8 @@ AI 비용은 목록 위에 **오늘 · 최근 7일**로 늘 보입니다. 아이
 | Node.js 22.21 이상 | 없으면 실행할 때 설치합니다 |
 | 인터넷 | 처음 설치와 AI 요약에 필요합니다. 회사 프록시는 `HTTPS_PROXY`로 넘깁니다 |
 | AI 키 | Anthropic API 키 또는 회사 LiteLLM 주소와 키 |
-| Microsoft Office (맥) | 회사 계정으로 로그인된 Word·PowerPoint·Excel. 보호(MIP) 문서를 열어 캡처하는 데 씁니다. Word 캡처에서 리본·눈금자·상태 표시줄은 잘라 내고 쪽만 남깁니다 |
+| Microsoft Office | 회사 계정으로 로그인된 Word·PowerPoint·Excel. 보호(MIP) 문서와 보호된 응답 엑셀을 여는 데 씁니다. 맥은 창을 캡처하고(Word는 쪽만 잘라 냄), 윈도우는 창 없이 열어 PDF로 내보냅니다 |
+| Microsoft Edge (윈도우) | 보호(MIP) PDF와 보호된 Office 첨부를 읽는 데 씁니다. 이 앱 전용 Edge 프로필을 화면 밖 창으로 열어 쪽마다 캡처합니다. 처음 한 번 `deploy/edge-login.bat`을 실행해 그 창에서 회사 계정으로 로그인하고 창을 닫습니다 |
 | Microsoft Edge (맥) | 회사 계정으로 로그인. 보호(MIP) PDF를 새 창에 열어 '다른 이름으로 저장'한 사본을 읽고(사본은 읽자마자 지움), 저장이 안 되면 그 창을 캡처해 탭·주소창을 잘라 냅니다(Edge가 없으면 Adobe Acrobat Reader). 그동안 새 Edge 창이 잠깐 앞으로 나왔다 닫히고, 저장할 때 클립보드를 잠깐 씁니다(끝나면 되돌림). 문서 권한이 저장·캡처를 막으면 읽지 못합니다 |
 | OneDrive | 응답 엑셀과 첨부 폴더가 이 PC에 동기화되어 있어야 합니다 |
 
@@ -73,10 +74,11 @@ AI 비용은 목록 위에 **오늘 · 최근 7일**로 늘 보입니다. 아이
 | 기능 | 맥 | 윈도우 |
 | --- | --- | --- |
 | 그림 올리기 · 글자 읽기 · AI 요약·점검 · 채점표 | ○ | ○ |
-| 첨부 문서 자동 캡처 (PDF·Word·PowerPoint·Excel, 보호 PDF는 Edge) | ○ | ✕ 화면을 캡처해 올립니다 |
-| 보호(MIP)된 응답 엑셀 읽기 | ○ | ✕ |
+| 첨부 문서 자동 캡처 (PDF·Word·PowerPoint·Excel, 보호 문서는 Edge) | ○ 앱 창을 캡처 | ○ 앱을 창 없이 열어 PDF로, 보호 문서는 화면 밖 Edge |
+| 보호(MIP)된 응답 엑셀 읽기·고치기 | ○ | ○ Excel을 창 없이 |
+| 운영 맥 점검 | ○ | ✕ |
 
-윈도우는 자동 점검(GitHub Actions)에서 `start.bat` 실행, 글자 읽기, 회귀 점검까지 확인합니다. 회사 PC에서 처음 쓸 때는 한 번 직접 확인해 주세요.
+윈도우는 자동 점검(GitHub Actions)에서 `start.bat` 실행, 글자 읽기, 회귀 점검, PDF 쪽 그림, 전용 Edge 프로필 캡처까지 확인합니다. Office는 점검 PC에 없어 스크립트 문법만 확인하므로, 회사 PC에서 처음 쓸 때 Word·PowerPoint·Excel·보호 PDF 첨부를 한 번씩 직접 확인해 주세요.
 
 ## 6. 자주 생기는 문제
 

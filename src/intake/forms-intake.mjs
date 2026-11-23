@@ -1,12 +1,12 @@
 // MS Forms 공모 연동.
-// Power Automate가 Forms 응답을 OneDrive 엑셀에 쌓고, 첨부는 OneDrive의 Forms 폴더에 들어온다. 이 맥에 동기화된 두 곳을 읽어
+// Power Automate가 Forms 응답을 OneDrive 엑셀에 쌓고, 첨부는 OneDrive의 Forms 폴더에 들어온다. 이 PC에 동기화된 두 곳을 읽어
 // ① 응답마다 작품 폴더를 만들어 첨부를 복사하고 ② 분야별 심사자 폴더에 배정 작품과 평가표 엑셀을 두고 공유를 요청하며
 // ③ 심사자가 채운 평가표를 다시 읽는다. 폴더 공유는 Power Automate가 '_공유 요청' 폴더의 요청 파일을 보고 처리한다.
 // 설정은 deploy/site.json의 forms다(서버마다 다름. 예시: deploy/site.example.json).
-import { execFile } from "node:child_process";
 import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { excelRows, excelWrite } from "./excel-app.mjs";
 import { patchCells, readSheet, writeWorkbook } from "./xlsx.mjs";
 
 // 응답 엑셀에서 읽는 값. 설정의 columns에 회사 엑셀의 실제 열 이름을 적는다(id·title은 필수).
@@ -189,49 +189,9 @@ export async function fromOneDrive(file, action, waitMs = 1000, tries = 10) {
 }
 export const readOneDrive = (file) => fromOneDrive(file, () => readFile(file));
 
-// MIP(민감도 레이블)로 암호화된 엑셀은 zip(PK…)이 아닌 암호화 파일이라 직접 풀 수 없다. 맥의 Excel 앱이 회사 계정으로
-// 열어 값을 넘겨 준다(처음 한 번 macOS가 'Excel 제어 허용'을 묻는다). 이미 열려 있던 통합 문서는 닫지 않고, 다른 문서가 없으면 Excel도 끈다.
-// work는 book·sheet(·input)로 일하고 결과를 out에 둔다. readOnly면 읽기 전용으로 연다(자동 저장으로 파일이 바뀌면 바뀐 줄 알고 계속 다시 읽게 된다).
-const excelScript = (work, readOnly) => `function run([file, sheetName, input]) {
-  const excel = Application("Microsoft Excel");
-  const name = file.split("/").pop();
-  const opened = excel.workbooks().find((w) => w.name() === name);
-  if (!opened) {
-    try { excel.openWorkbook({ workbookFileName: file, readOnly: ${readOnly} }); } catch (e) { excel.open(Path(file)); }
-  }
-  const book = opened || excel.workbooks().find((w) => w.name() === name) || excel.activeWorkbook();
-  const sheet = sheetName ? book.worksheets.byName(sheetName) : book.worksheets[0];
-  ${work}
-  if (!opened) {
-    book.close({ saving: "no" });
-    if (!excel.workbooks().length) excel.quit(); // 이 일로 켠 Excel은 다시 끈다
-  }
-  return out;
-}`;
-const EXCEL_READER = excelScript(`let rows = sheet.usedRange.value();
-  if (!Array.isArray(rows)) rows = [[rows]];
-  const two = (n) => String(n).padStart(2, "0");
-  const cell = (v) => Object.prototype.toString.call(v) === "[object Date]"
-    ? v.getFullYear() + "-" + two(v.getMonth() + 1) + "-" + two(v.getDate()) + " " + two(v.getHours()) + ":" + two(v.getMinutes())
-    : v ?? "";
-  const out = JSON.stringify(rows.map((r) => (Array.isArray(r) ? r : [r]).map(cell)));`, true);
-// 칸을 고치고 저장한다. 칸 위치는 읽을 때와 같이 쓰인 범위(usedRange) 안에서 센다.
-const EXCEL_WRITER = excelScript(`const used = sheet.usedRange;
-  for (const c of JSON.parse(input)) used.rows[c.row].cells[c.column].value = c.value;
-  try { book.save(); } catch (e) { excel.save(book); }
-  const out = "";`, false);
+// MIP(민감도 레이블)로 암호화된 엑셀은 zip(PK…)이 아닌 암호화 파일이라 이 PC의 Excel 앱으로 읽는다(excel-app.mjs).
 export const isEncrypted = (buffer) => !(buffer[0] === 0x50 && buffer[1] === 0x4b);
-// Excel 앱에 일을 시킨다(what: 읽지·고치지)
-function excelApp(script, what, file, sheetName, input = "") {
-  if (process.platform !== "darwin") throw new Error("암호화(MIP)된 응답 엑셀은 맥의 Excel 앱으로만 다룰 수 있습니다.");
-  return new Promise((resolve, reject) =>
-    execFile("osascript", ["-l", "JavaScript", "-e", script, file, sheetName, input], { timeout: 180_000, maxBuffer: 64 << 20 },
-      (e, out, errText) => (e
-        ? reject(new Error(`Excel 앱으로 응답 엑셀을 ${what} 못했습니다(Excel 설치·회사 계정 로그인·Excel 제어 허용 확인): ` + (String(errText).trim() || (e.killed ? "시간 초과" : "종료 코드 " + e.code))))
-        : resolve(out))));
-}
-const rowsOf = async (buffer, file, sheetName) =>
-  isEncrypted(buffer) ? JSON.parse(await excelApp(EXCEL_READER, "읽지", file, sheetName)) : readSheet(buffer, sheetName);
+const rowsOf = async (buffer, file, sheetName) => (isEncrypted(buffer) ? excelRows(file, sheetName) : readSheet(buffer, sheetName));
 export const workbookRows = async (file, sheetName = "") => rowsOf(await readOneDrive(file), file, sheetName);
 
 export async function readResponses(config) {
@@ -248,7 +208,7 @@ export async function writeResponse(config, id, values) {
   const row = rows.findIndex((r, i) => i > at && nfc(r[index.id]).trim() === id);
   if (at < 0 || row < 0) throw new Error(`응답 엑셀에서 응답 ${id}을 찾지 못했습니다.`);
   const cells = Object.entries(values).filter(([key]) => index[key] >= 0).map(([key, value]) => ({ row, column: index[key], value }));
-  if (isEncrypted(buffer)) await excelApp(EXCEL_WRITER, "고치지", file, sheetName, JSON.stringify(cells));
+  if (isEncrypted(buffer)) await excelWrite(file, sheetName, cells);
   else await writeFile(file, patchCells(buffer, sheetName, cells));
 }
 

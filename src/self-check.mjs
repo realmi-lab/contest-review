@@ -4,7 +4,8 @@
 import path from "node:path";
 import sharp from "sharp";
 import { root } from "./config.mjs";
-import { attachmentPages, installed, macPermissions } from "./intake/attachment-pages.mjs";
+import { attachmentPages } from "./intake/attachment-pages.mjs";
+import { installed, macPermissions } from "./intake/pages-mac.mjs";
 
 const SAMPLES = path.join(root, "assets", "self-check");
 // name: 화면에 보일 이름 · file: 시험 문서 · app: 필요한 앱 · secured: Forms 첨부처럼 보호 문서로 읽기 · need: 없을 때 안내

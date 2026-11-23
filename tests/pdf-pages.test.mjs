@@ -1,4 +1,4 @@
-// PDF를 쪽 그림으로 바꾸기(맥 PDFKit). 실제 osascript를 쓰므로 맥에서만 돈다(CI의 macOS에서 확인).
+// PDF를 쪽 그림으로 바꾸기(맥 PDFKit, 윈도우 Windows.Data.Pdf). 실제 osascript·PowerShell을 쓰므로 맥·윈도우에서만 돈다(CI에서 확인).
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
@@ -25,7 +25,7 @@ function blankPdf(n) {
   return pdf + `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
 }
 
-test("PDF는 쪽마다 PNG가 되고, 한 쪽만 달라고 하면 그 쪽만 준다", { skip: process.platform !== "darwin" && "맥에서만" }, async () => {
+test("PDF는 쪽마다 PNG가 되고, 한 쪽만 달라고 하면 그 쪽만 준다", { skip: !["darwin", "win32"].includes(process.platform) && "맥·윈도우에서만" }, async () => {
   const file = path.join(mkdtempSync(path.join(os.tmpdir(), "pdf-")), "제안서.pdf");
   writeFileSync(file, blankPdf(3));
   const pages = await attachmentPages(file);
