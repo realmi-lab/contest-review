@@ -108,10 +108,12 @@ export function readingPane() {
   const summary = `<section class="read-section summary-edition">
     ${groups.length ? join(groups, ([heading, points]) => {
       const lead = heading === MAIN;
-      // 핵심 요약의 제목은 줄 목록 위에 따로 크게 둔다(문서 전체를 말하므로 근거 쪽은 붙이지 않는다).
-      const title = lead && points.find((p) => p.topic === TITLE);
-      return `<div class="summary-group${lead ? "" : " summary-detail"}"><h2>${heading}</h2>${title ? `<p class="summary-title">${esc(title.text)}</p>` : ""}
-        <ul class="summary-points${listClass(lead, former)}">${join(points.filter((p) => p !== title), item(lead))}</ul></div>`;
+      // 핵심 요약 맨 위 오렌지 한 줄: 한 줄 요약(없으면 제목). 제목·한 줄 요약은 아래 줄 목록에서 뺀다.
+      // 예전 형식은 한 줄 요약을 전처럼 회색 상자로 둔다.
+      const top = lead && !former && (points.find(gist) || points.find((p) => p.topic === TITLE));
+      const rows = lead && !former ? points.filter((p) => p.topic !== TITLE && !gist(p)) : points;
+      return `<div class="summary-group${lead ? "" : " summary-detail"}"><h2>${heading}</h2>${top ? `<p class="summary-title">${esc(top.text)}</p>` : ""}
+        <ul class="summary-points${listClass(lead, former)}">${join(rows, item(lead))}</ul></div>`;
     }) :
       `<h2>${MAIN}</h2><p>이 화면에 추가할 확인된 요점이 없습니다.</p>`}
     ${unfilled}
