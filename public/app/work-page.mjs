@@ -18,7 +18,7 @@ function nextAction() {
   if (state.tab === "결과") return state.work.final ? ["next-work", "다음 작품"] : ["go-final", "채점하기"];
   if (!currentReading()) return state.tab === "요약" ? [] : ["open-summary", "내용 요약으로"];
   if (!currentLogic()) return ["check-logic", "사실·논리 점검 실행"];
-  return state.work.final ? ["next-work", "다음 작품"] : ["open-report", "채점표 열기"];
+  return state.work.final ? ["next-work", "다음 작품"] : []; // 채점표는 단계 탭에서 연다
 }
 
 // 단계별 완료 여부와 한 줄 설명 (왼쪽 메뉴의 단계 목록)

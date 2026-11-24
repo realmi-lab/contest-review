@@ -97,7 +97,6 @@ const actions = {
       return;
     await setComplete(true);
   },
-  "open-report": () => switchTab("결과"),
   "open-summary": () => switchTab("요약"),
   "go-final": () => {
     $("finalpanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
