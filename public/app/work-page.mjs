@@ -154,6 +154,7 @@ export function workView() {
       </div>
       <div class="detail-actions">
         ${state.work.captures.length ? `<a class="button big" href="/api/share/${esc(state.work.id)}" target="_blank" rel="noopener" title="핵심·세부 요약·AI 논리점검·원본 캡처를 HTML 한 파일로 엽니다">내보내기</a>` : ""}
+        ${state.work.captures.length ? `<button type="button" class="big" data-action="send-slack" ${state.app.slack ? "" : 'disabled title="deploy/site.json에 slack.botToken을 넣으면 쓸 수 있습니다"'}>Slack 보내기</button>` : ""}
         ${action ? `<button id="run" type="button" class="primary big" data-action="${action}">${label}</button>` : ""}
       </div>
     </header>

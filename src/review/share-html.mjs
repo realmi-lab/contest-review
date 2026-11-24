@@ -1,4 +1,5 @@
-// 내보내기(나중에 Slack으로 보낼) HTML 한 파일: 핵심 요약 → 세부 요약 → AI 논리점검 → 원본 캡처.
+// 내보내기(Slack으로도 보내는) HTML 한 파일: 작품 화면처럼 탭 세 개(캡처 자료 · AI 요약 · AI 논리점검)로 나눠 보여 준다.
+// 탭은 스크립트 없이 라디오 단추와 CSS로만 바꾼다(스크립트를 막은 곳에서도 열린다).
 // 글꼴(빗썸 고딕)과 캡처 그림을 모두 파일 안에 넣어 인터넷 없이 브라우저에서 같은 모양으로 열린다.
 // 원문 근거 쪽 번호는 파일 안에서 누를 수 없어 넣지 않는다. 보낸 순간의 내용이 그대로 남는다.
 import { readFile } from "node:fs/promises";
@@ -25,7 +26,7 @@ const rows = (points) => `<ul class="rows">${join(points, (p) => `<li><b>${esc(p
 const items = (list, tag = "ul") => `<${tag}>${join(list, (x) => `<li>${esc(typeof x === "string" ? x : x.text)}</li>`)}</${tag}>`;
 
 function summaryPart(r) {
-  if (!r) return '<section><h2>AI 요약</h2><p class="muted">요약이 없습니다.</p></section>';
+  if (!r) return '<p class="muted">요약이 없습니다.</p>';
   const brief = r.edition?.brief || [], detail = r.edition?.detail || [];
   const top = brief.find((p) => p.topic === "한 줄 요약") || brief.find((p) => p.topic === "제목");
   const missing = r.edition?.missing || [];
@@ -36,9 +37,9 @@ function summaryPart(r) {
 }
 
 function logicPart(o) {
-  if (!o || o.error) return '<section><h2>AI 논리점검</h2><p class="muted">점검 결과가 없습니다.</p></section>';
+  if (!o || o.error) return '<p class="muted">점검 결과가 없습니다.</p>';
   const card = (cls, title, list, tag) => (list?.length ? `<div class="card ${cls}"><h3>${title}</h3>${items(list, tag)}</div>` : "");
-  return `<section><h2>AI 논리점검</h2>${o.take ? `<p class="take">${esc(o.take)}</p>` : ""}
+  return `<section>${o.take ? `<p class="take">${esc(o.take)}</p>` : ""}
     <div class="pair">${card("good", "잘된 점", o.strengths)}${card("warn", "확인할 점", o.weaknesses)}</div>
     ${card("ask", "제안자에게 물어볼 것", o.questions, "ol")}
     ${o.compliance?.length ? `<div class="card legal"><h3>법·컴플라이언스 확인</h3><ul>${join(o.compliance, (x) => `<li><em>${esc(x.area)}</em>${esc(x.text)}</li>`)}</ul>
@@ -56,9 +57,15 @@ export async function shareHtml(w) {
 :root { --orange: #ff6c00; --fill: #f3f4f6; --line: #e2e4e8; --text: #1a1c1f; --text-2: #3c3f44; --text-3: #63666b; }
 body { margin: 0; background: #e9eaec; color: var(--text); font: 16px/1.7 "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
 main { max-width: 920px; margin: 32px auto; padding: 40px 48px; border-radius: 16px; background: #fff; }
+.tabs { display: flex; gap: 4px; margin: 24px 0 4px; border-bottom: 2px solid var(--text); }
+.tabs label { padding: 10px 18px; border-radius: 8px 8px 0 0; color: var(--text-3); font-family: "Bithumb Gothic", sans-serif; cursor: pointer; }
+.tabs label:hover { background: var(--fill); }
+.pane, input[name="tab"] { display: none; }
+#tab-1:checked ~ .tabs [for="tab-1"], #tab-2:checked ~ .tabs [for="tab-2"], #tab-3:checked ~ .tabs [for="tab-3"] { background: var(--text); color: #fff; }
+#tab-1:checked ~ .p1, #tab-2:checked ~ .p2, #tab-3:checked ~ .p3 { display: block; }
 h1, h2, h3 { font-family: "Bithumb Gothic", sans-serif; letter-spacing: -0.02em; }
 h1 { margin: 0 0 6px; font-size: 28px; line-height: 1.35; }
-h2 { margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--text); font-size: 20px; }
+h2 { margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--text); font-size: 20px; }
 h3 { margin: 0 0 8px; font-size: 16px; }
 .meta, .muted { color: var(--text-3); font-size: 14px; }
 .lead { margin: 0 0 12px; color: var(--orange); font-family: "Bithumb Gothic", sans-serif; font-size: 20px; line-height: 1.5; }
@@ -76,14 +83,16 @@ h3 { margin: 0 0 8px; font-size: 16px; }
 .legal { background: #fff; box-shadow: inset 0 0 0 1px var(--line); }
 .legal ul { list-style: none; padding: 0; }
 .legal em { display: inline-block; min-width: 8em; margin-right: 10px; color: var(--text-2); font-style: normal; font-weight: 700; }
-figure { margin: 0 0 20px; } figure img { display: block; width: 100%; border: 1px solid var(--line); border-radius: 8px; }
+figure { margin: 20px 0; } figure img { display: block; width: 100%; border: 1px solid var(--line); border-radius: 8px; }
 figcaption { margin-top: 4px; color: var(--text-3); font-size: 13px; }
 footer { margin-top: 32px; color: var(--text-3); font-size: 13px; }
 </style></head><body><main>
 <h1>${esc(w.name)}</h1>${meta ? `<p class="meta">${meta}</p>` : ""}
-${summaryPart(reading)}
-${logicPart(opinion)}
-<section><h2>원본 캡처 · ${w.captures.length}쪽</h2>${await pictures(w.captures)}</section>
+<input type="radio" name="tab" id="tab-1" checked><input type="radio" name="tab" id="tab-2"><input type="radio" name="tab" id="tab-3">
+<nav class="tabs"><label for="tab-1">캡처 자료 · ${w.captures.length}쪽</label><label for="tab-2">AI 요약</label><label for="tab-3">AI 논리점검</label></nav>
+<div class="pane p1">${await pictures(w.captures)}</div>
+<div class="pane p2">${summaryPart(reading)}</div>
+<div class="pane p3">${logicPart(opinion)}</div>
 <footer>아이디어정리에서 내보냄 · ${seoulMinute(new Date().toISOString())}</footer>
 </main></body></html>`;
 }

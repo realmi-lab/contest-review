@@ -10,6 +10,7 @@ import { intake, originalFile, updateResponse } from "../intake/sync.mjs";
 import { busy, schedule, tasks } from "../jobs.mjs";
 import { defaults, finalSheet, rubric, scoreRows, sheet, toCsv } from "../review/review.mjs";
 import { shareHtml } from "../review/share-html.mjs";
+import { sendHtml, slackPeople, slackReady } from "../slack.mjs";
 import { similarWorks } from "../review/similar.mjs";
 import { sampleImage } from "../sample.mjs";
 import {
@@ -39,6 +40,7 @@ export default {
       sheet,
       intake: intake.view,
       ai: { provider: ai.provider, label: haikuLabel },
+      slack: slackReady(), // Slack 보내기를 쓸 수 있는가(봇 토큰이 있는가)
     }),
 
   // 전체 채점 결과 (엑셀에서 여는 CSV)
@@ -74,6 +76,26 @@ export default {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(`${w.name.slice(0, 60)}_AI요약_${today()}.html`)}`);
     res.end(await shareHtml(w));
+  },
+
+  // Slack 담당자 검색(이름·표시 이름·직함)
+  "GET /api/slack-people": async ({ query, json }) => json(await slackPeople(query.get("q"))),
+
+  // Slack 보내기: 내보내기 HTML을 고른 담당자에게 DM으로 보내고, 누구에게 언제 보냈는지 작품에 남긴다.
+  "POST /api/slack-send": async ({ b, json }) => {
+    const w = current(b);
+    const user = /^[UW][A-Z0-9]+$/.test(b.user) ? b.user : err("담당자를 고르세요.");
+    const brief = w.cloudReading?.rev === w.rev ? w.cloudReading.edition?.brief || [] : [];
+    const gist = (brief.find((p) => p.topic === "한 줄 요약") || brief.find((p) => p.topic === "제목"))?.text || "";
+    await sendHtml(user, {
+      filename: `${w.name.slice(0, 60)}_AI요약_${today()}.html`,
+      html: await shareHtml(w),
+      comment: `*${w.name}*${gist ? "\n" + gist : ""}\n아이디어정리에서 보낸 AI 요약·논리점검입니다. 첨부한 HTML 파일을 내려받아 브라우저로 여세요.`,
+    });
+    const latest = load(w.id);
+    latest.slackSent = [...(latest.slackSent || []), { user, name: bounded(b.name, 80), at: new Date().toISOString() }];
+    save(latest);
+    json({ ok: true });
   },
 
   // 비슷한 제안 (similar.mjs). 판정(중복·관련·무관)은 어느 쪽 작품에 남겼든 함께 보여 준다.

@@ -10,6 +10,7 @@ import { updateSheet } from "./sheet.mjs";
 import { POLL_BUSY_MS, STEP_TABS, aiLabel, state } from "./state.mjs";
 import { $, api, closeDialog, notify, stopCapture } from "./ui.mjs";
 import { closeViewer } from "./viewer.mjs";
+import { findPeople } from "./slack.mjs";
 
 async function onChange(e) {
   if (e.target.id === "files") return upload([...e.target.files]);
@@ -89,6 +90,7 @@ matchMedia("(max-width: 700px)").addEventListener("change", () => {
 for (const type of ["dragover", "dragleave", "drop"])
   document.addEventListener(type, safe(onDrag));
 document.addEventListener("input", (e) => {
+  if (e.target.id === "slack-q") return findPeople(e.target.value);
   if (e.target.id === "search") {
     // 입력칸은 그대로 두고 카드 목록만 다시 그린다.
     state.listQuery.text = e.target.value;

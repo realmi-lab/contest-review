@@ -12,6 +12,7 @@ import { markSimilar, summaryUnavailable } from "./summary.mjs";
 import { $, api, button, closeDialog, dialog, notify } from "./ui.mjs";
 import { closeViewer, openCaptureGallery, showRef, showUncertain, zoomCaptureDetail } from "./viewer.mjs";
 import { pageCoverage, showJob } from "./work-page.mjs";
+import { openSlackSend, pickPerson, sendToPerson } from "./slack.mjs";
 
 // 요약과 AI 논리점검은 Claude Haiku로 실행한다. 요약을 만들면 서버가 점검까지 이어서 한다.
 async function startJob(route, nextTab) {
@@ -59,6 +60,8 @@ const actions = {
     await sync(true);
   },
   "link-web-browser": async () => { location.assign((await api("summary-link", {})).url); },
+  "send-slack": openSlackSend, // 담당자에게 Slack으로 보내기
+  "slack-go": sendToPerson,
   "edit-intake": () => dialog(
     "접수 정보 수정",
     `<form id="edit-intake" class="stack" data-id="${esc(state.work.id)}" data-version="${state.work.intakeVersion ?? 0}">
@@ -209,6 +212,7 @@ export async function onClick(e) {
     return;
   }
   if (d.stepWork) return stepWork(Number(d.stepWork));
+  if (d.slackUser) return pickPerson(b);
   if (d.summaryCommand) return runSummaryCommand(b.closest("[data-summary-work]").dataset.summaryWork);
   if (d.listView) {
     state.listQuery.view = d.listView;

@@ -42,5 +42,8 @@
         ]
       }
     ]
+  },
+  "slack": {
+    "botToken": "xoxb-봇-토큰(Slack 앱의 OAuth & Permissions에서 복사)"
   }
 }
