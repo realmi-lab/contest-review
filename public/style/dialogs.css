@@ -155,3 +155,8 @@ dialog:has(.capture-stage) .iconbtn:hover {
 .slack-send { display: grid; gap: 10px; margin-bottom: 20px; }
 .slack-send h3 { margin: 0; }
 .slack-go { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.slack-replies h4 { margin: 8px 0; }
+.slack-replies ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.slack-replies li { padding: 12px 14px; border-radius: 10px; background: var(--fill); }
+.slack-replies small { margin-left: 8px; color: var(--text-3); }
+.slack-replies p { margin: 4px 0 0; white-space: pre-wrap; }

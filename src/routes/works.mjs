@@ -87,13 +87,13 @@ export default {
     const user = /^[UW][A-Z0-9]+$/.test(b.user) ? b.user : err("담당자를 고르세요.");
     const brief = w.cloudReading?.rev === w.rev ? w.cloudReading.edition?.brief || [] : [];
     const gist = (brief.find((p) => p.topic === "한 줄 요약") || brief.find((p) => p.topic === "제목"))?.text || "";
-    await sendHtml(user, {
+    const thread = await sendHtml(user, {
       filename: `${w.name.slice(0, 60)}_AI요약_${today()}.html`,
       html: await shareHtml(w),
       comment: `*${w.name}*${gist ? "\n" + gist : ""}\n아이디어정리에서 보낸 AI 요약·논리점검입니다. 첨부한 HTML 파일을 내려받아 브라우저로 여세요.`,
     });
     const latest = load(w.id);
-    latest.slackSent = [...(latest.slackSent || []), { user, name: bounded(b.name, 80), at: new Date().toISOString() }];
+    latest.slackSent = [...(latest.slackSent || []), { user, name: bounded(b.name, 80), at: new Date().toISOString(), ...thread }];
     save(latest);
     json({ ok: true });
   },

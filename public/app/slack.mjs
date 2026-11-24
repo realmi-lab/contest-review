@@ -6,11 +6,18 @@ import { $, api, notify } from "./ui.mjs";
 
 let picked = null, timer = 0;
 
-// 채점표 탭 맨 위: Slack에 있는 사람을 이름으로 검색 → 고르기 → 보내기. 보낸 기록도 여기 보여 준다.
+// 담당자가 봇 DM에 남긴 답장(서버가 1분마다 가져온다). 채점표 탭에 그대로 보여 준다.
+function repliesList() {
+  const replies = state.work.slackReplies || [];
+  return replies.length ? `<div class="slack-replies"><h4>담당자 의견 · ${replies.length}건</h4>
+    <ul>${join(replies, (r) => `<li><b>${esc(r.name)}</b><small>${seoulMinute(r.at)}</small><p>${esc(r.text)}</p></li>`)}</ul></div>` : "";
+}
+
+// 채점표 탭 맨 위: Slack에 있는 사람을 이름으로 검색 → 고르기 → 보내기. 보낸 기록과 담당자 의견(DM 답장)도 여기 보여 준다.
 export function slackPanel() {
   if (!state.work.captures.length) return "";
   if (!state.app.slack)
-    return '<section class="panel slack-send no-print"><h3>담당자에게 보내기</h3><p class="small muted">deploy/site.json에 Slack 봇 토큰(slack.botToken)을 넣으면 Slack에 있는 사람을 검색해 보낼 수 있습니다.</p></section>';
+    return `<section class="panel slack-send no-print"><h3>담당자에게 보내기</h3><p class="small muted">deploy/site.json에 Slack 봇 토큰(slack.botToken)을 넣으면 Slack에 있는 사람을 검색해 보낼 수 있습니다.</p>${repliesList()}</section>`;
   picked = null;
   const sent = state.work.slackSent || [];
   return `<section class="panel slack-send no-print"><h3>담당자에게 보내기</h3>
@@ -19,7 +26,8 @@ export function slackPanel() {
     <ul id="slack-people" class="slack-people" aria-live="polite"></ul>
     <div class="slack-go"><span id="slack-picked" class="muted">검색해서 담당자를 고르세요</span>
       <button id="slack-go" type="button" class="primary" data-action="slack-go" disabled>보내기</button></div>
-    ${sent.length ? `<p class="small muted">보낸 기록 · ${esc(sent.map((s) => `${s.name} ${seoulMinute(s.at)}`).join(" · "))}</p>` : ""}
+    ${sent.length ? `<p class="small muted">보낸 기록 · ${esc(sent.map((s) => `${s.name} ${seoulMinute(s.at)}`).join(" · "))} — 받은 사람이 DM에 답장하면 아래 담당자 의견에 담깁니다</p>` : ""}
+    ${repliesList()}
   </section>`;
 }
 

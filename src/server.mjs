@@ -7,6 +7,7 @@ import { requeueOcr } from "./captures.mjs";
 import { directory, port, webMode } from "./config.mjs";
 import { createHandler } from "./http.mjs";
 import { startIntake } from "./intake/sync.mjs";
+import { startReplies } from "./slack.mjs";
 import { onJobEnd, tasks } from "./jobs.mjs";
 import settingsRoutes from "./routes/settings.mjs";
 import worksRoutes from "./routes/works.mjs";
@@ -17,6 +18,7 @@ process.umask(0o077);
 onJobEnd((wid) => autoSummarize(wid).catch(() => {})); // 지워진 작품·키 없음 등은 넘어간다
 requeueOcr();
 startIntake();
+startReplies(); // Slack 답장(의견)을 1분마다 가져온다
 
 // 서비스 재시작 때 진행 중이던 요약·점검이 말없이 사라지지 않도록 작품에 적는다.
 // 대기 중인 글자 인식은 다음 시작 때 다시 줄을 선다.
