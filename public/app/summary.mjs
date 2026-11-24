@@ -3,12 +3,12 @@ import { explainOcr, readingViews, representativeCaptures } from "../lib/expande
 import { esc, join } from "../lib/html.mjs";
 import { currentReading, splitName, sync } from "./navigation.mjs";
 import { cloudScope, state, submittingSummaries } from "./state.mjs";
-import { $, api, button, claim, emptyState, glossaryNote, refs } from "./ui.mjs";
+import { $, api, claim, emptyState, glossaryNote, refs } from "./ui.mjs";
 
 /* ─────────────────────────── 내용 요약 탭 ─────────────────────────── */
 
-// 메인 요약(제목 아래 배경·내용·효과)과 세부 요약, 두 묶음만 한 화면에 차례로 보여 준다.
-const MAIN = "메인 요약", TITLE = "제목";
+// 핵심 요약(제목 아래 배경·내용·효과)과 세부 요약(문제 → 목표 → 방법 → 결과 → 시사점), 두 묶음만 한 화면에 차례로 보여 준다.
+const MAIN = "핵심 요약", TITLE = "제목";
 function summaryGroups(r) {
   const { brief, detail } = readingViews(r);
   return [[MAIN, brief], ["세부 요약", detail]].filter(([, points]) => points.length);
@@ -52,11 +52,10 @@ export function summaryActions(record) {
     summaryCommand(record.id, esc(record.name) + " 요약 만들기", "요약")}</div>`;
 }
 
-// 내용 요약 머리 오른쪽: 요약이 있으면 다시 만들기, 그리고 요약 설정
+// 내용 요약 머리 오른쪽: 요약이 있으면 다시 만들기
 function summaryToolbar() {
-  return `<div class="provider-toolbar no-print"><span class="spacer"></span>
-    ${currentReading() ? summaryCommand(state.work.id, "요약 다시 만들기", "다시 만들기", "remake") : ""}
-    ${button("summary-settings", "요약 설정", "link")}</div>`;
+  return currentReading() ? `<div class="provider-toolbar no-print"><span class="spacer"></span>
+    ${summaryCommand(state.work.id, "요약 다시 만들기", "다시 만들기", "remake")}</div>` : "";
 }
 export const usd = new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 8,
@@ -94,8 +93,9 @@ export function readingPane() {
       summaryCommand(state.work.id, "요약 만들기", "요약 만들기", "primary big")) + usage;
   const groups = summaryGroups(r);
   const former = summaryPoints(r).some((p) => p.topic === "한 줄 요약"); // 예전 형식(한 줄 요약 → 문제 → … → 한계)으로 저장된 요약
+  const lastWeek = summaryPoints(r).some((p) => p.topic === "결과·근거"); // 세부 요약이 결과·근거 → 한계였던 형식
   const gist = (p) => p.topic === "한 줄 요약";
-  // 근거 그림은 세부 요약에만 붙인다(메인 요약은 글만 촘촘하게). 예전 형식은 전처럼 한 줄 요약만 빼고 붙인다.
+  // 근거 그림은 세부 요약에만 붙인다(핵심 요약은 글만 촘촘하게). 예전 형식은 전처럼 한 줄 요약만 빼고 붙인다.
   const pictured = former ? summaryPoints(r).filter((p) => !gist(p)) : readingViews(r).detail;
   const figures = new Map(representativeCaptures(r, state.work.captures, pictured).map((f) => [f.point, f]));
   const terms = new Set();
@@ -110,14 +110,15 @@ export function readingPane() {
   const summary = `<section class="read-section summary-edition">
     ${groups.length ? join(groups, ([heading, points]) => {
       const lead = heading === MAIN;
-      // 메인 요약의 제목은 줄 목록 위에 따로 크게 둔다(문서 전체를 말하므로 근거 쪽은 붙이지 않는다).
+      // 핵심 요약의 제목은 줄 목록 위에 따로 크게 둔다(문서 전체를 말하므로 근거 쪽은 붙이지 않는다).
       const title = lead && points.find((p) => p.topic === TITLE);
       return `<h2>${heading}</h2>${title ? `<p class="summary-title">${esc(title.text)}</p>` : ""}
-        <ul class="summary-points${lead ? " lead" : ""}${lead && !former ? " main" : ""}">${join(points.filter((p) => p !== title), item)}</ul>${lead ? unfilled : ""}`;
+        <ul class="summary-points${lead ? " lead" : ""}${lead && !former ? " main" : ""}">${join(points.filter((p) => p !== title), item)}</ul>`;
     }) :
       `<h2>${MAIN}</h2><p>이 화면에 추가할 확인된 요점이 없습니다.</p>`}
+    ${unfilled}
     ${glossaryNote(summaryPoints(r))}
-    ${former ? '<small class="muted">예전 형식의 요약입니다. 다시 만들기를 누르면 제목·배경·내용·효과 형식으로 바뀝니다.</small>' : ""}
+    ${former || lastWeek ? '<small class="muted">예전 형식의 요약입니다. 다시 만들기를 누르면 핵심 요약(제목·배경·내용·효과)과 세부 요약(문제·목표·방법·결과·시사점)으로 바뀝니다.</small>' : ""}
     ${r.edition?.version !== 1 ? '<small class="muted">이전 형식으로 저장된 요약입니다. 같은 모델로 다시 요약하면 새 형식으로 볼 수 있습니다.</small>' : ""}</section>`;
   const alerts = join(r.sourceAlerts || [], (a) =>
     `<p class="warning"><strong>원문 설명이 다른 부분</strong> · ${esc(a.reason)} ${refs(a.refs)}</p>`);

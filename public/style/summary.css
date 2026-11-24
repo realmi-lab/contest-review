@@ -70,7 +70,7 @@
 .summary-points.lead > li.gist > b { display: block; margin-bottom: 6px; color: var(--text-3); font-family: var(--font); font-size: var(--fs-label); font-weight: 600; }
 .summary-points.lead > li.gist .claim { max-width: none; font-family: var(--font-heading); font-size: var(--fs-lead); font-weight: 700; line-height: 1.6; letter-spacing: -0.02em; }
 .summary-points.lead > li.gist + li { border-top: 0; }
-/* 메인 요약: 오렌지 제목 아래 배경·내용·효과 세 줄을 촘촘히. 무엇을 하자는지인 '내용'이 가장 굵다(회사 아이디어 목록의 요약 칸과 같은 모양). */
+/* 핵심 요약: 오렌지 제목 아래 배경·내용·효과 세 줄을 촘촘히. 무엇을 하자는지인 '내용'이 가장 굵다(회사 아이디어 목록의 요약 칸과 같은 모양). */
 .summary-title { margin: 20px 0 6px; color: var(--accent-text); font-family: var(--font-heading); font-size: var(--fs-lead); font-weight: 700; line-height: 1.5; letter-spacing: -0.02em; }
 .summary-edition .summary-points.main > li { grid-template-columns: 44px minmax(0, 1fr); column-gap: 14px; padding: 9px 0; border-top: 0; }
 .summary-points.main > li > b { color: var(--text-3); }

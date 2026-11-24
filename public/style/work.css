@@ -5,8 +5,8 @@
   align-items: center;
   gap: 8px 12px;
 }
-.provider-toolbar .remake { border: 1px solid var(--line); background: var(--paper); color: var(--text-2); }
-.provider-toolbar .remake:enabled:hover { background: var(--fill); color: var(--text); }
+.provider-toolbar .remake { border: 1px solid var(--accent); background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.provider-toolbar .remake:enabled:hover { background: var(--accent); color: #fff; }
 .provider-toolbar .remake:disabled { border-color: var(--line-soft); background: var(--fill); color: var(--text-4); }
 
 /* ─────────────────────────── 작품 상세 ─────────────────────────── */

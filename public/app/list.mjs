@@ -194,9 +194,9 @@ const summaryCell = (x, brief) => `<td class="cell-wide">${x.hasReading
 const issuesCell = (x) => `<td class="cell-number">${x.hasLogic ? x.issues + "건" : "—"}</td>`;
 const scoreCell = (x) => `<td class="cell-number">${x.final ? x.score.toFixed(1) + "점" : "—"}</td>`;
 const VIEWS = {
-  all: { label: "전체", done: () => true, heads: ["메인 요약", "확인할 점", "확정 점수"],
+  all: { label: "전체", done: () => true, heads: ["핵심 요약", "확인할 점", "확정 점수"],
     cells: (x) => summaryCell(x, true) + issuesCell(x) + scoreCell(x) },
-  summary: { label: "내용 요약", done: (x) => x.hasReading, heads: ["메인 요약"], cells: (x) => summaryCell(x, false) },
+  summary: { label: "내용 요약", done: (x) => x.hasReading, heads: ["핵심 요약"], cells: (x) => summaryCell(x, false) },
   check: { label: "사실·논리 점검", done: (x) => x.hasLogic, heads: ["AI 한마디 평", "확인할 점"],
     cells: (x) => `<td class="cell-wide">${x.hasLogic ? `<span class="rowsummary">${esc(x.take || "점검 결과를 열어 확인하세요.")}</span>`
       : `<span class="muted">${x.hasReading ? "점검 전" : "요약 전"}</span>`}</td>${issuesCell(x)}` },
