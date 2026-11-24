@@ -2,7 +2,7 @@
 import { DefineWorkflow } from "deno-slack-sdk/mod.ts";
 import { SyncPeople } from "../functions/sync_people.ts";
 
-const SyncPeopleWorkflow = DefineWorkflow({ callback_id: "sync_people", title: "사람 목록 맞추기", input_parameters: { properties: {}, required: [] } });
+const SyncPeopleWorkflow = DefineWorkflow({ callback_id: "sync_people_workflow", title: "사람 목록 맞추기", input_parameters: { properties: {}, required: [] } });
 SyncPeopleWorkflow.addStep(SyncPeople, {});
 
 export default SyncPeopleWorkflow;
