@@ -188,18 +188,21 @@ export function overviewView() {
 
 // 표 위의 탭마다 보여 주는 열. 접수 정보·작품명·진행 상태는 같고, 가운데 열이 그 단계의 결과다.
 // done: 그 단계를 마친 작품인가(탭의 숫자) · heads: 가운데 열 이름 · cells: 가운데 칸들
+const summaryCell = (x, brief) => `<td class="cell-wide">${x.hasReading
+  ? `${x.title ? `<b class="rowsummary-title">${esc(x.title)}</b>` : ""}${brief && x.title ? "" : `<span class="rowsummary">${esc(x.gist || "요약을 열어 확인하세요.")}</span>`}`
+  : `<span class="muted">${x.count ? "요약 전" : "캡처 전"}</span>${summaryActions(x)}`}</td>`;
+const issuesCell = (x) => `<td class="cell-number">${x.hasLogic ? x.issues + "건" : "—"}</td>`;
+const scoreCell = (x) => `<td class="cell-number">${x.final ? x.score.toFixed(1) + "점" : "—"}</td>`;
 const VIEWS = {
-  summary: { label: "내용 요약", done: (x) => x.hasReading, heads: ["메인 요약"],
-    cells: (x) => `<td class="cell-wide">${x.hasReading
-      ? `${x.title ? `<b class="rowsummary-title">${esc(x.title)}</b>` : ""}<span class="rowsummary">${esc(x.gist || "요약을 열어 확인하세요.")}</span>`
-      : `<span class="muted">${x.count ? "요약 전" : "캡처 전"}</span>${summaryActions(x)}`}</td>` },
+  all: { label: "전체", done: () => true, heads: ["메인 요약", "확인할 점", "확정 점수"],
+    cells: (x) => summaryCell(x, true) + issuesCell(x) + scoreCell(x) },
+  summary: { label: "내용 요약", done: (x) => x.hasReading, heads: ["메인 요약"], cells: (x) => summaryCell(x, false) },
   check: { label: "사실·논리 점검", done: (x) => x.hasLogic, heads: ["AI 한마디 평", "확인할 점"],
-    cells: (x) => x.hasLogic
-      ? `<td class="cell-wide"><span class="rowsummary">${esc(x.take || "점검 결과를 열어 확인하세요.")}</span></td><td class="cell-number">${x.issues}건</td>`
-      : `<td class="cell-wide"><span class="muted">${x.hasReading ? "점검 전" : "요약 전"}</span></td><td class="cell-number">—</td>` },
+    cells: (x) => `<td class="cell-wide">${x.hasLogic ? `<span class="rowsummary">${esc(x.take || "점검 결과를 열어 확인하세요.")}</span>`
+      : `<span class="muted">${x.hasReading ? "점검 전" : "요약 전"}</span>`}</td>${issuesCell(x)}` },
   sheet: { label: "채점표", done: (x) => x.final, heads: ["분야", "심사자 평가", "확정 점수", "1차 결정"],
     cells: (x, prefix) => `<td class="cell-short">${esc(x.category || prefix || "기타")}</td><td>${evaluationNote(x) || "—"}</td>
-      <td class="cell-number">${x.final ? x.score.toFixed(1) + "점" : "—"}</td><td>${x.decision ? `${esc(x.decision)}<small>${esc(x.scale)}</small>` : "—"}</td>` },
+      ${scoreCell(x)}<td>${x.decision ? `${esc(x.decision)}<small>${esc(x.scale)}</small>` : "—"}</td>` },
 };
 
 // 같은 머리말끼리 묶은 작품 목록 (한 줄에 한 작품)
