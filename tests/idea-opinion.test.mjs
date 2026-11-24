@@ -16,7 +16,6 @@ test("AI 의견은 근거 요점 번호를 그 요점의 원문 근거로 잇고
       strengths: [{ text: "대상과 상황이 분명하다.", ids: [1] }, { text: "근거 없는 칭찬", ids: [] }],
       weaknesses: [{ text: "표본이 작다.", ids: [2, 9] }],
       questions: ["분실은 어떻게 막나요?", " "],
-      company: ["보안 구역 반입 규정을 확인한다."],
       compliance: [{ area: "개인정보", text: "대여자 연락처 수집 동의와 보관 기간 확인.", ids: [] }, { area: "", text: " ", ids: [1] }],
     };
   };
