@@ -210,9 +210,14 @@ test("보호 PDF: Edge도 Reader도 없으면 Edge 설치를 안내한다", { sk
   await assert.rejects(run("보호 문서.pdf", { missing: [...noEdge, "Adobe Acrobat Reader", "Adobe Acrobat Reader DC", "Adobe Acrobat"] }), /이 맥에 Edge가 없습니다/);
 });
 
-test("맥이 아니면 문서는 바꾸지 않고 그림은 그대로 받는다", async () => {
+test("맥·윈도우가 아니면 문서는 바꾸지 않고 그림은 그대로 받는다", async () => {
   const picture = path.join(dir, "그림.png");
   writeFileSync(picture, "png");
-  assert.deepEqual((await attachmentPages(picture)).map(String), ["png"]);
-  if (process.platform !== "darwin") await assert.rejects(attachmentPages(path.join(dir, "a.pdf")), /맥에서만/);
+  Object.defineProperty(process, "platform", { value: "linux", configurable: true });
+  try {
+    assert.deepEqual((await attachmentPages(picture)).map(String), ["png"]);
+    await assert.rejects(attachmentPages(path.join(dir, "a.pdf")), /맥·윈도우에서만/);
+  } finally {
+    Object.defineProperty(process, "platform", { value: os.platform(), configurable: true });
+  }
 });

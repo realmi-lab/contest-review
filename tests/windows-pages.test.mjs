@@ -1,7 +1,7 @@
 // 윈도우에서 첨부를 쪽 그림으로 바꾸기(pages-windows.mjs)와 Excel 앱 스크립트(excel-app.mjs). 실제 PowerShell·Edge를 쓰므로
 // 윈도우에서만 돈다(CI의 windows-latest). Office는 CI에 없어 스크립트 문법만 확인하고, 실제 Office·보호 문서는 회사 PC에서 확인한다.
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -45,6 +45,8 @@ test("Forms 첨부 PDF는 이 앱 전용 Edge 프로필을 화면 밖에 열어 
   const { documentPages } = await load();
   const options = { secured: true };
   const pages = await documentPages("pdf", sample, 0, options);
+  mkdirSync("test-output", { recursive: true }); // CI가 산출물로 올린다(실제 Edge 화면 확인용)
+  pages.forEach((page, i) => writeFileSync(`test-output/edge-page-${i + 1}.png`, page));
   assert.equal(options.how, "Edge 화면 캡처(이 앱 전용 Edge 프로필)");
   assert.equal(pages.length, 2);
   for (const page of pages) {

@@ -28,6 +28,13 @@ jobs:
       - name: 화면 점검 (헤드리스 Chrome)
         if: runner.os == 'Linux'
         run: npm run ui-check
+      - name: 윈도우 Edge 캡처 화면 올리기
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-edge-pages
+          path: test-output/
+          if-no-files-found: ignore
 
   start:
     name: 실행 스크립트 (${{ matrix.os }})
