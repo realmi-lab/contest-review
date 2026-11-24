@@ -160,3 +160,7 @@ dialog:has(.capture-stage) .iconbtn:hover {
 .slack-replies li { padding: 12px 14px; border-radius: 10px; background: var(--fill); }
 .slack-replies small { margin-left: 8px; color: var(--text-3); }
 .slack-replies p { margin: 4px 0 0; white-space: pre-wrap; }
+.slack-history h4 { margin: 8px 0; }
+.slack-history table { width: 100%; border-collapse: collapse; font-size: var(--fs-meta); }
+.slack-history th, .slack-history td { padding: 6px 8px; border-top: 1px solid var(--line-soft); text-align: left; }
+.slack-history th { color: var(--text-3); font-weight: 600; }

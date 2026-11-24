@@ -6,6 +6,18 @@ import { $, api, notify } from "./ui.mjs";
 
 let picked = null, timer = 0;
 
+// 보낸 기록: 누구에게 언제 보냈고, 그 사람이 답장했는지(답장 수). 최근 것이 위.
+function sentList() {
+  const sent = state.work.slackSent || [], replies = state.work.slackReplies || [];
+  if (!sent.length) return "";
+  const rows = [...sent].reverse().map((s) => {
+    const n = replies.filter((r) => r.user === s.user).length;
+    return `<tr><td>${esc(s.name)}</td><td>${seoulMinute(s.at)}</td><td>${n ? `<b class="ok-text">답장 ${n}건</b>` : '<span class="muted">답장 기다리는 중</span>'}</td></tr>`;
+  });
+  return `<div class="slack-history"><h4>보낸 기록 · ${sent.length}건</h4>
+    <table><thead><tr><th>받는 사람</th><th>보낸 시각</th><th>답장</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+}
+
 // 담당자가 봇 DM에 남긴 답장(서버가 1분마다 가져온다). 채점표 탭에 그대로 보여 준다.
 function repliesList() {
   const replies = state.work.slackReplies || [];
@@ -19,14 +31,13 @@ export function slackPanel() {
   if (!state.app.slack)
     return `<section class="panel slack-send no-print"><h3>담당자에게 보내기</h3><p class="small muted">deploy/site.json에 Slack 봇 토큰(slack.botToken)을 넣으면 Slack에 있는 사람을 검색해 보낼 수 있습니다.</p>${repliesList()}</section>`;
   picked = null;
-  const sent = state.work.slackSent || [];
   return `<section class="panel slack-send no-print"><h3>담당자에게 보내기</h3>
     <p class="small muted">캡처 자료·AI 요약·AI 논리점검을 HTML 한 파일로 만들어 Slack DM으로 보냅니다.</p>
     <input id="slack-q" type="search" placeholder="Slack에서 이름으로 검색" autocomplete="off" aria-label="담당자 이름">
     <ul id="slack-people" class="slack-people" aria-live="polite"></ul>
     <div class="slack-go"><span id="slack-picked" class="muted">검색해서 담당자를 고르세요</span>
       <button id="slack-go" type="button" class="primary" data-action="slack-go" disabled>보내기</button></div>
-    ${sent.length ? `<p class="small muted">보낸 기록 · ${esc(sent.map((s) => `${s.name} ${seoulMinute(s.at)}`).join(" · "))} — 받은 사람이 DM에 답장하면 아래 담당자 의견에 담깁니다</p>` : ""}
+    ${sentList()}
     ${repliesList()}
   </section>`;
 }

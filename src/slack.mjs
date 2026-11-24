@@ -68,7 +68,7 @@ export async function sendHtml(user, { filename, html, comment }) {
     channel_id: channel,
     initial_comment: comment,
   });
-  const ask = await call("chat.postMessage", { channel, text: "💬 이 작품에 대한 의견을 이 DM에 *답장으로* 자유롭게 남겨 주세요. 남긴 의견은 아이디어정리 채점표에 담깁니다. (앞서 받은 다른 작품에 답하려면 그 작품의 이 메시지에 답글로 남겨 주세요.)" });
+  const ask = await call("chat.postMessage", { channel, text: "💬 *의견을 보내 주세요*\n이 창 맨 아래 메시지 입력칸에 이 작품에 대한 의견을 자유롭게 적고 Enter를 누르면 됩니다. 보낸 의견은 아이디어정리 채점표에 자동으로 담깁니다.\n(앞서 받은 다른 작품에 대한 의견이면, 그 작품의 이 메시지에 마우스를 올려 *스레드에 답글*로 남겨 주세요.)" });
   return { channel, ts: ask.ts };
 }
 
