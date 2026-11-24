@@ -89,19 +89,21 @@ export default {
   // Slack 담당자 검색(이름·표시 이름·직함)
   "GET /api/slack-people": async ({ query, json }) => json(await slackPeople(query.get("q"))),
 
-  // Slack 보내기: 내보내기 HTML을 고른 담당자에게 DM으로 보내고, 누구에게 언제 보냈는지 작품에 남긴다.
+  // Slack 보내기: 내보내기 HTML과 [평가 답장하기] 단추를 고른 담당자에게 보내고(그룹 DM), 누구에게 언제 보냈는지 작품에 남긴다.
   "POST /api/slack-send": async ({ b, json }) => {
     const w = current(b);
     const user = /^[UW][A-Z0-9]+$/.test(b.user) ? b.user : err("담당자를 고르세요.");
     const brief = w.cloudReading?.rev === w.rev ? w.cloudReading.edition?.brief || [] : [];
     const gist = (brief.find((p) => p.topic === "한 줄 요약") || brief.find((p) => p.topic === "제목"))?.text || "";
-    const thread = await sendHtml(user, {
+    const sent = await sendHtml(user, {
+      workId: w.id,
+      title: w.name,
       filename: `${w.name.slice(0, 60)}_AI요약_${today()}.html`,
       html: await shareHtml(w),
       comment: `*${w.name}*${gist ? "\n" + gist : ""}\n아이디어정리에서 보낸 AI 요약·논리점검입니다. 첨부한 HTML 파일을 내려받아 브라우저로 여세요.`,
     });
     const latest = load(w.id);
-    latest.slackSent = [...(latest.slackSent || []), { user, name: bounded(b.name, 80), at: new Date().toISOString(), ...thread }];
+    latest.slackSent = [...(latest.slackSent || []), { user, name: bounded(b.name, 80), at: new Date().toISOString(), ...sent }];
     save(latest);
     json({ ok: true });
   },

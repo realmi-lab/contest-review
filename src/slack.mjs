@@ -1,13 +1,16 @@
-// Slack 보내기: 담당자 찾기(users.list), 그 사람에게 DM으로 HTML 파일 보내기(파일 올리기 3단계),
-// 그리고 담당자의 평가 의견을 받아 작품에 담기: 의견 요청 메시지에 단 스레드 답글만 1분마다 가져온다(DM 창에 그냥 쓴 글은 받지 않는다).
-// 답글은 Slack에 남아 있으므로 서버가 꺼져 있던 동안의 답글도 다시 켜지면 가져온다. 스레드라 작품끼리 섞이지 않는다.
-// 봇 토큰 slack.botToken(SLACK_BOT_TOKEN)은 deploy/site.json에서 부를 때마다 읽는다. 토큰은 서버에만 있고 화면으로 보내지 않는다.
-// 봇 권한: users:read, chat:write, im:write, files:write, im:history(스레드 답글 읽기)
+// Slack 보내기: 담당자 찾기(users.list), HTML 파일 보내기, 평가 의견 받아 작품에 담기.
+//   보내기: 이 봇(idea_proposal)이 담당자 + 평가 단추 앱(slack-app/, Deno) 봇과 그룹 DM을 열어 HTML 파일을 올리고,
+//          평가 단추 앱의 웹훅을 불러 같은 그룹 DM에 [평가 답장하기] 단추를 올리게 한다.
+//   받기: 단추·입력 창은 Slack 서버에서 돌아가므로 아이디어정리가 꺼져 있어도 된다. 평가 단추 앱이 남긴 의견 메시지
+//          (첫 블록 block_id "review|작품 id|보낸 사람")를 1분마다·켜질 때 찾아 담는다. 사람이 그냥 쓴 글은 받지 않는다.
+// 설정(deploy/site.json의 slack, 부를 때마다 읽는다): botToken(xoxb-), reviewWebhook(평가 단추 앱 웹훅 주소), reviewBotId(평가 단추 앱 봇 ID)
+// 봇 권한: users:read, chat:write, files:write, mpim:write, mpim:history. 토큰은 서버에만 있고 화면으로 보내지 않는다.
 import { readSite } from "../deploy/site.mjs";
 import { list, load, save } from "./store.mjs";
 import { err } from "./validate.mjs";
 
-const token = () => process.env.SLACK_BOT_TOKEN || readSite().slack?.botToken || "";
+const slack = () => readSite().slack || {};
+const token = () => process.env.SLACK_BOT_TOKEN || slack().botToken || "";
 export const slackReady = () => !!token();
 
 // slack.com에 닿지 못하면 'fetch failed'만 나와 원인을 알 수 없다. 원인 코드(인증서·이름 찾기·시간 초과 등)를 붙여 보여 준다.
@@ -57,8 +60,10 @@ export async function slackPeople(query) {
 
 // user에게 DM 채널을 열고, 파일 올릴 주소를 받아 올린 뒤, 그 DM에 메시지(comment)와 함께 붙인다.
 // 이어서 '의견 요청' 메시지를 하나 더 보내고, 답장을 찾을 자리({ channel, ts })를 돌려준다.
-export async function sendHtml(user, { filename, html, comment }) {
-  const channel = (await call("conversations.open", { users: user })).channel.id;
+export async function sendHtml(user, { workId, title, filename, html, comment }) {
+  const { reviewWebhook, reviewBotId } = slack();
+  if (!reviewWebhook || !reviewBotId) err("평가 단추 앱 설정이 없습니다. deploy/site.json의 slack에 reviewWebhook·reviewBotId를 넣으세요.");
+  const channel = (await call("conversations.open", { users: `${user},${reviewBotId}` })).channel.id; // 담당자 + 두 봇의 그룹 DM
   const bytes = Buffer.from(html, "utf8");
   const slot = await call("files.getUploadURLExternal", { filename, length: String(bytes.length) });
   const up = await send(slot.upload_url, { method: "POST", body: bytes });
@@ -68,44 +73,54 @@ export async function sendHtml(user, { filename, html, comment }) {
     channel_id: channel,
     initial_comment: comment,
   });
-  const ask = await call("chat.postMessage", { channel, text: ASK });
-  return { channel, ts: ask.ts };
+  const hook = await send(reviewWebhook, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channel_id: channel, work_id: workId, title }) });
+  if (!hook.ok) err("평가 단추를 올리지 못했습니다 · 평가 단추 앱 웹훅 HTTP " + hook.status, 502);
+  return { channel };
 }
-
-// 의견 요청 메시지. 이 메시지의 스레드 답글이 그 작품의 의견이 된다.
-const ASK = "💬 *이 작품에 대한 평가 의견을 이 메시지에 답글(스레드)로 남겨 주세요*\n이 메시지에 마우스를 올려 *스레드에 답글 달기*를 누르고 의견을 적어 보내면 됩니다. 남긴 의견은 아이디어정리 채점표에 담깁니다.\n_DM 창에 그냥 쓴 글은 담기지 않습니다._";
 
 // 의견 한 건을 작품에 더한다(같은 ts는 한 번만). 이름은 사람 목록에서 찾고, 없으면 보낸 기록의 이름.
 function addReply(workId, send, { ts, user, text }) {
   const w = load(workId);
-  if ((w.slackReplies || []).some((r) => r.ts === ts)) return false;
+  if ((w.slackReplies || []).some((r) => r.ts === ts)) return;
   const name = people.list.find((p) => p.id === user)?.name || send.name;
   w.slackReplies = [...(w.slackReplies || []), { ts, user, name, text, at: new Date(Number(ts) * 1000).toISOString() }].sort((a, b) => Number(a.ts) - Number(b.ts));
   save(w);
-  return true;
 }
 
-// 보낸 지 30일 안의 보내기(작품 id 포함)
-const REPLY_DAYS = 30;
-const activeSends = () => list().flatMap((w) => (w.slackSent || [])
-  .filter((s) => s.ts && Date.now() - Date.parse(s.at) < REPLY_DAYS * 86_400_000).map((s) => ({ work: w.id, ...s })));
+// 평가 단추 앱이 남긴 의견 메시지 → [작품 id, 보낸 사람, 의견]. 아니면 null.
+function reviewOf(m) {
+  const [tag, workId, user] = String(m.blocks?.[0]?.block_id || "").split("|");
+  const text = m.blocks?.[1]?.text?.text?.trim();
+  return tag === "review" && workId && user && text ? { workId, user, text } : null;
+}
 
-// 의견 요청 메시지마다 새 스레드 답글을 가져온다(마지막으로 읽은 답글 다음부터). 하나가 실패해도 나머지는 계속 본다.
+// 보낸 지 30일 안의 보내기(작품 id 포함)를 그룹 DM마다 묶어, 마지막으로 읽은 뒤의 메시지에서 의견만 골라 담는다.
+// 하나가 실패해도 나머지는 계속 본다.
+const REPLY_DAYS = 30;
 export async function collectReplies() {
   if (!slackReady()) return;
-  for (const s of activeSends()) {
+  const sends = list().flatMap((w) => (w.slackSent || [])
+    .filter((s) => s.channel && Date.now() - Date.parse(s.at) < REPLY_DAYS * 86_400_000).map((s) => ({ work: w.id, ...s })));
+  for (const channel of new Set(sends.map((s) => s.channel))) {
+    const mine = sends.filter((s) => s.channel === channel);
     try {
-      const out = await call("conversations.replies", { channel: s.channel, ts: s.ts, oldest: s.seen || s.ts, limit: "200" });
-      const fresh = out.messages.filter((m) => Number(m.ts) > Number(s.seen || s.ts) && !m.bot_id && m.user && m.text);
-      for (const m of fresh) addReply(s.work, s, m);
-      if (fresh.length) markSeen(s.work, s.ts, fresh.at(-1).ts);
+      const oldest = Math.min(...mine.map((s) => Number(s.seen || Date.parse(s.at) / 1000))).toFixed(6);
+      const { messages } = await call("conversations.history", { channel, oldest, limit: "200" });
+      for (const m of messages) {
+        const review = reviewOf(m), send = review && mine.find((s) => s.work === review.workId);
+        if (send) addReply(send.work, send, { ts: m.ts, user: review.user, text: review.text });
+      }
+      const newest = messages.map((m) => Number(m.ts)).sort((a, b) => b - a)[0];
+      if (newest) for (const s of mine) markSeen(s.work, s.at, newest.toFixed(6)); // 다음에는 여기부터 읽는다
     } catch (e) {
-      console.error("Slack 답글 읽기 실패 ·", s.work, e.message);
+      console.error("Slack 의견 읽기 실패 ·", channel, e.message);
     }
   }
 }
-function markSeen(id, ts, seen) {
-  const w = load(id), s = w.slackSent.find((x) => x.ts === ts);
+function markSeen(id, at, seen) {
+  const w = load(id), s = w.slackSent.find((x) => x.at === at);
+  if (!s || s.seen === seen) return;
   s.seen = seen;
   save(w);
 }
