@@ -6,7 +6,6 @@ import { tiltPages } from "./interactions.mjs";
 import { workListHtml } from "./list.mjs";
 import { poll, saveSelection, sync, viewUrl } from "./navigation.mjs";
 import { render } from "./render.mjs";
-import { batchNote } from "./settings.mjs";
 import { updateSheet } from "./sheet.mjs";
 import { POLL_BUSY_MS, STEP_TABS, aiLabel, state } from "./state.mjs";
 import { $, api, closeDialog, notify, stopCapture } from "./ui.mjs";
@@ -19,7 +18,6 @@ async function onChange(e) {
     return render();
   }
   if (e.target.id === "complete") return setComplete(e.target.checked);
-  if (e.target.form?.id === "batch-summary") $("batch-note").textContent = batchNote(e.target.value);
 }
 
 // 파일은 화면 어디에 놓아도 받는다. 브라우저가 이미지를 열어 버리는 것도 막는다.

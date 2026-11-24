@@ -1,37 +1,8 @@
-// 설정 대화상자: 일괄 요약·점검, 요약(AI) 설정과 사용량, 공모 연동 설정
+// 설정 대화상자: 요약(AI) 설정과 사용량, 공모 연동 설정
 import { esc, join } from "../lib/html.mjs";
-import { filteredWorks } from "./list.mjs";
 import { aiLabel, cloudScope, state, summaryModel } from "./state.mjs";
 import { usd } from "./summary.mjs";
 import { $, api, button, dialog, field, input } from "./ui.mjs";
-
-/* ─────────────────────────── 일괄 요약·점검 ───────────────────────────
-   여러 작품을 한 번에 대기열에 넣는다. 서버가 한 작품씩 차례로 처리하고, 요약을 만들면 점검까지 이어서 한다. */
-// 쪽당 어림값(실측). 요약: 46쪽 $0.045·66쪽 $0.074, 3~4분. 점검: 20쪽 $0.005·25초, 61쪽 $0.021·100초.
-const LOGIC_USD = 0.00035, LOGIC_SEC = 2;
-const BATCH_PER_PAGE = { summarize: { usd: 0.0011 + LOGIC_USD, sec: 4 + LOGIC_SEC }, "check-logic": { usd: LOGIC_USD, sec: LOGIC_SEC } };
-const BATCH_SCOPES = {
-  todo: ["요약이나 점검이 없는 작품", () => state.app.works.filter((x) => !x.hasLogic)],
-  shown: ["지금 목록에 보이는 작품 (요약부터 다시)", filteredWorks],
-};
-// 캡처가 있고 지금 작업 중이 아닌 작품만 넣을 수 있다.
-export const batchTargets = (scope) => BATCH_SCOPES[scope][1]().filter((x) => x.count > 0 && !state.jobsByWork.has(x.id));
-// 할 일만 고르면 요약이 있는 작품은 점검만 하고, 그 밖에는 요약부터 한다.
-export const batchRoute = (scope, x) => (scope === "todo" && x.hasReading ? "check-logic" : "summarize");
-export function batchNote(scope) {
-  const targets = batchTargets(scope);
-  if (!targets.length) return "넣을 수 있는 작품이 없습니다.";
-  const sum = (key) => targets.reduce((n, x) => n + x.count * BATCH_PER_PAGE[batchRoute(scope, x)][key], 0);
-  const pages = targets.reduce((n, x) => n + x.count, 0);
-  return `${targets.length}개 작품 · ${pages}쪽 · 예상 약 ${Math.max(1, Math.round(sum("sec") / 60))}분 · 예상 비용 약 $${sum("usd").toFixed(2)} (어림값)`;
-}
-export function openBatchSummary() {
-  dialog("일괄 요약·점검", `<form id="batch-summary" class="stack">
-    ${field("대상", `<select name="scope">${join(Object.entries(BATCH_SCOPES), ([id, [label]]) => `<option value="${id}">${label}</option>`)}</select>`)}
-    <p id="batch-note" class="small">${batchNote("todo")}</p>
-    <p class="small muted">${cloudScope()}</p>
-    <div class="actions"><button class="primary">대기열에 넣기</button></div></form>`);
-}
 
 // 최근 7일(UTC) 사용량 표: 앱이 응답마다 받은 사용량으로 적은 기록과 Anthropic이 직접 집계한 토큰을 나란히 놓는다.
 // 두 토큰 수가 같으면 앱의 비용 추정을 믿을 수 있다. 같은 키를 다른 프로그램도 쓰면 Anthropic 쪽이 더 크게 나온다.

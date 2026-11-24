@@ -85,12 +85,7 @@ export function renderSidebar() {
   };
   const html =
     `<button type="button" id="navall" class="navall ${state.selected ? "" : "active"}" ${state.selected ? "" : 'aria-current="page"'}>전체 작품${count(state.app.works.length)}</button>` +
-    join(
-      groupWorks(sortWorks(state.app.works)),
-      ([prefix, items]) =>
-        (prefix ? `<div class="navgroup"><span>${esc(prefix)}</span><em>${items.length}</em></div>` : "") +
-        join(items, navWork),
-    );
+    join(groupWorks(sortWorks(state.app.works)), ([, items]) => join(items, navWork)); // 공모전 이름(머리말)은 빼고 작품명만
   // 바뀐 경우에만 다시 그려 포커스와 스크롤 위치를 지킨다.
   if (html !== sidenavHtml) $("sidenav").innerHTML = sidenavHtml = html;
   // 단계 목록은 왼쪽 메뉴에만 있으므로, 작품을 고르면 그 작품과 단계가 메뉴에서 보이게 한다.

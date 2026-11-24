@@ -1,6 +1,6 @@
 // 폼 제출: 폼 id → 처리 함수
 import { chooseWork, sync } from "./navigation.mjs";
-import { batchRoute, batchTargets, formsPick, openFormsSettings, openSummarySettings } from "./settings.mjs";
+import { formsPick, openFormsSettings } from "./settings.mjs";
 import { state } from "./state.mjs";
 import { $, api, closeDialog, notify } from "./ui.mjs";
 
@@ -9,16 +9,6 @@ export const workRef = () => ({ id: state.work.id, rev: state.work.rev }); // �
 const readIntake = (form) => Object.fromEntries(new FormData(form));
 
 const forms = {
-  "batch-summary": async (form) => {
-    if (!(await api("summary-settings")).configured) return openSummarySettings();
-    const scope = form.elements.scope.value, targets = batchTargets(scope), failed = [];
-    for (const x of targets)
-      await api(batchRoute(scope, x), { id: x.id, rev: x.rev }).catch((e) => failed.push(e.message));
-    closeDialog();
-    const queued = targets.length - failed.length;
-    notify(`${queued}개 작품을 대기열에 넣었습니다.` + (failed.length ? ` ${failed.length}개는 넣지 못했습니다 · ${failed[0]}` : ""), !queued);
-    await sync(true);
-  },
   login: async () => {
     await api("login", { code: fieldValue("accesscode") });
     closeDialog();
@@ -64,12 +54,6 @@ const forms = {
       rubric: { categories: state.work.rubric.categories, criteria },
     });
     notify("이 작품의 기준을 저장했습니다.");
-  },
-  distribute: async () => {
-    const { report } = await api("distribute", {});
-    closeDialog();
-    const failed = report.filter((r) => r.error);
-    notify("심사 배포 · " + report.map((r) => r.error ? `${r.name} 실패(${r.error})` : `${r.name} ${r.assigned}건${r.added ? `(새 ${r.added}건)` : ""}`).join(" · "), failed.length > 0);
   },
   final: async (form) => {
     const picked = (name) => [...form.querySelectorAll(`[name=${name}]:checked`)].map((x) => x.value);

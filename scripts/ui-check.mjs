@@ -124,7 +124,7 @@ try {
       await wait(300);
     }
   });
-  await step("목록으로 돌아가 검색하고, 일괄 요약 대화상자를 연다", async () => {
+  await step("목록으로 돌아가 검색하고, 표 위의 탭을 바꾼다", async () => {
     await click("#home");
     await until("목록", async () => !!(await page.$("#search")));
     await page.type("#search", "우산");
@@ -135,8 +135,6 @@ try {
       await click(`[data-list-view="${view}"]`);
       await until(heading, async () => (await page.$eval(".works-table thead", (e) => e.textContent)).includes(heading));
     }
-    await click('[data-action="batch-summary"]');
-    await until("일괄 요약", isOpen);
   });
   await step("캡처를 모두 지우면 빈 접수 칸(끌어 놓기·파일 선택)이 다시 나온다", async () => {
     const { works } = await state();

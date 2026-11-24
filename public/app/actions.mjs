@@ -2,10 +2,10 @@
 import { esc } from "../lib/html.mjs";
 import { changeCapture, openScreen, snapScreen, suggestedVisual } from "./captures.mjs";
 import { workRef } from "./forms.mjs";
-import { filteredWorks, intakeInputs, openCreate, openDistribute } from "./list.mjs";
+import { filteredWorks, intakeInputs, openCreate } from "./list.mjs";
 import { currentEvidence, select, sync } from "./navigation.mjs";
 import { render } from "./render.mjs";
-import { formsPick, openBatchSummary, openFormsSettings, openSelfCheck, openSummarySettings, showSelfCheck } from "./settings.mjs";
+import { formsPick, openFormsSettings, openSelfCheck, openSummarySettings, showSelfCheck } from "./settings.mjs";
 import { criterionRow } from "./sheet.mjs";
 import { aiLabel, cloudScope, state, submittingSummaries } from "./state.mjs";
 import { markSimilar, summaryUnavailable } from "./summary.mjs";
@@ -52,15 +52,12 @@ export async function setComplete(complete) {
 
 const actions = {
   "summary-settings": openSummarySettings,
-  "batch-summary": openBatchSummary,
   create: openCreate,
-  "export-all": () => (location.href = "/api/export"), // 서버가 첨부 파일로 보내 화면은 그대로다
   "intake-sync": async () => {
     const v = await api("intake-sync", {});
     notify(v.error ? `가져오기 · ${v.error}` : "MS Forms 응답과 평가표를 다시 읽었습니다.", !!v.error);
     await sync(true);
   },
-  distribute: openDistribute,
   "link-web-browser": async () => { location.assign((await api("summary-link", {})).url); },
   "edit-intake": () => dialog(
     "접수 정보 수정",

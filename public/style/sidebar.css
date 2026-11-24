@@ -112,25 +112,6 @@
   background: var(--side-active);
   color: var(--accent-on-dark);
 }
-.navgroup {
-  position: sticky;
-  top: -4px;
-  z-index: 1;
-  display: flex;
-  justify-content: space-between;
-  margin: 14px 0 4px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: var(--side-hover);
-  color: var(--side-text);
-  font-size: var(--fs-label);
-  font-weight: 700;
-}
-.navgroup em {
-  color: var(--side-muted);
-  font-style: normal;
-  font-variant-numeric: tabular-nums;
-}
 .navwork {
   display: flex;
   align-items: center;

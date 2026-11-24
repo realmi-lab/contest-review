@@ -167,8 +167,6 @@ export function overviewView() {
       <span class="spacer"></span>
       <button type="button" class="link cost-note" data-action="summary-settings" title="토큰 수에 단가를 곱해 이 서버에서 계산한 추정값입니다. 누르면 날짜별로 봅니다.">${costText()}</button>
       ${button("create", "직접 접수")}
-      ${button("export-all", "채점 결과 받기 (엑셀)")}
-      ${button("batch-summary", "일괄 요약·점검")}
     </section>
     ${formsPanel()}
     <section class="card workboard">
@@ -239,11 +237,11 @@ function formsPanel() {
     <td>${e.readAt ? esc(seoulMinute(e.readAt).slice(5)) : "—"}</td></tr>`);
   return `<section class="card forms-intake">
     <div class="toolbar"><h2 class="cardtitle">MS Forms 공모</h2><span class="muted">응답 ${v.responses}건${v.waiting ? ` · 첨부 동기화 대기 ${v.waiting}건` : ""}${v.checkedAt ? ` · ${esc(seoulMinute(v.checkedAt).slice(11))} 확인` : ""}</span>
-      <span class="spacer"></span>${button("intake-sync", "지금 가져오기")}${button("distribute", "심사 배포")}</div>
+      <span class="spacer"></span>${button("intake-sync", "지금 가져오기")}</div>
     ${v.error ? `<p class="warn-text small">${esc(v.error)}</p>` : ""}
     ${gaps.length ? `<p class="warn-text small">심사자가 없는 분야 · ${esc(gaps.map(([c, n]) => `${c} ${n}건`).join(" · "))}</p>` : ""}
     ${v.evaluators.length ? `<table class="scoretable evaluators"><thead><tr>${columnHeaders(["심사자", "담당 분야", "배정", "공유", "평가 완료", "평가표 읽음"])}</tr></thead><tbody>${rows}</tbody></table>`
-      : '<p class="small muted">연동 설정에 심사자(evaluators)를 적으면 분야별로 배정합니다.</p>'}
+      : ""}
   </section>`;
 }
 // MS Forms 작품의 담당 심사자(분야로 배정)
@@ -252,14 +250,6 @@ export const assignedEvaluators = (x) => (x.formId ?? x.source?.formId) ? (state
 function evaluationNote(x) {
   const assigned = assignedEvaluators(x).length;
   return assigned ? `평가 ${x.evalDone} / ${assigned}${x.evalAvg != null ? ` · 평균 ${x.evalAvg}` : ""}` : "";
-}
-
-export function openDistribute() {
-  const v = state.app.intake;
-  dialog("심사 배포", `<form id="distribute" class="stack">
-    <p>심사자 ${v.evaluators.length}명에게 담당 분야의 작품을 배정합니다. OneDrive에 심사자 폴더를 만들어 첨부와 평가표 엑셀을 넣고, Power Automate가 폴더를 공유하도록 요청 파일을 남깁니다.</p>
-    <p class="small muted">이미 만든 평가표는 새로 배정된 작품이 있을 때만 다시 쓰고, 심사자가 적은 값은 그대로 둡니다. 공유한 심사자에게는 다시 요청하지 않습니다.</p>
-    <div class="actions"><button class="primary">배포</button></div></form>`);
 }
 
 function howTo() {
