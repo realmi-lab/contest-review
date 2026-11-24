@@ -9,6 +9,7 @@ import { attachmentPages, pageKind } from "../intake/attachment-pages.mjs";
 import { intake, originalFile, updateResponse } from "../intake/sync.mjs";
 import { busy, schedule, tasks } from "../jobs.mjs";
 import { defaults, finalSheet, rubric, scoreRows, sheet, toCsv } from "../review/review.mjs";
+import { shareHtml } from "../review/share-html.mjs";
 import { similarWorks } from "../review/similar.mjs";
 import { sampleImage } from "../sample.mjs";
 import {
@@ -65,6 +66,14 @@ export default {
     res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
     res.setHeader("Content-Type", thumb ? "image/webp" : "image/png");
     res.end(bytes);
+  },
+
+  // 내보내기: 핵심·세부 요약·AI 논리점검·원본 캡처를 HTML 한 파일로(share-html.mjs). 새 탭에서 열고, 저장하면 이름이 붙는다.
+  "GET /api/share/:id": async ({ id, res }) => {
+    const w = load(id);
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(`${w.name.slice(0, 60)}_AI요약_${today()}.html`)}`);
+    res.end(await shareHtml(w));
   },
 
   // 비슷한 제안 (similar.mjs). 판정(중복·관련·무관)은 어느 쪽 작품에 남겼든 함께 보여 준다.

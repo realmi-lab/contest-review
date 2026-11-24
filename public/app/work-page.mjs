@@ -152,7 +152,10 @@ export function workView() {
         </div>
         ${formsNote(state.work.source)}
       </div>
-      ${action ? `<button id="run" type="button" class="primary big" data-action="${action}">${label}</button>` : ""}
+      <div class="detail-actions">
+        ${state.work.captures.length ? `<a class="button big" href="/api/share/${esc(state.work.id)}" target="_blank" rel="noopener" title="핵심·세부 요약·AI 논리점검·원본 캡처를 HTML 한 파일로 엽니다">내보내기</a>` : ""}
+        ${action ? `<button id="run" type="button" class="primary big" data-action="${action}">${label}</button>` : ""}
+      </div>
     </header>
     <div id="job" class="job" role="status"></div>
     <section id="content" class="content${state.tab === "요약" ? ` reading-content" data-summary-work="${esc(state.work.id)}` : ""}">

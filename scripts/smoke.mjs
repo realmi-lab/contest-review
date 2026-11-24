@@ -178,6 +178,14 @@ try {
   await step("설정·사용량·내보내기 API가 응답한다", async () => {
     for (const route of ["/api/summary-settings", "/api/haiku-cost", "/api/export"]) assert.equal((await get(route)).status, 200, route);
   });
+  await step("내보내기 HTML은 원본 캡처를 그림으로 품은 한 파일이다", async () => {
+    const r = await get("/api/share/" + id);
+    assert.equal(r.status, 200);
+    const html = await r.text();
+    assert.match(html, /<h2>원본 캡처 · \d+쪽<\/h2>/);
+    assert.match(html, /data:image\/jpeg;base64,/);
+    assert.match(html, /data:font\/woff2;base64,/);
+  });
   await step("작품을 삭제한다", async () => {
     const w = await work(id);
     assert.equal((await post("remove-work", { id, rev: w.rev })).status, 200);

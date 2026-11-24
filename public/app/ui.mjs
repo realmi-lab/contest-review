@@ -1,6 +1,6 @@
 // 화면 공통 도구: HTML 조각(버튼·입력칸·아이콘), 서버 요청(api), 알림, 대화상자
 import { markTerms, termsIn } from "../lib/glossary.mjs";
-import { esc, join, markNumbers, sentences } from "../lib/html.mjs";
+import { esc, join, markNumbers, noPeriod, sentences } from "../lib/html.mjs";
 import { currentEvidence, findCapture } from "./navigation.mjs";
 import { state } from "./state.mjs";
 
@@ -64,7 +64,7 @@ const claimText = (p) =>
 
 // 요점은 한 줄에 한 문장씩(시험지 답안 줄) 두고 수치와 전문 용어를 표시한다.
 // 마지막 낱말과 근거 칩을 묶어 칩만 다음 줄로 떨어지지 않게 한다. terms를 넘기면 그 화면에서 용어를 처음 한 번만 표시한다.
-export const noPeriod = (text) => String(text).replace(/\.$/, ""); // 끝 마침표만(0.398 같은 소수점은 그대로)
+export { noPeriod };
 // bare: 문장 끝 마침표를 뺀다(요약 줄은 개조식이라 점 없이 보여 준다). 문장은 한 줄씩 나뉘어 있어 읽기에 지장이 없다.
 export function claim(p, tag = "div", after = "", terms = new Set(), bare = false) {
   const lines = sentences(claimText(p)).map((line) => (bare ? noPeriod(line) : line));

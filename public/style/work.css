@@ -47,7 +47,7 @@
   padding-bottom: 20px;
   border-bottom: 2px solid var(--text); /* 머리와 본문을 나누는 검정 줄 */
 }
-.detailhead > .primary { flex: none; }
+.detail-actions { display: flex; flex: none; gap: 10px; align-items: center; } /* 내보내기 · 다음 할 일 */
 .detail-title { flex: 1; }
 .crumbsep {
   color: var(--desk-muted);
