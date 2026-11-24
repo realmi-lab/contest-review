@@ -7,7 +7,7 @@ import { $, api, claim, emptyState, glossaryNote, refs } from "./ui.mjs";
 
 /* ─────────────────────────── 내용 요약 탭 ─────────────────────────── */
 
-// 핵심 요약(제목 아래 배경·내용·효과)과 세부 요약(문제 → 목표 → 방법 → 결과 → 시사점), 두 묶음만 한 화면에 차례로 보여 준다.
+// 핵심 요약(제목 아래 한 줄 요약·배경·내용·효과)과 세부 요약(문제 → 목표 → 방법 → 결과 → 시사점), 두 묶음만 한 화면에 차례로 보여 준다.
 const MAIN = "핵심 요약", TITLE = "제목";
 function summaryGroups(r) {
   const { brief, detail } = readingViews(r);
@@ -92,7 +92,7 @@ export function readingPane() {
     return controls + emptyState("요약이 없습니다", cloudScope(),
       summaryCommand(state.work.id, "요약 만들기", "요약 만들기", "primary big")) + usage;
   const groups = summaryGroups(r);
-  const former = summaryPoints(r).some((p) => p.topic === "한 줄 요약"); // 예전 형식(한 줄 요약 → 문제 → … → 한계)으로 저장된 요약
+  const former = !summaryPoints(r).some((p) => p.topic === TITLE) && summaryPoints(r).some((p) => p.topic === "한 줄 요약"); // 예전 형식(한 줄 요약 → 문제 → … → 한계)으로 저장된 요약
   const lastWeek = summaryPoints(r).some((p) => p.topic === "결과·근거"); // 세부 요약이 결과·근거 → 한계였던 형식
   const gist = (p) => p.topic === "한 줄 요약";
   // 근거 그림은 세부 요약에만 붙인다(핵심 요약은 글만 촘촘하게). 예전 형식은 전처럼 한 줄 요약만 빼고 붙인다.

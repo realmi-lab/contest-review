@@ -98,6 +98,10 @@
   font-size: var(--fs-meta);
   font-weight: 600;
 }
+.job-line { display: flex; gap: 12px; justify-content: space-between; }
+.job-line b { font-variant-numeric: tabular-nums; }
+.job-bar { display: block; height: 6px; margin-top: 8px; overflow: hidden; border-radius: 3px; background: var(--paper); }
+.job-bar i { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.5s ease; }
 .job:empty {
   display: none;
 }

@@ -1,7 +1,7 @@
 // 작품 화면의 틀: 왼쪽 메뉴, 단계 탭, 다음 할 일 버튼, 작업 진행 표시
 import { esc, join } from "../lib/html.mjs";
 import { autoCaptured, intakePane } from "./captures.mjs";
-import { filteredWorks, formsNote, groupWorks, intakeHeadings, intakeValues, queueLabels, queueStage, sortWorks, workStatus } from "./list.mjs";
+import { filteredWorks, formsNote, intakeHeadings, intakeValues, queueLabels, queueStage, sortWorks, workStatus } from "./list.mjs";
 import { logicPane } from "./logic.mjs";
 import { currentLogic, currentReading, splitName } from "./navigation.mjs";
 import { reportPane } from "./sheet.mjs";
@@ -69,12 +69,13 @@ function stepItems() {
 const stepMenu = () => `<div class="stepnav" role="group" aria-label="심사 단계">${stepItems()}</div>`;
 const stepTabs = () => `<nav class="steptabs no-print" aria-label="심사 단계">${stepItems()}</nav>`;
 
-// 왼쪽 메뉴: 전체 작품 + 머리말별 작품 목록 (선택한 작품은 단계 메뉴가 펼쳐짐)
+// 왼쪽 메뉴: 전체 작품 + 작품 목록 (선택한 작품은 단계 메뉴가 펼쳐짐)
 let sidenavHtml = "";
 let sidenavScrolled = ""; // 메뉴를 마지막으로 맞춘 작품
 export function renderSidebar() {
   if (!state.app) return;
-  const navWork = ({ work: x, title }) => {
+  const navWork = (x) => {
+    const title = splitName(x.name)[1]; // 공모전 이름(머리말)은 빼고 작품명만
     const status = workStatus(x);
     const active = x.id === state.selected;
     return (
@@ -85,7 +86,7 @@ export function renderSidebar() {
   };
   const html =
     `<button type="button" id="navall" class="navall ${state.selected ? "" : "active"}" ${state.selected ? "" : 'aria-current="page"'}>전체 작품${count(state.app.works.length)}</button>` +
-    join(groupWorks(sortWorks(state.app.works)), ([, items]) => join(items, navWork)); // 공모전 이름(머리말)은 빼고 작품명만
+    join(sortWorks(state.app.works), navWork);
   // 바뀐 경우에만 다시 그려 포커스와 스크롤 위치를 지킨다.
   if (html !== sidenavHtml) $("sidenav").innerHTML = sidenavHtml = html;
   // 단계 목록은 왼쪽 메뉴에만 있으므로, 작품을 고르면 그 작품과 단계가 메뉴에서 보이게 한다.
@@ -117,6 +118,7 @@ export function workView() {
   const [prefix, title] = splitName(state.work.name);
   const list = filteredWorks();
   const index = list.findIndex((x) => x.id === state.work.id);
+  // 내용 요약 탭은 제목 글자를 숨긴다(화면 읽기용으로만 남김).
   const panes = {
     자료: intakePane,
     요약: readingPane,
@@ -152,7 +154,7 @@ export function workView() {
     </header>
     <div id="job" class="job" role="status"></div>
     <section id="content" class="content${state.tab === "요약" ? ` reading-content" data-summary-work="${esc(state.work.id)}` : ""}">
-      <h2 class="panetitle">${STEP_TABS[state.tab]}</h2>
+      <h2 class="panetitle${state.tab === "요약" ? " sr" : ""}">${STEP_TABS[state.tab]}</h2>
       ${panes[state.tab]()}
     </section>
     </article>`;
@@ -204,9 +206,18 @@ export function showJob() {
     ? "글자 인식이 끝나면 확인할 수 있습니다."
     : blockedReason(job, runNeedsEngine);
   const failed = state.work.error && !job;
-  box.textContent = job
+  const text = job
     ? (job.running ? job.label : "처리 대기 · 앞선 작업이 끝나면 시작합니다.")
     : (failed ? "처리 오류 · " + state.work.error : reason);
+  // 요약·점검은 진행률 막대(0~100%)를 함께 보여 준다.
+  const percent = job?.running ? job.percent : null;
+  const bar = box.querySelector(".job-bar i");
+  if (percent != null && bar) { // 막대가 이미 있으면 너비만 바꿔 부드럽게 늘어나게 한다
+    box.querySelector(".job-line span").textContent = text;
+    box.querySelector(".job-line b").textContent = percent + "%";
+    bar.style.width = percent + "%";
+  } else box.innerHTML = percent == null ? esc(text)
+    : `<span class="job-line"><span>${esc(text)}</span><b>${percent}%</b></span><span class="job-bar"><i style="width:${percent}%"></i></span>`;
   box.className = failed ? "job error" : job ? "job" : "job muted";
   if (run) {
     run.disabled = !!reason;

@@ -3,7 +3,7 @@
 import { load, save } from "./store.mjs";
 import { err } from "./validate.mjs";
 
-export const tasks = new Map(); // 작업 키 → { work: 작품 id, label: 화면에 보여 줄 진행 상황 }
+export const tasks = new Map(); // 작업 키 → { work: 작품 id, label: 화면에 보여 줄 진행 상황, percent: 진행률(알 때만) }
 const queues = { machine: Promise.resolve(), ai: Promise.resolve() };
 const endHooks = [];
 
@@ -12,7 +12,7 @@ export const onJobEnd = (fn) => endHooks.push(fn);
 // 이 작품에 진행·대기 중인 작업이 있는가
 export const busy = (wid) => [...tasks.values()].some((t) => t.work === wid);
 
-// fn(progress)를 lane 줄 끝에 넣는다. 실패하면 오류를 작품에 적는다.
+// fn(progress)를 lane 줄 끝에 넣는다. progress(글, 진행률%)로 화면의 진행 상황을 바꾼다. 실패하면 오류를 작품에 적는다.
 export function schedule(key, work, label, fn, lane = "machine") {
   if (tasks.has(key)) err("이미 대기 중인 작업입니다.", 409);
   const job = { work, label: "대기 · " + label };
@@ -21,8 +21,9 @@ export function schedule(key, work, label, fn, lane = "machine") {
     .then(async () => {
       job.label = label;
       try {
-        await fn((text) => {
+        await fn((text, percent) => {
           job.label = text;
+          if (percent != null) job.percent = percent;
         });
       } catch (e) {
         const w = load(work);

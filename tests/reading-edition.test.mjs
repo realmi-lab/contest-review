@@ -91,7 +91,7 @@ test("다시 쓴 결과 줄이 너무 길면 버리지 않고 편집 전 요점�
   assert.deepEqual(edition.brief.map((p) => p.text), [first]);
 });
 
-test("핵심 요약은 제목·배경·내용·효과로, 세부 요약은 문제·목표·방법·결과·시사점으로 새로 쓰고, 검증에서 떨어진 물음만 한 번 다시 쓴다", async () => {
+test("핵심 요약은 제목·한 줄 요약·배경·내용·효과로, 세부 요약은 문제·목표·방법·결과·시사점으로 새로 쓰고, 검증에서 떨어진 물음만 한 번 다시 쓴다", async () => {
   const background = point("대상과 배경", "대출 비교 앱 이용자가 늘어 데이터가 많아졌다.", "S1.1");
   const goal = point("제안 내용", "홈 화면에 들어온 고객 중 대출을 신청할 고객을 예측한다.", "S2.1");
   const method = point("이용·운영 방식", "범주형 변수가 많아 CatBoost 분류 모델을 사용했다.", "S3.1");
@@ -109,7 +109,7 @@ test("핵심 요약은 제목·배경·내용·효과로, 세부 요약은 문�
     if (keys[0] === "effect") { // 다시 쓰기: 떨어진 물음만 묻고, 확정된 답과 떨어진 초안을 함께 보낸다
       assert.deepEqual(keys, ["effect", "problem", "goal", "method", "result", "meaning"]);
       const again = JSON.parse(prompt.split("\n").at(-2).replace(/^[^{]*/u, ""));
-      assert.deepEqual(Object.keys(again.확정), ["title", "background", "content"]);
+      assert.deepEqual(Object.keys(again.확정), ["title", "gist", "background", "content"]);
       assert.match(again.탈락.result.답, /0\.912/);
       assert.deepEqual([again.탈락.effect.이유, again.탈락.result.이유, again.탈락.meaning.이유], ["답 없음", "수치 대조: 0.912", "답 없음"]); // 맞지 않은 숫자를 알려 준다
       // 번호를 잘못 달아도(1번에는 0.398이 없다) 그 숫자가 적힌 항목을 근거에 더한다
@@ -122,6 +122,7 @@ test("핵심 요약은 제목·배경·내용·효과로, 세부 요약은 문�
     assert.match(rows["제안 내용"][0][1], /^\[\d+쪽\] /); // 쪽 위치를 함께 보낸다
     return {
       title: { text: "CatBoost 분류 모델을 통한 대출 신청 고객 예측 제안", ids: [...ids("제안 내용"), ...ids("이용·운영 방식")] },
+      gist: { text: "대출 비교 앱 고객 중 대출 신청 고객을 분류 모델로 예측.", ids: ids("제안 내용") },
       background: { text: "대출 비교 앱 이용자 증가로 쌓인 데이터의 활용 필요.", ids: ids("대상과 배경") },
       // 200자를 넘는 답은 버리지 않고 한도 안의 앞 문장만 남긴다
       content: { text: "홈 화면에 들어온 고객 중 대출을 신청할 고객을 CatBoost 분류 모델로 예측. " + "범주형 변수 다수. ".repeat(20).trim(), ids: [...ids("제안 내용"), ...ids("이용·운영 방식")] },
@@ -132,10 +133,10 @@ test("핵심 요약은 제목·배경·내용·효과로, 세부 요약은 문�
     };
   };
   const edition = await composeEdition(r, () => {}, run);
-  assert.deepEqual(edition.brief.map((x) => [x.topic, x.refs.join()]), [["제목", "S2.1,S3.1"], ["배경", "S1.1"], ["내용", "S2.1,S3.1"]]);
+  assert.deepEqual(edition.brief.map((x) => [x.topic, x.refs.join()]), [["제목", "S2.1,S3.1"], ["한 줄 요약", "S2.1"], ["배경", "S1.1"], ["내용", "S2.1,S3.1"]]);
   assert.ok(!("basis" in edition.brief[0])); // 검토용 문장은 저장하지 않는다
   // 200자를 넘는 답은 한도 안의 앞 문장만 남기고, 문장마다 대조해 떨어진 문장은 빼고 나머지로 줄을 채운다
-  assert.equal(edition.brief[2].text, "홈 화면에 들어온 고객 중 대출을 신청할 고객을 CatBoost 분류 모델로 예측.");
+  assert.equal(edition.brief[3].text, "홈 화면에 들어온 고객 중 대출을 신청할 고객을 CatBoost 분류 모델로 예측.");
   // 세부 요약에는 새로 쓴 줄만 싣는다. 0.912를 쓴 답은 다시 써서 통과한 문장으로, 수치(0.398)가 적힌 근거가 앞에 온다
   assert.deepEqual(edition.detail.map((x) => [x.topic, x.text, x.refs.join()]), [["무엇을 얻었나", "시험 데이터 f1-score 0.398 확인.", "S4.1,S1.1"]]);
   // 끝내 못 쓴 줄은 다른 줄로 메우지 않고 이름과 이유를 남긴다
