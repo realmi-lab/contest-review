@@ -160,6 +160,18 @@ try {
     const after = await get("/api/state").then((r) => r.json());
     assert.deepEqual(after.works.map((w) => [w.id, w.count]), before.works.map((w) => [w.id, w.count]));
   });
+  await step("응답 엑셀에서 지워진 응답은 작품도 지운다. 머리글도 없는 빈 엑셀이면 지우지 않는다", async () => {
+    const forms = async () => (await get("/api/state").then((r) => r.json())).works.filter((w) => w.formId).length;
+    const head = readSheet(await readFile(workbook))[0];
+    await writeFile(workbook, writeWorkbook([{ name: "Form1", rows: [] }])); // 덜 내려받은 파일처럼 비어 있다
+    assert.equal((await post("intake-sync", {})).status, 200);
+    assert.equal(await forms(), 1);
+    await new Promise((resolve) => setTimeout(resolve, 50)); // 수정 시각이 달라지게
+    await writeFile(workbook, writeWorkbook([{ name: "Form1", rows: [head] }])); // 응답 행을 지웠다
+    assert.equal((await post("intake-sync", {})).status, 200);
+    assert.equal(await forms(), 0);
+    assert.ok((await get("/api/work/" + id)).ok); // 직접 접수한 작품은 그대로
+  });
   await step("설정·사용량·내보내기 API가 응답한다", async () => {
     for (const route of ["/api/summary-settings", "/api/haiku-cost", "/api/export"]) assert.equal((await get(route)).status, 200, route);
   });

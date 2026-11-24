@@ -1,16 +1,17 @@
 // MS Forms 공모 연동 동기화 (읽기·복사: forms-intake.mjs, 설정: deploy/site.json의 forms)
 // 1분마다 응답 엑셀이 바뀌었으면 새 응답을 작품으로 만들고 첨부를 '작품/<번호 작품명>' 폴더로 복사한 뒤 캡처로 접수한다.
+// 응답 엑셀에서 지워진 응답은 작품도 지운다(removeGone).
 // 심사자 평가표가 바뀌었으면 다시 읽어 작품의 evaluations[심사자 이메일]에 둔다. 평가표는 공통 기준(defaults.criteria)을 쓴다.
-import { stat } from "node:fs/promises";
+import { rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { readSite } from "../../deploy/site.mjs";
 import { addPages, uploadDir } from "../captures.mjs";
-import { schedule, tasks } from "../jobs.mjs";
+import { busy, schedule, tasks } from "../jobs.mjs";
 import { defaults, sheet } from "../review/review.mjs";
-import { list, load, newWork, save } from "../store.mjs";
+import { list, load, newWork, removeWork, save } from "../store.mjs";
 import { autoSummarize } from "../summary/run.mjs";
 import {
-  copyAttachments, EVALUATION_SHEET, evaluationFile, fileIndex, formsConfig, readEvaluations, readResponses, shareState, workbookRows, workFolder,
+  copyAttachments, EVALUATION_SHEET, evaluationFile, fileIndex, formsConfig, readEvaluations, readResponseBook, shareState, workbookRows, workFolder,
   writeResponse,
 } from "./forms-intake.mjs";
 
@@ -20,11 +21,31 @@ export const formWorks = () => list().filter((w) => w.source?.formId);
 const withoutTime = (x) => JSON.stringify(x && { ...x, at: 0 });
 const attachmentFolder = (config, w) => path.join(config.reviewDir, "작품", w.source.folder);
 
+// 응답 엑셀에서 지워진 응답의 작품을 지운다(캡처·요약·채점표까지. 심사 폴더에 복사한 첨부 파일은 그대로 둔다).
+// 잘못 지우지 않게: 머리글 행까지 읽힌 엑셀일 때만(빈 파일·덜 내려받은 파일이 아닐 때), 그 엑셀에서 들어온 작품(source.book)만 지운다.
+// 연동 설정에서 응답 엑셀을 다른 파일로 바꿔도 앞 공모의 작품은 남는다. 작업 중인 작품은 끝난 뒤 다음 확인 때 지운다.
+async function removeGone(config, { list: entries, headed }) {
+  const ids = new Set(entries.map((entry) => entry.id));
+  for (const w of formWorks()) {
+    if (ids.has(w.source.formId)) {
+      if (w.source.book !== config.formsWorkbook) { // 어느 엑셀의 응답인지 적어 둔다(이 기능 전에 들어온 작품 포함)
+        const latest = load(w.id);
+        latest.source.book = config.formsWorkbook;
+        save(latest);
+      }
+    } else if (headed && w.source.book === config.formsWorkbook && !busy(w.id)) {
+      removeWork(w.id);
+      await rm(uploadDir(w.id), { recursive: true, force: true });
+    }
+  }
+}
+
 async function importResponses(config) {
   const book = await stat(config.formsWorkbook).catch(() => null);
   if (!book) throw new Error("응답 엑셀이 아직 없습니다: " + config.formsWorkbook);
   // 응답 엑셀은 바뀌었을 때만 다시 읽는다. 보호(MIP) 엑셀은 Excel 앱이 열어야 해서, 매번 읽으면 1분마다 Excel이 켜진다.
-  if (intake.responses?.mtime !== book.mtimeMs) intake.responses = { mtime: book.mtimeMs, list: await readResponses(config) };
+  if (intake.responses?.mtime !== book.mtimeMs) intake.responses = { mtime: book.mtimeMs, ...(await readResponseBook(config)) };
+  await removeGone(config, intake.responses);
   const sameFiles = (w, entry) => JSON.stringify(w.source.files) === JSON.stringify(entry.files);
   const known = new Map(formWorks().map((w) => [w.source.formId, w]));
   const todo = intake.responses.list.filter((entry) => {
@@ -42,7 +63,7 @@ async function importResponses(config) {
           receivedOn: entry.receivedOn || undefined, intakeTeam: entry.team.slice(0, 80), submitterName: entry.submitter.slice(0, 80),
         });
         w.category = entry.category;
-        w.source = { formId: entry.id, files: entry.files, folder: workFolder(entry), missing: entry.files,
+        w.source = { formId: entry.id, book: config.formsWorkbook, files: entry.files, folder: workFolder(entry), missing: entry.files,
           email: entry.email.slice(0, 200), description: entry.description.slice(0, 4000) };
         save(w);
       } else if (!sameFiles(w, entry)) { // 첨부 이름 읽는 방식이 바뀐 예전 응답(첨부 목록을 읽는 동안 저장된 내용을 덮지 않게 새로 읽는다)

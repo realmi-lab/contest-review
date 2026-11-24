@@ -133,11 +133,16 @@
 }
 .works-table thead th { border-bottom: 1px solid var(--rule); }
 .works-table td, .works-table tbody th { border-top: 1px solid var(--line-soft); }
-.works-table thead th:nth-child(4) { width: 40%; } /* 작품명: 가장 넓게 */
-.works-table td:nth-child(5) { max-width: 9em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } /* 분야: 길면 말줄임 */
+.works-table thead th:nth-child(4) { width: 24%; } /* 작품명 */
+.works-table.view-sheet thead th:nth-child(4) { width: 36%; }
+.works-table .cell-wide { width: 44%; } /* 그 단계의 결과(메인 요약·AI 한마디 평): 가장 넓게 */
+.works-table .cell-short { max-width: 9em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } /* 분야: 길면 말줄임 */
+.works-table .cell-number { white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* 내용 요약 탭: 오렌지 제목 아래 '내용' 세 줄까지(회사 아이디어 목록의 요약 칸처럼) */
+.rowsummary-title { display: block; margin-bottom: 2px; color: var(--accent-text); font-weight: 700; }
+.rowsummary { display: -webkit-box; overflow: hidden; color: var(--text-2); font-size: var(--fs-meta); line-height: 1.55; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .works-table td { color: var(--text-2); overflow-wrap: anywhere; }
 .works-table td small { display: block; }
-.works-table td:nth-child(6), .works-table thead th:nth-child(6) { white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; } /* 캡처 장수 */
 /* 팀·접수자는 낱말 중간에서 꺾지 않고, 길면 말줄임 */
 .works-table td:nth-child(2), .works-table td:nth-child(3) { max-width: 9em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .works-table td:nth-child(2) { max-width: 18em; } /* 팀: 두 배 */
@@ -158,7 +163,6 @@
 .rowtitle > span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .rowtitle:hover { background: transparent; text-decoration: underline; text-underline-offset: 3px; }
 /* 제목 아래 한 줄 요약: 한 줄만 (전체는 작품 화면에서) */
-.rowgist { display: -webkit-box; margin-top: 2px; overflow: hidden; color: var(--text-3); font-size: var(--fs-meta); font-weight: 400; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
 .detail-title { display: grid; min-width: 0; gap: 6px; }
 /* 접수 정보는 제목 아래 한 줄로: 항목 이름은 옅게, 값은 진하게 */
 /* 접수 정보는 시험지의 학년·반·번호·성명 칸처럼 잉크 괘선 칸에 넣는다 */

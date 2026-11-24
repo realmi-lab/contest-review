@@ -213,8 +213,8 @@ export async function onClick(e) {
   }
   if (d.stepWork) return stepWork(Number(d.stepWork));
   if (d.summaryCommand) return runSummaryCommand(b.closest("[data-summary-work]").dataset.summaryWork);
-  if ("stage" in d) {
-    state.listQuery.stage = d.stage;
+  if (d.listView) {
+    state.listQuery.view = d.listView;
     return render();
   }
   if (d.work) {

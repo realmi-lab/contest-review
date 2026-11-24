@@ -71,17 +71,6 @@ const forms = {
     const failed = report.filter((r) => r.error);
     notify("심사 배포 · " + report.map((r) => r.error ? `${r.name} 실패(${r.error})` : `${r.name} ${r.assigned}건${r.added ? `(새 ${r.added}건)` : ""}`).join(" · "), failed.length > 0);
   },
-  followup: async (form) => {
-    await api("followup", {
-      ...workRef(),
-      stage: form.querySelector("[name=stage]:checked")?.value,
-      department: fieldValue("fdept"),
-      owner: fieldValue("fowner"),
-      due: fieldValue("fdue"),
-      effect: fieldValue("feffect"),
-    });
-    notify("실행 추적을 저장했습니다.");
-  },
   final: async (form) => {
     const picked = (name) => [...form.querySelectorAll(`[name=${name}]:checked`)].map((x) => x.value);
     await api("final", {

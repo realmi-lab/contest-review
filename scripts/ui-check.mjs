@@ -129,6 +129,12 @@ try {
     await until("목록", async () => !!(await page.$("#search")));
     await page.type("#search", "우산");
     await until("검색 결과", async () => /우산/.test(await page.$eval("#worklist", (e) => e.textContent)));
+    // 표 위의 탭 세 개(내용 요약 · 사실·논리 점검 · 채점표)가 같은 작품을 단계별 결과로 보여 준다
+    assert.deepEqual(await page.$$eval(".stagetab", (tabs) => tabs.map((t) => t.firstChild.textContent)), ["내용 요약", "사실·논리 점검", "채점표"]);
+    for (const [view, heading] of [["check", "AI 한마디 평"], ["sheet", "확정 점수"], ["summary", "메인 요약"]]) {
+      await click(`[data-list-view="${view}"]`);
+      await until(heading, async () => (await page.$eval(".works-table thead", (e) => e.textContent)).includes(heading));
+    }
     await click('[data-action="batch-summary"]');
     await until("일괄 요약", isOpen);
   });

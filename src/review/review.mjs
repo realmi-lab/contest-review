@@ -54,8 +54,6 @@ export const sheet = {
   checks: ["규제 검토", "보안·고객 자산 검토", "시스템 안정성 검토", "중복·기시행 확인"],
   scales: ["즉시 실행", "과제화", "장기 검토"],
   decisions: ["채택 검토", "보완 요청", "보류"],
-  // 채택 검토로 확정한 뒤의 실행 추적 단계
-  stages: ["부서 검토", "실행 중", "효과 확인", "실행 안 함"],
 };
 const fail = (message) => {
   throw new Error(message);
@@ -96,31 +94,12 @@ export function evaluationSummary(w) {
   return { entries, done: done.length, average };
 }
 
-// 채택 뒤 실행 추적: 단계·담당 부서·담당자·예정일·효과. 단계가 바뀌면 언제 바뀌었는지 history에 남긴다.
-export function followupSheet(value, previous) {
-  if (!sheet.stages.includes(value?.stage)) fail("실행 단계를 고르세요.");
-  const due = String(value.due ?? "").trim();
-  if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) fail("예정일을 확인하세요.");
-  const text = (x, max) => String(x ?? "").trim().slice(0, max);
-  const now = new Date().toISOString();
-  const history = previous?.stage === value.stage ? previous.history : [...(previous?.history ?? []), { stage: value.stage, at: now }];
-  return { stage: value.stage, department: text(value.department, 80), owner: text(value.owner, 40), due, effect: text(value.effect, 2000), updated: now, history };
-}
-
-// 멈춘 실행: 아직 진행 중인 단계인데 예정일이 지났거나 30일 넘게 바뀐 게 없다
-export function stalled(followup, today) {
-  if (!followup || !["부서 검토", "실행 중"].includes(followup.stage)) return false;
-  const quiet = Date.parse(today) - Date.parse(followup.updated.slice(0, 10)) > 30 * 86400000;
-  return (!!followup.due && followup.due < today) || quiet;
-}
-
 // 전체 작품의 채점 결과 표(첫 줄은 머리글). 확정 점수 순, 그다음 심사자 평균 순이고 채점 전 작품은 '미채점'으로 둔다.
 // 작품마다 기준이 다를 수 있어 항목 점수는 기준 이름으로 열을 맞춘다.
 export function scoreRows(works, criteria) {
   const names = [...new Set([...criteria, ...works.flatMap((w) => w.rubric?.criteria ?? [])].map((c) => c.name))];
   const head = ["작품명", "분야", "인입일", "팀", "접수자", ...names, "총점", "실행 규모", "1차 결정",
-    "사전 확인", "이관 부서", "제안자 의견", "심사 메모", "평가자", "확정 시각", "심사자 평가 수", "심사자 평균", "심사자별 총점",
-    "실행 단계", "실행 담당 부서", "실행 담당자", "실행 예정일", "실행 효과"];
+    "사전 확인", "이관 부서", "제안자 의견", "심사 메모", "평가자", "확정 시각", "심사자 평가 수", "심사자 평균", "심사자별 총점"];
   const rank = (w) => [w.final?.score ?? -1, evaluationSummary(w).average ?? -1];
   const ranked = [...works].sort((a, b) => rank(b)[0] - rank(a)[0] || rank(b)[1] - rank(a)[1]);
   return [head, ...ranked.map((w) => {
@@ -130,8 +109,7 @@ export function scoreRows(works, criteria) {
     return [w.name, w.category ?? "", w.receivedOn ?? "", w.intakeTeam ?? "", w.submitterName ?? "", ...names.map(scoreOf),
       f?.score ?? "", f?.scale ?? "", f?.decision ?? "미채점", f?.checks.join(" · ") ?? "", f?.department ?? "",
       f?.feedback ?? "", f?.note ?? "", f?.by ?? "", f ? seoulMinute(f.when) : "",
-      entries.length ? done : "", average ?? "", entries.map((e) => `${e.name} ${e.complete ? e.score : "작성 중"}`).join(" · "),
-      w.followup?.stage ?? "", w.followup?.department ?? "", w.followup?.owner ?? "", w.followup?.due ?? "", w.followup?.effect ?? ""];
+      entries.length ? done : "", average ?? "", entries.map((e) => `${e.name} ${e.complete ? e.score : "작성 중"}`).join(" · ")];
   })];
 }
 

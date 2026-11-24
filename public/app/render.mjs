@@ -17,7 +17,7 @@ export function viewKey() {
     "overview" +
     JSON.stringify(state.app.works.map((x) => [x.id, x.receivedOn, x.intakeTeam,
       x.submitterName, x.name, x.count, x.hasReading, x.hasLogic, x.gist, x.final, x.score, x.decision, x.category,
-      x.evalDone, x.evalAvg, x.followStage, x.followDue, x.stalled, x.duplicates])) + JSON.stringify(state.app.intake) + costText()
+      x.evalDone, x.evalAvg, x.title, x.take, x.issues, x.duplicates])) + JSON.stringify(state.app.intake) + costText()
   );
 }
 // 목록 머리의 AI 비용 요약(센트 단위, 서버가 토큰 수 × 단가로 계산)

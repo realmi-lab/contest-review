@@ -8,7 +8,7 @@ import { build } from "../config.mjs";
 import { attachmentPages, pageKind } from "../intake/attachment-pages.mjs";
 import { intake, originalFile, updateResponse } from "../intake/sync.mjs";
 import { busy, schedule, tasks } from "../jobs.mjs";
-import { defaults, finalSheet, followupSheet, rubric, scoreRows, sheet, toCsv } from "../review/review.mjs";
+import { defaults, finalSheet, rubric, scoreRows, sheet, toCsv } from "../review/review.mjs";
 import { similarWorks } from "../review/similar.mjs";
 import { sampleImage } from "../sample.mjs";
 import {
@@ -236,15 +236,6 @@ export default {
     if ((b.base || null) !== (w.final?.when || null))
       err("그사이 다른 평가자가 이 채점표를 확정했습니다. 새로고침해 확인한 뒤 다시 저장하세요.", 409);
     w.final = { ...finalSheet(b, w.rubric), when: new Date().toISOString() };
-    save(w);
-    json({ ok: true });
-  },
-
-  // 채택 뒤 실행 추적 (review.mjs followupSheet)
-  "POST /api/followup": ({ b, json }) => {
-    const w = current(b);
-    if (w.final?.decision !== "채택 검토") err("1차 결정이 '채택 검토'인 작품만 실행을 추적합니다.");
-    w.followup = followupSheet(b, w.followup);
     save(w);
     json({ ok: true });
   },

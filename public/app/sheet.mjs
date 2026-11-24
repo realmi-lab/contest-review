@@ -1,4 +1,4 @@
-// 채점표 탭: 항목 점수·결정·실행 추적, 채점 기준 고치기
+// 채점표 탭: 항목 점수·결정, 채점 기준 고치기
 import { readingViews } from "../lib/expanded-reading.mjs";
 import { esc, join, seoulMinute } from "../lib/html.mjs";
 import { tween } from "./interactions.mjs";
@@ -149,30 +149,9 @@ function evaluationsPanel() {
   </section>`;
 }
 
-// 채택 검토로 확정한 작품의 실행 추적: 부서 검토 → 실행 중 → 효과 확인 (또는 실행 안 함)
-function followupPanel() {
-  if (state.work.final?.decision !== "채택 검토") return "";
-  const f = state.work.followup ?? {};
-  const history = (f.history ?? []).map((h) => `${h.stage} ${seoulMinute(h.at).slice(5, 10).replace("-", ".")}`).join(" → ");
-  return `<section class="panel followup no-print">
-    <div class="toolbar"><span><b>실행 추적</b>${history ? ` · ${esc(history)}` : ""}</span></div>
-    <form id="followup" class="stack">
-      ${choices("단계", "stage", state.app.sheet.stages, "radio", [f.stage ?? "부서 검토"])}
-      <div class="formgrid">
-        ${field("담당 부서", input("fdept", f.department ?? state.work.final.department, "text", 'maxlength="80"'))}
-        ${field("담당자", input("fowner", f.owner, "text", 'maxlength="40"'))}
-        ${field("예정일", input("fdue", f.due, "date"))}
-      </div>
-      ${field("실행 결과·효과", `<textarea id="feffect" maxlength="2000">${esc(f.effect ?? "")}</textarea>`)}
-      <div><button class="primary">실행 추적 저장</button></div>
-    </form>
-  </section>`;
-}
-
 export function reportPane() {
   return `${logicNote()}${evaluationsPanel()}
     <section class="panel" id="finalpanel">${state.work.final && !state.editingSheet ? confirmedSheet() : sheetForm()}</section>
-    ${state.work.final && !state.editingSheet ? followupPanel() : ""}
     <div class="actions no-print">${button("print", "채점표 인쇄")}</div>
     ${rubricFold()}`;
 }

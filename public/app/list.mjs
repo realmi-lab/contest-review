@@ -18,7 +18,7 @@ export function showHealth() {
 }
 
 // 목록의 점 색과 보조 줄
-// 목록에 쓰는 진행 단계. key는 필터 칩과 같다.
+// 목록에 쓰는 진행 단계
 const STAGES = {
   new: "캡처 전",
   capt: "요약 전",
@@ -95,10 +95,7 @@ export function filteredWorks() {
   const needle = state.listQuery.text.toLowerCase();
   return sortWorks(
     state.app.works.filter(
-      (x) =>
-        x.name.toLowerCase().includes(needle) &&
-        (!state.listQuery.stage || (state.listQuery.stage === "follow" ? !!x.followStage : workStatus(x).key === state.listQuery.stage)),
-    ),
+      (x) => x.name.toLowerCase().includes(needle)),
   );
 }
 
@@ -133,9 +130,7 @@ export const formsNote = (source) => source?.formId && (source.email || source.d
   : "";
 const intakeCells = (record) => join(intakeValues(record), (value) => `<td>${value}</td>`);
 
-// 첫 화면: 전체 작품의 진행 현황
-// 목록 화면: 진행 현황 + 작품 카드
-// 목록 화면: 새 작품 접수 줄 + 단계 필터 + 작품 목록
+// 목록 화면: 새 작품 접수 줄 + 표 위의 탭(내용 요약 · 사실·논리 점검 · 채점표) + 작품 목록
 // 직접 접수 칸. 작품이 없을 때는 목록 화면에, 있을 때는 '새 작품 접수' 대화상자에 둔다.
 function createForm(layout) {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
@@ -162,10 +157,9 @@ export function overviewView() {
         )}
         ${howTo()}
       </div>`;
-  const byStage = (key) =>
-    works.filter((x) => workStatus(x).key === key).length;
-  const stageTab = (key, label, n) =>
-    `<button type="button" class="stagetab" data-stage="${key}" aria-pressed="${state.listQuery.stage === key}">${label}<em>${n}</em></button>`;
+  // 표 위의 탭: 같은 작품 목록을 단계별 결과로 본다. 숫자는 그 단계를 마친 작품 수
+  const viewTab = ([key, { label, done }]) =>
+    `<button type="button" class="stagetab" data-list-view="${key}" aria-pressed="${state.listQuery.view === key}">${label}<em>${works.filter(done).length}</em></button>`;
   return `
     <section class="listhead">
       <h1>전체 작품${count(works.length)}</h1>
@@ -179,7 +173,7 @@ export function overviewView() {
     ${formsPanel()}
     <section class="card workboard">
       <div class="listbar">
-        <div class="stagetabs" role="group" aria-label="진행 단계로 거르기">${stageTab("", "전체", works.length)}${join(Object.entries(STAGES), ([key, label]) => stageTab(key, label, byStage(key)))}${stageTab("follow", "실행 추적", works.filter((x) => x.followStage).length)}</div>
+        <div class="stagetabs" role="group" aria-label="표에 보여 줄 단계">${join(Object.entries(VIEWS), viewTab)}</div>
         <span class="spacer"></span>
         <input id="search" type="search" placeholder="작품명 검색" value="${esc(state.listQuery.text)}" aria-label="작품 검색">
         <select id="sort" aria-label="정렬">
@@ -192,30 +186,40 @@ export function overviewView() {
     </section>`;
 }
 
-// 같은 머리말끼리 묶은 작품 카드
+// 표 위의 탭마다 보여 주는 열. 접수 정보·작품명·진행 상태는 같고, 가운데 열이 그 단계의 결과다.
+// done: 그 단계를 마친 작품인가(탭의 숫자) · heads: 가운데 열 이름 · cells: 가운데 칸들
+const VIEWS = {
+  summary: { label: "내용 요약", done: (x) => x.hasReading, heads: ["메인 요약"],
+    cells: (x) => `<td class="cell-wide">${x.hasReading
+      ? `${x.title ? `<b class="rowsummary-title">${esc(x.title)}</b>` : ""}<span class="rowsummary">${esc(x.gist || "요약을 열어 확인하세요.")}</span>`
+      : `<span class="muted">${x.count ? "요약 전" : "캡처 전"}</span>${summaryActions(x)}`}</td>` },
+  check: { label: "사실·논리 점검", done: (x) => x.hasLogic, heads: ["AI 한마디 평", "확인할 점"],
+    cells: (x) => x.hasLogic
+      ? `<td class="cell-wide"><span class="rowsummary">${esc(x.take || "점검 결과를 열어 확인하세요.")}</span></td><td class="cell-number">${x.issues}건</td>`
+      : `<td class="cell-wide"><span class="muted">${x.hasReading ? "점검 전" : "요약 전"}</span></td><td class="cell-number">—</td>` },
+  sheet: { label: "채점표", done: (x) => x.final, heads: ["분야", "심사자 평가", "확정 점수", "1차 결정"],
+    cells: (x, prefix) => `<td class="cell-short">${esc(x.category || prefix || "기타")}</td><td>${evaluationNote(x) || "—"}</td>
+      <td class="cell-number">${x.final ? x.score.toFixed(1) + "점" : "—"}</td><td>${x.decision ? `${esc(x.decision)}<small>${esc(x.scale)}</small>` : "—"}</td>` },
+};
+
 // 같은 머리말끼리 묶은 작품 목록 (한 줄에 한 작품)
 export function workListHtml() {
   const works = filteredWorks();
-  if (!works.length)
-    return emptyState(
-      "조건에 맞는 작품이 없습니다",
-      "검색어를 지우거나 ‘전체’를 눌러 보세요.",
-    );
-  const groups = groupWorks(works);
-  return `<table class="works-table" aria-label="작품별 접수 정보">
-    <thead><tr>${columnHeaders([...intakeHeadings, "작품명", "분야", "캡처", "진행 상태"])}</tr></thead>
-    ${join(groups, ([prefix, items]) => `<tbody>${join(items, (item) => workRow(item, prefix))}</tbody>`)}
+  if (!works.length) return emptyState("조건에 맞는 작품이 없습니다", "검색어를 지워 보세요.");
+  const view = VIEWS[state.listQuery.view];
+  return `<table class="works-table view-${state.listQuery.view}" aria-label="작품별 ${view.label}">
+    <thead><tr>${columnHeaders([...intakeHeadings, "작품명", ...view.heads, "진행 상태"])}</tr></thead>
+    ${join(groupWorks(works), ([prefix, items]) => `<tbody>${join(items, (item) => workRow(item, prefix, view))}</tbody>`)}
   </table>`;
 }
 
-function workRow({ work: x, title }, prefix) {
-  const status = workStatus(x);
+function workRow({ work: x, title }, prefix, view) {
   const stage = queueStage(x.id);
   return `<tr class="workrow" data-work="${esc(x.id)}">
     ${intakeCells(x)}
-    <th scope="row"><button class="rowtitle" type="button" data-work="${esc(x.id)}" title="${esc(x.name)}"><span>${esc(title)}</span></button>${x.gist ? `<small class="rowgist">${esc(x.gist)}</small>` : ""}</th>
-    <td>${esc(x.category || prefix || "기타")}</td><td>${x.count}장</td>
-    <td><span class="badges"><span data-queue="${stage}" class="badge" ${stage ? "" : "hidden"}>${queueLabels[stage] || ""}</span>${stageMark(status)}</span>${x.decision ? `<small>${esc(x.decision)} · ${esc(x.scale)}</small>` : ""}${evaluationNote(x)}${followNote(x)}${x.duplicates ? `<small class="warn-text">중복 판정 ${x.duplicates}건</small>` : ""}${x.hasReading ? "" : summaryActions(x)}</td>
+    <th scope="row"><button class="rowtitle" type="button" data-work="${esc(x.id)}" title="${esc(x.name)}"><span>${esc(title)}</span></button></th>
+    ${view.cells(x, prefix)}
+    <td><span class="badges"><span data-queue="${stage}" class="badge" ${stage ? "" : "hidden"}>${queueLabels[stage] || ""}</span>${stageMark(workStatus(x))}</span>${x.duplicates ? `<small class="warn-text">중복 판정 ${x.duplicates}건</small>` : ""}</td>
   </tr>`;
 }
 
@@ -244,14 +248,7 @@ export const assignedEvaluators = (x) => (x.formId ?? x.source?.formId) ? (state
 // 목록의 평가 진행: 다 채운 평가표 수 / 배정 수 · 평균
 function evaluationNote(x) {
   const assigned = assignedEvaluators(x).length;
-  return assigned ? `<small>평가 ${x.evalDone} / ${assigned}${x.evalAvg != null ? ` · 평균 ${x.evalAvg}` : ""}</small>` : "";
-}
-
-// 목록의 실행 단계: 예정일, 멈췄으면(예정일 지남·30일 넘게 그대로) 표시
-function followNote(x) {
-  if (!x.followStage) return "";
-  const due = x.followDue ? ` · 예정 ${x.followDue.slice(5).replace("-", ".")}` : "";
-  return `<small${x.stalled ? ' class="warn-text"' : ""}>${esc(x.followStage)}${due}${x.stalled ? " · 멈춤" : ""}</small>`;
+  return assigned ? `평가 ${x.evalDone} / ${assigned}${x.evalAvg != null ? ` · 평균 ${x.evalAvg}` : ""}` : "";
 }
 
 export function openDistribute() {

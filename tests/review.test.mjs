@@ -4,9 +4,7 @@ import {
   coverage,
   defaults,
   finalSheet,
-  followupSheet,
   scoreRows,
-  stalled,
   toCsv,
   rubric,
   sheet,
@@ -75,20 +73,4 @@ test("채점 결과 표는 채점한 작품을 총점 순으로 먼저 두고 �
 test("CSV는 엑셀용 BOM을 붙이고 따옴표·쉼표를 감싸며 수식으로 시작하는 글은 실행되지 않게 한다", () => {
   const text = toCsv([["이름", "점수"], ['그 "제안", 하나', 7.5], ["=HYPERLINK(1)", -1]]);
   assert.equal(text, '\uFEFF이름,점수\r\n"그 ""제안"", 하나",7.5\r\n\'=HYPERLINK(1),-1\r\n');
-});
-
-test("실행 추적은 단계가 바뀔 때만 이력을 남기고, 예정일이 지났거나 30일 넘게 그대로면 멈춘 것으로 본다", () => {
-  const first = followupSheet({ stage: "부서 검토", department: " 총무팀 ", due: "2026-12-01" });
-  assert.equal(first.department, "총무팀");
-  assert.equal(first.history.length, 1);
-  const same = followupSheet({ stage: "부서 검토", due: "2026-12-01", effect: "메모" }, first);
-  assert.equal(same.history.length, 1);
-  const next = followupSheet({ stage: "실행 중" }, same);
-  assert.deepEqual(next.history.map((h) => h.stage), ["부서 검토", "실행 중"]);
-  assert.throws(() => followupSheet({ stage: "완료" }), /실행 단계/);
-  assert.throws(() => followupSheet({ stage: "실행 중", due: "12/01" }), /예정일/);
-  assert.equal(stalled({ ...first, updated: "2026-11-22T00:00:00Z" }, "2026-12-02"), true); // 예정일 지남
-  assert.equal(stalled({ ...first, due: "", updated: "2026-10-01T00:00:00Z" }, "2026-11-22"), true); // 30일 넘게 그대로
-  assert.equal(stalled({ ...first, due: "", updated: "2026-11-20T00:00:00Z" }, "2026-11-22"), false);
-  assert.equal(stalled({ ...first, stage: "효과 확인", due: "2026-01-01" }, "2026-11-22"), false);
 });

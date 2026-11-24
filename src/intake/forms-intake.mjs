@@ -194,9 +194,12 @@ export const isEncrypted = (buffer) => !(buffer[0] === 0x50 && buffer[1] === 0x4
 const rowsOf = async (buffer, file, sheetName) => (isEncrypted(buffer) ? excelRows(file, sheetName) : readSheet(buffer, sheetName));
 export const workbookRows = async (file, sheetName = "") => rowsOf(await readOneDrive(file), file, sheetName);
 
-export async function readResponses(config) {
-  return formEntries(await workbookRows(config.formsWorkbook, config.formsSheet), config.columns);
+// 응답 목록(list)과 머리글 행이 있었는지(headed). 머리글도 없으면 빈 파일이거나 덜 내려받은 파일일 수 있다.
+export async function readResponseBook(config) {
+  const rows = await workbookRows(config.formsWorkbook, config.formsSheet);
+  return { list: formEntries(rows, config.columns), headed: rows.some((row) => row.some((v) => v !== "")) };
 }
+export const readResponses = async (config) => (await readResponseBook(config)).list;
 
 // 응답 엑셀에서 그 응답(id) 행의 칸을 고친다. values: { title, description } 처럼 항목 이름으로 준다(엑셀에 열이 없는 항목은 건너뛴다).
 // 보통 엑셀은 그 칸만 바꿔 다시 쓰고, 암호화(MIP)된 엑셀은 Excel 앱이 고쳐 저장한다.
