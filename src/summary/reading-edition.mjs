@@ -129,10 +129,13 @@ function sourceExcerpt(p, evidence, maxLength) {
 // 화면만 보고 짐작한 문장("~로 보인다"), 문서 소개("제출 주체는 … 소개 자료다"), 새로 쓴 줄과 낱말이 거의 같은 반복.
 // (실측: 강군마켓 세부 요약에 "…구조로 보인다. 다만 등급 조건은 원문에 없다."와 한계 줄 두 개가 나란히 나왔다.)
 // (실측: 마인드필 세부 내용의 '제출자가 밝힌 한계'가 AI의 판단이었고, '검증과 비교'가 '무엇이 문제인가'를 되풀이했다.)
+// 반복은 낱말의 앞 두 글자로 견준다(조사·어미가 달라도 같은 말로 본다: '절감으로'·'절감률', '홍보를'·'홍보').
+// (실측: 효과 줄의 "3% 이상 절감 예측 지역 가구에는 캐시백 홍보를 강화해 참여를 유도"가 세부 요약에 말만 바꿔 다시 나왔다.)
+const stems = (text) => new Set([...words(text)].map((t) => (/[가-힣]/u.test(t) ? t.slice(0, 2) : t)));
 function repeatsOrJudges(p, core) {
   if (claimsAbsence(p.text) || guesses(p.text) || describesDocument(p.text)) return true;
-  const mine = words(p.text);
-  return core.some((c) => overlap(mine, words(c.text)) >= mine.size * 0.6);
+  const mine = stems(p.text);
+  return core.some((c) => overlap(mine, stems(c.text)) >= mine.size * 0.7);
 }
 
 async function detailAnchors(r, core, lead, points, excluded, run) {
