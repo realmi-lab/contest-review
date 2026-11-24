@@ -7,6 +7,7 @@ import { countText, issueCounts, issueList, shownIssues } from "./logic.mjs";
 import { currentLogic, currentReading } from "./navigation.mjs";
 import { state } from "./state.mjs";
 import { $, button, claim, field, input } from "./ui.mjs";
+import { slackPanel } from "./slack.mjs";
 
 /* ─────────────────────────── 채점표 탭 ─────────────────────────── */
 
@@ -150,7 +151,7 @@ function evaluationsPanel() {
 }
 
 export function reportPane() {
-  return `${logicNote()}${evaluationsPanel()}
+  return `${slackPanel()}${logicNote()}${evaluationsPanel()}
     <section class="panel" id="finalpanel">${state.work.final && !state.editingSheet ? confirmedSheet() : sheetForm()}</section>
     <div class="actions no-print">${button("print", "채점표 인쇄")}</div>
     ${rubricFold()}`;

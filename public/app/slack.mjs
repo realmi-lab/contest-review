@@ -1,24 +1,26 @@
-// Slack 보내기 대화상자: 담당자를 이름으로 검색해 고르고, 내보내기 HTML을 그 사람에게 DM으로 보낸다(서버 src/slack.mjs).
+// Slack 보내기(채점표 탭): 담당자를 이름으로 검색해 고르고, 내보내기 HTML을 그 사람에게 DM으로 보낸다(서버 src/slack.mjs).
 import { esc, join, seoulMinute } from "../lib/html.mjs";
 import { sync } from "./navigation.mjs";
 import { state } from "./state.mjs";
-import { $, api, closeDialog, dialog, notify } from "./ui.mjs";
+import { $, api, notify } from "./ui.mjs";
 
 let picked = null, timer = 0;
 
-export function openSlackSend() {
+// 채점표 탭 맨 위: Slack에 있는 사람을 이름으로 검색 → 고르기 → 보내기. 보낸 기록도 여기 보여 준다.
+export function slackPanel() {
+  if (!state.work.captures.length) return "";
+  if (!state.app.slack)
+    return '<section class="panel slack-send no-print"><h3>담당자에게 보내기</h3><p class="small muted">deploy/site.json에 Slack 봇 토큰(slack.botToken)을 넣으면 Slack에 있는 사람을 검색해 보낼 수 있습니다.</p></section>';
   picked = null;
   const sent = state.work.slackSent || [];
-  dialog("담당자에게 보내기", `<div class="stack slack-send">
-    <p class="small muted">핵심·세부 요약, AI 논리점검, 원본 캡처를 HTML 한 파일로 만들어 Slack DM으로 보냅니다.</p>
-    <input id="slack-q" type="search" placeholder="이름으로 검색" autocomplete="off" aria-label="담당자 이름">
+  return `<section class="panel slack-send no-print"><h3>담당자에게 보내기</h3>
+    <p class="small muted">캡처 자료·AI 요약·AI 논리점검을 HTML 한 파일로 만들어 Slack DM으로 보냅니다.</p>
+    <input id="slack-q" type="search" placeholder="Slack에서 이름으로 검색" autocomplete="off" aria-label="담당자 이름">
     <ul id="slack-people" class="slack-people" aria-live="polite"></ul>
-    <div class="slack-go"><span id="slack-picked" class="muted">담당자를 고르세요</span>
+    <div class="slack-go"><span id="slack-picked" class="muted">검색해서 담당자를 고르세요</span>
       <button id="slack-go" type="button" class="primary" data-action="slack-go" disabled>보내기</button></div>
     ${sent.length ? `<p class="small muted">보낸 기록 · ${esc(sent.map((s) => `${s.name} ${seoulMinute(s.at)}`).join(" · "))}</p>` : ""}
-  </div>`);
-  $("slack-q").focus();
-  findPeople("");
+  </section>`;
 }
 
 // 글자를 칠 때마다가 아니라 멈춘 뒤 0.25초에 한 번 찾는다.
@@ -27,6 +29,7 @@ export function findPeople(query) {
   timer = setTimeout(async () => {
     const list = $("slack-people");
     if (!list) return;
+    if (!query.trim()) return void (list.innerHTML = ""); // 검색어가 있을 때만 보여 준다
     try {
       const people = await api("slack-people?q=" + encodeURIComponent(query));
       list.innerHTML = join(people, (p) =>
@@ -52,7 +55,6 @@ export async function sendToPerson() {
   go.textContent = "보내는 중…";
   try {
     await api("slack-send", { id: state.work.id, rev: state.work.rev, ...picked });
-    closeDialog();
     notify(`${picked.name}님에게 Slack으로 보냈습니다.`);
     await sync(true);
   } finally {
