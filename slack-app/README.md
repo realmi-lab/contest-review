@@ -29,6 +29,21 @@ echo 'export PATH="$HOME/.deno/bin:$PATH"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
+회사망(보안 장비 인증서)에서는 deno가 deno.land에서 Slack 도구를 받다가 인증서 때문에 막힙니다. Mac에 등록된 인증서를 쓰게 합니다:
+
+```sh
+echo 'export DENO_TLS_CA_STORE=system' >> ~/.zshrc
+```
+```sh
+source ~/.zshrc
+```
+
+확인: 아래가 `{"hooks": …}`로 시작하는 글을 내면 준비된 것입니다. (`slack deploy`가 `manifest.json: no such file`로 실패하면 이 단계가 안 된 것입니다.)
+
+```sh
+deno run -q --allow-read --allow-net https://deno.land/x/deno_slack_hooks@1.5.0/mod.ts
+```
+
 ### 2. Slack 로그인
 
 ```sh
