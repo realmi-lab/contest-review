@@ -47,6 +47,8 @@ test("Forms 첨부 PDF는 이 앱 전용 Edge 프로필을 화면 밖에 열어 
   const pages = await documentPages("pdf", sample, 0, options);
   mkdirSync("test-output", { recursive: true }); // CI가 산출물로 올린다(실제 Edge 화면 확인용)
   pages.forEach((page, i) => writeFileSync(`test-output/edge-page-${i + 1}.png`, page));
+  // 기록에서도 볼 수 있게 첫 쪽을 작게 남긴다
+  console.log("EDGE_PAGE_JPEG " + (await sharp(pages[0]).resize({ width: 600 }).jpeg({ quality: 55 }).toBuffer()).toString("base64"));
   assert.equal(options.how, "Edge 화면 캡처(이 앱 전용 Edge 프로필)");
   assert.equal(pages.length, 2);
   for (const page of pages) {
