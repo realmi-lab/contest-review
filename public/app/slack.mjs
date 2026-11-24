@@ -32,7 +32,7 @@ export function slackPanel() {
     return `<section class="panel slack-send no-print"><h3>담당자에게 보내기</h3><p class="small muted">deploy/site.json에 Slack 봇 토큰(slack.botToken)을 넣으면 Slack에 있는 사람을 검색해 보낼 수 있습니다.</p>${repliesList()}</section>`;
   picked = null;
   return `<section class="panel slack-send no-print"><h3>담당자에게 보내기</h3>
-    <p class="small muted">캡처 자료·AI 요약·AI 논리점검을 HTML 한 파일로 만들어 Slack DM으로 보냅니다. 받은 사람이 DM의 [평가 답장하기]로 보낸 의견이 아래 담당자 의견에 담깁니다.</p>
+    <p class="small muted">캡처 자료·AI 요약·AI 논리점검을 HTML 한 파일로 만들어 Slack DM으로 보냅니다. 받은 사람이 의견 요청 메시지에 스레드 답글로 남긴 의견이 아래 담당자 의견에 담깁니다.</p>
     <input id="slack-q" type="search" placeholder="Slack에서 이름으로 검색" autocomplete="off" aria-label="담당자 이름">
     <ul id="slack-people" class="slack-people" aria-live="polite"></ul>
     <div class="slack-go"><span id="slack-picked" class="muted">검색해서 담당자를 고르세요</span>
