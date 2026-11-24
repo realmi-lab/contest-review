@@ -135,7 +135,7 @@ const stems = (text) => new Set([...words(text)].map((t) => (/[가-힣]/u.test(t
 function repeatsOrJudges(p, core) {
   if (claimsAbsence(p.text) || guesses(p.text) || describesDocument(p.text)) return true;
   const mine = stems(p.text);
-  return core.some((c) => overlap(mine, stems(c.text)) >= mine.size * 0.7);
+  return core.some((c) => overlap(mine, stems(c.text)) >= mine.size * 0.5);
 }
 
 async function detailAnchors(r, core, lead, points, excluded, run) {
