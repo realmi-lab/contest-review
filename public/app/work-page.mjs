@@ -17,6 +17,7 @@ function nextAction() {
   // 채점표 화면에서는 채점이 할 일이다.
   if (state.tab === "결과") return state.work.final ? ["next-work", "다음 작품"] : ["go-final", "채점하기"];
   if (state.tab === "요약" && currentReading()) return ["remake-summary", "AI 재요약"];
+  if (state.tab === "점검" && currentLogic()) return ["check-logic", "AI 재점검"];
   if (!currentReading()) return state.tab === "요약" ? [] : ["open-summary", "AI 요약으로"];
   if (!currentLogic()) return ["check-logic", "AI 논리점검 실행"];
   return state.work.final ? ["next-work", "다음 작품"] : []; // 채점표는 단계 탭에서 연다

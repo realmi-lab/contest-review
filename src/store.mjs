@@ -7,6 +7,7 @@ import sharp from "sharp";
 import { directory } from "./config.mjs";
 import { defaults, rubric } from "./review/review.mjs";
 import { bounded, day, err } from "./validate.mjs";
+import { NAME_FIXES, fixNames } from "./text.mjs";
 
 await mkdir(directory, { recursive: true, mode: 0o700 });
 const db = new DatabaseSync(path.join(directory, "desk.sqlite3"));
@@ -24,6 +25,9 @@ CREATE TABLE IF NOT EXISTS last_haiku_usage (
 CREATE TABLE IF NOT EXISTS haiku_runs (
   run TEXT PRIMARY KEY, work TEXT NOT NULL, kind TEXT NOT NULL, at TEXT NOT NULL, usage TEXT NOT NULL
 );`);
+// 앞서 저장된 작품의 회사 이름 오타도 한 번에 고친다(글자 수가 같아 근거 위치는 그대로다).
+for (const [wrong, right] of NAME_FIXES)
+  db.prepare("UPDATE works SET data = replace(data, ?, ?) WHERE instr(data, ?) > 0").run(wrong, right, wrong);
 
 const sql = {
   putWork: db.prepare("INSERT INTO works(id,data) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data"),
@@ -76,7 +80,7 @@ export const summaryList = () => (summaries ??= sql.summaries.all());
 
 export function save(w) {
   w.updated = new Date().toISOString();
-  sql.putWork.run(w.id, JSON.stringify(w));
+  sql.putWork.run(w.id, fixNames(JSON.stringify(w)));
   summaries = null;
   return w;
 }

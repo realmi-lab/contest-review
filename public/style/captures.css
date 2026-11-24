@@ -123,3 +123,5 @@
 
 /* 캡처 목록 아래: 파일 더 올리기 · 캡처 모두 지우고 새로 올리기 */
 .capture-tools { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.capture-tools > summary { color: var(--text-3); font-size: var(--fs-meta); cursor: pointer; }
+.capture-tools > .actions { margin-top: 12px; } /* 다 올린 뒤에는 접어 둔다: 빠진 쪽이 있을 때만 연다 */
