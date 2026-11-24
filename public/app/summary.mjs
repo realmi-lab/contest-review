@@ -1,11 +1,11 @@
-// 내용 요약 탭: AI 요약, 사용량·비용, 비슷한 제안
+// AI 요약 탭: AI 요약, 사용량·비용, 비슷한 제안
 import { explainOcr, readingViews, representativeCaptures } from "../lib/expanded-reading.mjs";
 import { esc, join } from "../lib/html.mjs";
 import { currentReading, splitName, sync } from "./navigation.mjs";
 import { cloudScope, state, submittingSummaries } from "./state.mjs";
 import { $, api, claim, emptyState, glossaryNote, refs } from "./ui.mjs";
 
-/* ─────────────────────────── 내용 요약 탭 ─────────────────────────── */
+/* ─────────────────────────── AI 요약 탭 ─────────────────────────── */
 
 // 줄 목록 모양: 핵심 요약은 촘촘한 개조식(main), 세부 요약은 예전 핵심 요약처럼 크게(lead). 예전 형식은 핵심만 크게 보여 준다.
 const listClass = (lead, former) => (former ? (lead ? " lead" : "") : lead ? " lead main" : " lead");
@@ -54,11 +54,6 @@ export function summaryActions(record) {
     summaryCommand(record.id, esc(record.name) + " 요약 만들기", "요약")}</div>`;
 }
 
-// 내용 요약 머리 오른쪽: 요약이 있으면 다시 만들기
-function summaryToolbar() {
-  return currentReading() ? `<div class="provider-toolbar no-print"><span class="spacer"></span>
-    ${summaryCommand(state.work.id, "요약 다시 만들기", "다시 만들기", "remake")}</div>` : "";
-}
 export const usd = new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 8,
 });
@@ -87,11 +82,10 @@ export function haikuUsage(kind, result) {
   return html ? `<details class="usage-fold no-print"><summary>AI 사용량·비용</summary>${html}</details>` : "";
 }
 export function readingPane() {
-  const controls = summaryToolbar();
-  const r = currentReading();
+  const r = currentReading(); // 요약이 있으면 다시 만드는 'AI 재요약'은 작품 머리의 버튼이다(work-page.mjs)
   const usage = haikuUsage("summary", r); // 요약 아래에는 토큰 사용량과 비용만 둔다
   if (!r)
-    return controls + emptyState("요약이 없습니다", cloudScope(),
+    return emptyState("요약이 없습니다", cloudScope(),
       summaryCommand(state.work.id, "요약 만들기", "요약 만들기", "primary big")) + usage;
   const groups = summaryGroups(r);
   const former = !summaryPoints(r).some((p) => p.topic === TITLE) && summaryPoints(r).some((p) => p.topic === "한 줄 요약"); // 예전 형식(한 줄 요약 → 문제 → … → 한계)으로 저장된 요약
@@ -101,10 +95,12 @@ export function readingPane() {
   const pictured = former ? summaryPoints(r).filter((p) => !gist(p)) : readingViews(r).detail;
   const figures = new Map(representativeCaptures(r, state.work.captures, pictured).map((f) => [f.point, f]));
   const terms = new Set();
-  const item = (p, i) => {
+  // 핵심 요약 줄에는 쪽 번호를 붙이지 않는다(글만 촘촘하게). 세부 요약·예전 형식은 쪽 번호로 원문을 찾아간다.
+  const item = (lead) => (p, i) => {
     const figure = figures.get(p);
+    const shown = lead && !former ? { ...p, refs: [] } : p;
     const cls = [figure ? "with-figure" : "", gist(p) ? "gist" : ""].filter(Boolean).join(" ");
-    return `<li${cls ? ` class="${cls}"` : ""} data-topic="${esc(p.topic)}" style="--i:${i}"><b>${esc(p.topic)}</b>${claim(p, "div", "", terms)}${figure ? figureButton(figure) : ""}</li>`;
+    return `<li${cls ? ` class="${cls}"` : ""} data-topic="${esc(p.topic)}" style="--i:${i}"><b>${esc(p.topic)}</b>${claim(shown, "div", "", terms)}${figure ? figureButton(figure) : ""}</li>`;
   };
   // 비워 둔 물음. 다른 줄로 메우지 않고, 내용을 찾지 못했는지 쓴 문장이 원문 대조에서 떨어졌는지 심사자에게 알린다.
   const missing = (r.edition?.missing || []).map((m) => `${m.topic}(${m.why === "답 없음" ? "내용을 찾지 못함" : "원문 대조 미통과"})`);
@@ -115,16 +111,16 @@ export function readingPane() {
       // 핵심 요약의 제목은 줄 목록 위에 따로 크게 둔다(문서 전체를 말하므로 근거 쪽은 붙이지 않는다).
       const title = lead && points.find((p) => p.topic === TITLE);
       return `<div class="summary-group${lead ? "" : " summary-detail"}"><h2>${heading}</h2>${title ? `<p class="summary-title">${esc(title.text)}</p>` : ""}
-        <ul class="summary-points${listClass(lead, former)}">${join(points.filter((p) => p !== title), item)}</ul></div>`;
+        <ul class="summary-points${listClass(lead, former)}">${join(points.filter((p) => p !== title), item(lead))}</ul></div>`;
     }) :
       `<h2>${MAIN}</h2><p>이 화면에 추가할 확인된 요점이 없습니다.</p>`}
     ${unfilled}
     ${glossaryNote(summaryPoints(r))}
-    ${former || lastWeek ? '<small class="muted">예전 형식의 요약입니다. 다시 만들기를 누르면 핵심 요약(제목·배경·내용·효과)과 세부 요약(문제·목표·방법·결과·시사점)으로 바뀝니다.</small>' : ""}
+    ${former || lastWeek ? '<small class="muted">예전 형식의 요약입니다. AI 재요약을 누르면 핵심 요약(제목·배경·내용·효과)과 세부 요약(문제·목표·방법·결과·시사점)으로 바뀝니다.</small>' : ""}
     ${r.edition?.version !== 1 ? '<small class="muted">이전 형식으로 저장된 요약입니다. 같은 모델로 다시 요약하면 새 형식으로 볼 수 있습니다.</small>' : ""}</section>`;
   const alerts = join(r.sourceAlerts || [], (a) =>
     `<p class="warning"><strong>원문 설명이 다른 부분</strong> · ${esc(a.reason)} ${refs(a.refs)}</p>`);
-  return controls + summary + alerts + usage;
+  return summary + alerts + usage;
 }
 
 /* ─────────────────────────── 비슷한 제안 (similar.mjs) ─────────────────────────── */

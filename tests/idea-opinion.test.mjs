@@ -17,6 +17,7 @@ test("AI 의견은 근거 요점 번호를 그 요점의 원문 근거로 잇고
       weaknesses: [{ text: "표본이 작다.", ids: [2, 9] }],
       questions: ["분실은 어떻게 막나요?", " "],
       company: ["보안 구역 반입 규정을 확인한다."],
+      compliance: [{ area: "개인정보", text: "대여자 연락처 수집 동의와 보관 기간 확인.", ids: [] }, { area: "", text: " ", ids: [1] }],
     };
   };
   const out = await ideaOpinion(reading, [{ reason: "표본 수가 서로 다르다." }], run);
@@ -26,4 +27,7 @@ test("AI 의견은 근거 요점 번호를 그 요점의 원문 근거로 잇고
   assert.deepEqual(out.weaknesses, [{ text: "표본이 작다.", refs: ["S3.4", "S3.5"] }]);
   assert.deepEqual(out.questions, ["분실은 어떻게 막나요?"]);
   assert.equal(out.take, "작은 불편을 싸게 푼다.");
+  // 법·컴플라이언스는 단정하지 않게 묻고, 근거 번호가 없어도 남기며 빈 줄은 버린다
+  assert.match(sent, /위반이라고 단정하지 않고/);
+  assert.deepEqual(out.compliance, [{ area: "개인정보", text: "대여자 연락처 수집 동의와 보관 기간 확인.", refs: [] }]);
 });

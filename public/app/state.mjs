@@ -5,8 +5,8 @@ export const MAX_IMAGE_BYTES = 14 * 1024 * 1024;
 export const DEFAULT_FIELDS = { document: "제안서" };
 export const STEP_TABS = {
   자료: "캡처 자료",
-  요약: "내용 요약",
-  점검: "사실·논리 점검",
+  요약: "AI 요약",
+  점검: "AI 논리점검",
   결과: "채점표",
 };
 export const LINK_TABS = { report: "결과", summary: "요약", logic: "점검" }; // ?tab=
@@ -37,8 +37,8 @@ export const state = {
 // 요약을 대기열에 넣는 중인 작품 id
 export const submittingSummaries = new Set();
 
-// AI 연결(요약 설정에서 정한 모델·연결 주소): 요약과 사실·논리 점검은 이 모델로만 만든다
+// AI 연결(요약 설정에서 정한 모델·연결 주소): 요약과 AI 논리점검은 이 모델로만 만든다
 export const aiLabel = () => state.app?.ai?.label || "Haiku 5.5";
 export const summaryModel = () => "AI · " + aiLabel();
 export const cloudScope = () =>
-  `AI 요약과 그 사실·논리 점검은 ${state.app?.ai?.provider === "litellm" ? "회사 LiteLLM(Bedrock)" : "Anthropic API"}를 사용합니다. OCR 텍스트와 ‘도식 검토’를 선택한 캡처 이미지를 전송합니다.`;
+  `AI 요약과 AI 논리점검은 ${state.app?.ai?.provider === "litellm" ? "회사 LiteLLM(Bedrock)" : "Anthropic API"}를 사용합니다. OCR 텍스트와 ‘도식 검토’를 선택한 캡처 이미지를 전송합니다.`;

@@ -1,4 +1,4 @@
-// 사실·논리 점검 탭: 점검 결과와 'AI가 본 이 아이디어'
+// AI 논리점검 탭: 점검 결과와 'AI가 본 이 아이디어'
 import { esc, join, markNumbers, sentences } from "../lib/html.mjs";
 import { currentLogic, currentReading } from "./navigation.mjs";
 import { haikuUsage } from "./summary.mjs";
@@ -71,15 +71,25 @@ function opinionPanel(o) {
     <div class="opinion-grid">${card("good", "check", "잘된 점", o.strengths, headed)}${card("check", "alert", "확인할 점", o.weaknesses, headed)}</div>
     ${card("ask", "help", "제안자에게 물어볼 것", o.questions, plain, "ol")}
     ${o.company.length ? `<details class="opinion-company"><summary>우리 회사에 적용한다면 · ${o.company.length}건</summary><ul>${join(o.company, plain)}</ul></details>` : ""}
+    ${complianceCard(o.compliance, terms)}
     <small class="muted">AI 의견입니다. 점수와 채택 판단은 하지 않습니다.</small>
   </section>`;
+}
+
+// 법·컴플라이언스 확인(맨 아래): 분야 이름표와 담당 부서가 확인할 점. 위반 판단이 아니다. 이 항목이 생기기 전에 점검한 작품은 다시 점검하면 나온다.
+function complianceCard(items, terms) {
+  if (!items) return '<p class="small muted">법·컴플라이언스 확인은 AI 논리점검을 다시 실행하면 나옵니다.</p>';
+  if (!items.length) return "";
+  return `<section class="opinion-card legal"><h4>${icon("shield", 18)}법·컴플라이언스 확인<em>${items.length}</em></h4>
+    <ul>${join(items, (x) => `<li><span class="legal-area">${esc(x.area)}</span>${claim(x, "div", "", terms)}</li>`)}</ul>
+    <small class="muted">위반 여부 판단이 아니라 법무·컴플라이언스 담당이 확인할 점입니다.</small></section>`;
 }
 
 export function logicPane() {
   if (!currentReading())
     return emptyState(
       "요약이 먼저 필요합니다",
-      "사실·논리 점검은 현재 자료의 내용 요약을 원문과 대조합니다.",
+      "AI 논리점검은 현재 자료의 AI 요약을 원문과 대조합니다.",
     );
   const v = currentLogic();
   const usage = haikuUsage("logic", v);
@@ -87,7 +97,7 @@ export function logicPane() {
     return emptyState(
       "요약을 아직 점검하지 않았습니다",
       "요약의 단정이 원문에 있는지, 같은 대상의 수치나 일정이 충돌하는지, 목표가 실적으로 바뀌었는지 점검합니다.",
-      button("check-logic", "사실·논리 점검 실행", "primary", true),
+      button("check-logic", "AI 논리점검 실행", "primary", true),
     ) + usage;
   // 오류 후보 목록(계산으로 확인 · 원문 대조 필요 · 참고)은 오히려 헷갈려 보여 주지 않는다(2026-11-23 사용자 결정).
   return opinionPanel(v.opinion) + usage;

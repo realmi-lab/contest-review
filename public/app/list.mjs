@@ -133,7 +133,7 @@ export const formsNote = (source) => source?.formId && (source.email || source.d
   : "";
 const intakeCells = (record) => join(intakeValues(record), (value) => `<td>${value}</td>`);
 
-// 목록 화면: 새 작품 접수 줄 + 표 위의 탭(내용 요약 · 사실·논리 점검 · 채점표) + 작품 목록
+// 목록 화면: 새 작품 접수 줄 + 표 위의 탭(AI 요약 · AI 논리점검 · 채점표) + 작품 목록
 // 직접 접수 칸. 작품이 없을 때는 목록 화면에, 있을 때는 '새 작품 접수' 대화상자에 둔다.
 function createForm(layout) {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
@@ -195,8 +195,8 @@ const scoreCell = (x) => `<td class="cell-number">${x.final ? x.score.toFixed(1)
 const VIEWS = {
   all: { label: "전체", done: () => true, heads: ["핵심 요약", "확정 점수"],
     cells: (x) => summaryCell(x, true) + scoreCell(x) },
-  summary: { label: "내용 요약", done: (x) => x.hasReading, heads: ["핵심 요약"], cells: (x) => summaryCell(x, false) },
-  check: { label: "사실·논리 점검", done: (x) => x.hasLogic, heads: ["AI 한마디 평"],
+  summary: { label: "AI 요약", done: (x) => x.hasReading, heads: ["핵심 요약"], cells: (x) => summaryCell(x, false) },
+  check: { label: "AI 논리점검", done: (x) => x.hasLogic, heads: ["AI 한마디 평"],
     cells: (x) => `<td class="cell-wide">${x.hasLogic ? `<span class="rowsummary">${esc(x.take || "점검 결과를 열어 확인하세요.")}</span>`
       : `<span class="muted">${x.hasReading ? "점검 전" : "요약 전"}</span>`}</td>` },
   sheet: { label: "채점표", done: (x) => x.final, heads: ["분야", "심사자 평가", "확정 점수", "1차 결정"],
@@ -215,14 +215,14 @@ export function workListHtml() {
   </table>`;
 }
 
-// 작품명 칸: 공모전 이름(머리말)은 작은 회색 줄로 위에, 작품명은 말줄임 없이 아래에
+// 작품명 칸: 공모전 이름(머리말)은 빼고 작품명만 말줄임 없이(전체 이름은 title 툴팁)
 function workRow(x, prefix, view) {
   const stage = queueStage(x.id);
-  const [contest, title] = splitName(x.name);
+  const title = splitName(x.name)[1];
   return `<tr class="workrow" data-work="${esc(x.id)}">
     <td class="cell-status"><span class="badges">${stageMark(workStatus(x))}<span data-queue="${stage}" class="badge" ${stage ? "" : "hidden"}>${queueLabels[stage] || ""}</span></span>${x.duplicates ? `<small class="warn-text">중복 판정 ${x.duplicates}건</small>` : ""}</td>
     ${intakeCells(x)}
-    <th scope="row"><button class="rowtitle" type="button" data-work="${esc(x.id)}" title="${esc(x.name)}">${contest ? `<small class="rowcontest">${esc(contest)}</small>` : ""}<span>${esc(title)}</span></button></th>
+    <th scope="row"><button class="rowtitle" type="button" data-work="${esc(x.id)}" title="${esc(x.name)}"><span>${esc(title)}</span></button></th>
     ${view.cells(x, prefix)}
   </tr>`;
 }
@@ -233,7 +233,6 @@ const SHARE_BADGES = { "공유 완료": "badge-ok", "공유 대기": "badge-warn
 function formsPanel() {
   const v = state.app.intake;
   if (!v?.configured) return v?.error ? `<div class="warning spaced">MS Forms 연동 설정 · ${esc(v.error)}</div>` : "";
-  const gaps = Object.entries(v.unassigned);
   const rows = join(v.evaluators, (e) => `<tr>
     <td><b>${esc(e.name)}</b><small>${esc(e.email)}</small></td><td>${esc(e.categories.join(" · "))}</td><td class="number">${e.assigned}건</td>
     <td><span class="badge ${SHARE_BADGES[e.share] || "badge-muted"}">${esc(e.share)}</span></td>
@@ -243,7 +242,6 @@ function formsPanel() {
     <div class="toolbar"><h2 class="cardtitle">아이디어 공모<span class="live-bolt" title="1분마다 응답을 확인합니다">${icon("bolt", 16)}</span></h2><span class="muted">응답 ${v.responses}건${v.waiting ? ` · 첨부 동기화 대기 ${v.waiting}건` : ""}${v.checkedAt ? ` · ${esc(seoulMinute(v.checkedAt).slice(11))} 확인` : ""}</span>
       <span class="spacer"></span>${button("intake-sync", "지금 가져오기")}</div>
     ${v.error ? `<p class="warn-text small">${esc(v.error)}</p>` : ""}
-    ${gaps.length ? `<p class="warn-text small">심사자가 없는 분야 · ${esc(gaps.map(([c, n]) => `${c} ${n}건`).join(" · "))}</p>` : ""}
     ${v.evaluators.length ? `<table class="scoretable evaluators"><thead><tr>${columnHeaders(["심사자", "담당 분야", "배정", "공유", "평가 완료", "평가표 읽음"])}</tr></thead><tbody>${rows}</tbody></table>`
       : ""}
   </section>`;
@@ -260,8 +258,8 @@ function howTo() {
   return `
     <ol class="howto">
       <li><b>캡처 자료</b>제출 문서의 화면을 이미지로 올리고 빠짐없이 들어왔는지 확인합니다.</li>
-      <li><b>내용 요약</b>AI가 핵심 내용을 정리하고 원문 근거를 연결합니다.</li>
-      <li><b>사실·논리 점검</b>요약에 이어 AI가 수치·조건 불일치와 논리 비약을 찾습니다.</li>
+      <li><b>AI 요약</b>AI가 핵심 내용을 정리하고 원문 근거를 연결합니다.</li>
+      <li><b>AI 논리점검</b>요약에 이어 AI가 수치·조건 불일치와 논리 비약을 찾습니다.</li>
       <li><b>채점표</b>항목별 점수와 처리 방향을 남기고 확정합니다.</li>
     </ol>`;
 }

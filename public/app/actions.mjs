@@ -13,7 +13,7 @@ import { $, api, button, closeDialog, dialog, notify } from "./ui.mjs";
 import { closeViewer, openCaptureGallery, showRef, showUncertain, zoomCaptureDetail } from "./viewer.mjs";
 import { pageCoverage, showJob } from "./work-page.mjs";
 
-// 요약과 사실·논리 점검은 Claude Haiku로 실행한다. 요약을 만들면 서버가 점검까지 이어서 한다.
+// 요약과 AI 논리점검은 Claude Haiku로 실행한다. 요약을 만들면 서버가 점검까지 이어서 한다.
 async function startJob(route, nextTab) {
   const summary = route === "summarize" || route === "check-logic";
   const target = workRef();
@@ -21,7 +21,7 @@ async function startJob(route, nextTab) {
     const settings = await api("summary-settings");
     if (state.selected !== target.id || state.work?.rev !== target.rev) return;
     if (!settings.configured) return openSummarySettings();
-    const scope = route === "summarize" ? "요약에 이어 사실·논리 점검까지 실행합니다.\n" : "";
+    const scope = route === "summarize" ? "요약에 이어 AI 논리점검까지 실행합니다.\n" : "";
     if (!confirm(`${state.work.name}\n${scope}${cloudScope()}\n${aiLabel()}로 실행할까요?`)) return;
   }
   await api(route, target);
@@ -101,6 +101,7 @@ const actions = {
   },
   "next-work": () => stepWork(1),
   "check-logic": () => startJob("check-logic", "점검"),
+  "remake-summary": () => runSummaryCommand(state.work.id), // AI 요약 탭 머리의 'AI 재요약'
   print: () => {
     for (const fold of document.querySelectorAll("#content details")) fold.open = true; // 접힌 내용도 인쇄한다
     window.print();
@@ -122,7 +123,7 @@ const actions = {
     const ids = suggestedVisual().map((c) => c.id);
     if (!ids.length || !confirm(`도식 검토 추천 ${ids.length}쪽을 도식 검토로 지정할까요?\n다음 요약부터 이 쪽들은 이미지도 AI에 보내 읽습니다. 지금의 요약·점검·확정 채점표는 다시 만들어야 합니다.`)) return;
     const { count } = await api("visual", { ...workRef(), captures: ids });
-    notify(`${count}쪽을 도식 검토로 지정했습니다. 내용 요약을 다시 만들면 반영됩니다.`);
+    notify(`${count}쪽을 도식 검토로 지정했습니다. AI 요약을 다시 만들면 반영됩니다.`);
     await sync(true);
   },
   "forms-settings": openFormsSettings,

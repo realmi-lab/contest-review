@@ -20,6 +20,12 @@
 .opinion-company { margin-bottom: 14px; }
 .opinion-company summary { padding: 6px 0; color: var(--text-2); font-weight: 600; cursor: pointer; }
 .opinion-company ul { margin-top: 8px; }
+.opinion-card.legal { margin-bottom: 14px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); }
+.opinion-card.legal h4 { color: var(--text); }
+.opinion-card.legal ul { list-style: none; padding-left: 0; }
+.opinion-card.legal li { display: grid; grid-template-columns: 9em minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.legal-area { justify-self: start; padding: 2px 8px; border-radius: 6px; background: var(--fill); color: var(--text-2); font-size: var(--fs-label); font-weight: 700; }
+.opinion-card.legal > small { display: block; margin-top: 10px; }
 
 .issue {
   display: grid;

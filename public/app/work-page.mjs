@@ -16,8 +16,9 @@ function nextAction() {
   if (!state.work.complete) return ["confirm-complete", "빠짐없음 확인"];
   // 채점표 화면에서는 채점이 할 일이다.
   if (state.tab === "결과") return state.work.final ? ["next-work", "다음 작품"] : ["go-final", "채점하기"];
-  if (!currentReading()) return state.tab === "요약" ? [] : ["open-summary", "내용 요약으로"];
-  if (!currentLogic()) return ["check-logic", "사실·논리 점검 실행"];
+  if (state.tab === "요약" && currentReading()) return ["remake-summary", "AI 재요약"];
+  if (!currentReading()) return state.tab === "요약" ? [] : ["open-summary", "AI 요약으로"];
+  if (!currentLogic()) return ["check-logic", "AI 논리점검 실행"];
   return state.work.final ? ["next-work", "다음 작품"] : []; // 채점표는 단계 탭에서 연다
 }
 
@@ -118,7 +119,7 @@ export function workView() {
   const [prefix, title] = splitName(state.work.name);
   const list = filteredWorks();
   const index = list.findIndex((x) => x.id === state.work.id);
-  // 내용 요약 탭은 제목 글자를 숨긴다(화면 읽기용으로만 남김).
+  // AI 요약 탭은 제목 글자를 숨긴다(화면 읽기용으로만 남김).
   const panes = {
     자료: intakePane,
     요약: readingPane,
@@ -183,7 +184,7 @@ export function showJob() {
     if (!summary) return;
     const running = [...state.jobsByWork.values()].filter((job) => job.running).length;
     const waiting = state.jobsByWork.size - running;
-    const note = state.jobsByWork.size ? `처리 중 ${running}작품 · 대기 ${waiting}작품` : "처리 중인 작업 없음";
+    const note = state.jobsByWork.size ? `처리 중 ${running}작품 · 대기 ${waiting}작품` : ""; // 할 일이 없으면 비운다
     if (summary.textContent !== note) summary.textContent = note;
     for (const badge of document.querySelectorAll(".workrow [data-queue]")) {
       const stage = queueStage(badge.closest("tr").dataset.work);
@@ -198,7 +199,7 @@ export function showJob() {
   if (!box) return;
   const job = state.jobsByWork.get(state.work.id);
   const run = $("run");
-  const runNeedsEngine = run?.dataset.action === "check-logic";
+  const runNeedsEngine = ["check-logic", "remake-summary"].includes(run?.dataset.action);
   const ocrPending =
     run?.dataset.action === "confirm-complete" &&
     state.work.captures.some((c) => c.status === "queued");

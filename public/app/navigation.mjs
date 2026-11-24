@@ -20,10 +20,14 @@ export const currentLogic = () => {
 export const currentEvidence = () => currentReading()?.evidence;
 export const findCapture = (id) => state.work?.captures.find((c) => c.id === id);
 
-// "공개 추가검증 · 실제 제목" → ["공개 추가검증", "실제 제목"]
+// "2023 빅콘테스트 · 실제 제목" → ["2023 빅콘테스트", "실제 제목"]. 공모전 이름(머리말)은 연도로 시작하거나
+// 여러 작품이 함께 쓸 때만 나눈다("비 오는 날 공유 우산 · 합성 예제"는 그대로 → ["", 전체]).
 export function splitName(name) {
   const i = name.indexOf(" · ");
-  return i > 0 ? [name.slice(0, i), name.slice(i + 3)] : ["", name];
+  if (i <= 0) return ["", name];
+  const prefix = name.slice(0, i);
+  const shared = (state.app?.works ?? []).filter((x) => x.name.startsWith(prefix + " · ")).length > 1;
+  return /^\d{4}\s/.test(prefix) || shared ? [prefix, name.slice(i + 3)] : ["", name];
 }
 
 export function saveSelection() {

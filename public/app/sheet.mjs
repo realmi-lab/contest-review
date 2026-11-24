@@ -65,13 +65,13 @@ function guideView(guide) {
   return `<details class="guide"><summary>${esc(guide.slice(0, cut))}</summary>${esc(guide.slice(cut).trim())}</details>`;
 }
 
-// AI는 채점하지 않는다. 채점 전에 볼 AI 사실·논리 점검 결과를 한 줄로 접어 둔다.
+// AI는 채점하지 않는다. 채점 전에 볼 AI 논리점검 결과를 한 줄로 접어 둔다.
 function logicNote() {
   const v = currentLogic();
   if (!v)
-    return `<div class="provider-toolbar no-print"><span>AI 사실·논리 점검 전</span>${currentReading() ? button("check-logic", "점검 실행", "", true) : ""}</div>`;
-  if (!shownIssues(v).length) return '<p class="ai-report muted">AI 사실·논리 점검 · 오류 후보 없음</p>';
-  return `<details class="ai-report"><summary>AI 사실·논리 점검 · ${countText(issueCounts(v))}</summary>${issueList(v)}</details>`;
+    return `<div class="provider-toolbar no-print"><span>AI 논리점검 전</span>${currentReading() ? button("check-logic", "점검 실행", "", true) : ""}</div>`;
+  if (!shownIssues(v).length) return '<p class="ai-report muted">AI 논리점검 · 오류 후보 없음</p>';
+  return `<details class="ai-report"><summary>AI 논리점검 · ${countText(issueCounts(v))}</summary>${issueList(v)}</details>`;
 }
 
 // 1차 심사 채점표: 사전 확인 → 항목별 점수 → 처리 방향. 사람이 채점한다.

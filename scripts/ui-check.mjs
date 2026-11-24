@@ -81,7 +81,7 @@ try {
     assert.equal(await isOpen(), false);
   });
   await step("단축키 1~4로 단계를 옮긴다", async () => {
-    for (const [key, title] of [["2", "내용 요약"], ["3", "사실·논리 점검"], ["4", "채점표"], ["1", "캡처 자료"]]) {
+    for (const [key, title] of [["2", "AI 요약"], ["3", "AI 논리점검"], ["4", "채점표"], ["1", "캡처 자료"]]) {
       await press(key);
       assert.match(await page.$eval(".panetitle", (e) => e.textContent), new RegExp(title));
     }
@@ -129,8 +129,8 @@ try {
     await until("목록", async () => !!(await page.$("#search")));
     await page.type("#search", "우산");
     await until("검색 결과", async () => /우산/.test(await page.$eval("#worklist", (e) => e.textContent)));
-    // 표 위의 탭 네 개(전체 · 내용 요약 · 사실·논리 점검 · 채점표)가 같은 작품을 단계별 결과로 보여 준다
-    assert.deepEqual(await page.$$eval(".stagetab", (tabs) => tabs.map((t) => t.firstChild.textContent)), ["전체", "내용 요약", "사실·논리 점검", "채점표"]);
+    // 표 위의 탭 네 개(전체 · AI 요약 · AI 논리점검 · 채점표)가 같은 작품을 단계별 결과로 보여 준다
+    assert.deepEqual(await page.$$eval(".stagetab", (tabs) => tabs.map((t) => t.firstChild.textContent)), ["전체", "AI 요약", "AI 논리점검", "채점표"]);
     for (const [view, heading] of [["summary", "핵심 요약"], ["check", "AI 한마디 평"], ["sheet", "1차 결정"], ["all", "확정 점수"]]) {
       await click(`[data-list-view="${view}"]`);
       await until(heading, async () => (await page.$eval(".works-table thead", (e) => e.textContent)).includes(heading));
