@@ -97,10 +97,15 @@
   background: var(--side-line);
   color: var(--side-text);
 }
+/* 전체 작품: 목록을 내려도 맨 위에 고정. 누르면 목록(메인) 화면으로 간다. 아래 작품이 비치지 않게 바탕을 칠한다. */
 .navall {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   margin: 8px 0 4px;
+  background: var(--side-bg);
   padding: 10px;
   color: #fff;
   font-size: var(--fs-body);
@@ -112,6 +117,8 @@
   background: var(--side-active);
   color: var(--accent-on-dark);
 }
+.navall.active { background: linear-gradient(var(--side-active), var(--side-active)), var(--side-bg); }
+.navall:hover:not(.active) { background: var(--side-hover); }
 .navwork {
   display: flex;
   align-items: center;

@@ -186,27 +186,35 @@
   font-weight: 700;
   white-space: nowrap;
 }
-/* 진행 상태(표 첫 열): 단계마다 색을 달리한 알약. 회색 캡처 전 → 노랑 요약 전 → 옅은 오렌지 요약 완료 → 초록 점검 완료 → 오렌지 심사 확정.
-   눈금 네 칸은 캡처 → 요약 → 점검 → 채점(왼쪽 메뉴의 단계와 같은 순서). 점(●)은 검은 왼쪽 메뉴 위에 놓인다. */
+/* 진행 상태(표 첫 열): 단계마다 색을 달리한 알약 안에 시계 모양 동그라미. 네 칸(캡처 → 요약 → 점검 → 채점, 한 칸 90°) 가운데
+   끝낸 칸만큼 12시부터 시계 방향으로 찬다. 회색 캡처 전 → 노랑 요약 전 → 오렌지 요약 완료 → 초록 점검 완료 → 오렌지 바탕 심사 확정. */
 .cell-status { width: 1%; white-space: nowrap; }
 .status {
+  --pill: var(--fill);
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 12px;
+  padding: 5px 12px 5px 6px;
   border-radius: 999px;
+  background: var(--pill);
   font-size: var(--fs-ui);
   font-weight: 700;
   white-space: nowrap;
 }
-.status-new { background: var(--fill); color: var(--text-3); }
-.status-capt { background: var(--warn-soft); color: var(--warn-text); }
-.status-read { background: var(--accent-soft); color: var(--accent-text); }
-.status-checked { background: var(--green-soft); color: var(--green-text); }
-.status-final { background: var(--accent); color: #fff; }
-.steps { display: inline-flex; gap: 2px; }
-.steps i { width: 9px; height: 5px; border-radius: 1px; background: currentColor; opacity: 0.25; }
-.steps i.on { opacity: 1; }
+.status-new { color: var(--text-3); }
+.status-capt { --pill: var(--warn-soft); color: var(--warn-text); }
+.status-read { --pill: var(--accent-soft); color: var(--accent-text); }
+.status-checked { --pill: var(--green-soft); color: var(--green-text); }
+.status-final { --pill: var(--accent); color: #fff; }
+.status-clock {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+  background:
+    repeating-conic-gradient(var(--pill) 0 3deg, transparent 3deg 90deg), /* 칸 사이 눈금 */
+    conic-gradient(currentColor calc(var(--done) * 25%), transparent 0);
+}
 .badge[data-queue="wait"] {
   background: var(--fill);
   color: var(--text-3);

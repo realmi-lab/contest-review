@@ -1,8 +1,8 @@
 // 사실·논리 점검 탭: 점검 결과와 'AI가 본 이 아이디어'
-import { esc, join, markNumbers } from "../lib/html.mjs";
+import { esc, join, markNumbers, sentences } from "../lib/html.mjs";
 import { currentLogic, currentReading } from "./navigation.mjs";
 import { haikuUsage } from "./summary.mjs";
-import { button, claim, emptyState, refs, richText } from "./ui.mjs";
+import { button, claim, emptyState, icon, refs, richText } from "./ui.mjs";
 
 // 점검 결과 분류: 계산으로 확인 · 확인 필요(재검토로 확정) · 참고(재검토에서 확정하지 못한 후보)
 const BADGES = { "계산으로 확인": "badge-danger", 참고: "badge-muted" };
@@ -49,18 +49,28 @@ function issueCard(x, terms, no) {
     </article>`;
 }
 
-// 점검 맨 위 'AI가 본 이 아이디어' (idea-opinion.mjs). 점수·채택 판단은 하지 않는다.
+// 점검 탭의 'AI가 본 이 아이디어'(idea-opinion.mjs)를 한눈에 보는 카드로 보여 준다:
+// 한마디 평 → 잘된 점(초록)·확인할 점(노랑) → 제안자에게 물어볼 것 → 우리 회사에 적용한다면(접힘). 점수·채택 판단은 하지 않는다.
+// 잘된 점·확인할 점은 줄마다 첫 문장을 굵은 제목으로, 나머지를 작은 설명으로 둬 훑어보기 쉽게 한다.
 function opinionPanel(o) {
   if (!o) return "";
   if (o.error) return `<p class="small muted">AI가 본 이 아이디어를 쓰지 못했습니다 · ${esc(o.error)}</p>`;
   const terms = new Set();
-  const lines = (items) => join(items, (x) => claim(typeof x === "string" ? { text: x, refs: [] } : x, "li", "", terms));
-  const block = (title, items, tag = "ul") => items.length ? `<div><h4>${title}</h4><${tag}>${lines(items)}</${tag}></div>` : "";
+  const asPoint = (x) => (typeof x === "string" ? { text: x, refs: [] } : x);
+  const headed = (x) => {
+    const p = asPoint(x);
+    const [head, ...rest] = sentences(p.text);
+    return `<li><b>${esc(head)}${rest.length ? "" : refs(p.refs)}</b>${rest.length ? claim({ ...p, text: rest.join(" ") }, "div", "", terms) : ""}</li>`;
+  };
+  const plain = (x) => claim(asPoint(x), "li", "", terms);
+  const card = (cls, mark, title, items, line, tag = "ul") => items.length
+    ? `<section class="opinion-card ${cls}"><h4>${icon(mark, 18)}${title}<em>${items.length}</em></h4><${tag}>${join(items, line)}</${tag}></section>` : "";
   return `<section class="opinion">
     <h3>AI가 본 이 아이디어</h3>
     ${o.take ? `<p class="opinion-take">${esc(o.take)}</p>` : ""}
-    <div class="opinion-grid">${block("좋은 점", o.strengths)}${block("약한 점", o.weaknesses)}</div>
-    <div class="opinion-grid">${block("제안자에게 물어볼 것", o.questions, "ol")}${block("우리 회사에 적용한다면", o.company)}</div>
+    <div class="opinion-grid">${card("good", "check", "잘된 점", o.strengths, headed)}${card("check", "alert", "확인할 점", o.weaknesses, headed)}</div>
+    ${card("ask", "help", "제안자에게 물어볼 것", o.questions, plain, "ol")}
+    ${o.company.length ? `<details class="opinion-company"><summary>우리 회사에 적용한다면 · ${o.company.length}건</summary><ul>${join(o.company, plain)}</ul></details>` : ""}
     <small class="muted">AI 의견입니다. 점수와 채택 판단은 하지 않습니다.</small>
   </section>`;
 }

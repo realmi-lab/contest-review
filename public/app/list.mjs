@@ -47,12 +47,11 @@ export function queueStage(id) {
 export const queueLabels = { run: "처리 중", wait: "대기" };
 
 // 목록의 진행 상태: 캡처 → 요약 → 점검 → 채점 네 칸 눈금과 글자. 확정은 도장.
-// 진행 상태 알약: 단계마다 색이 다르고, 캡처 → 요약 → 점검 → 채점 네 칸 눈금으로 어디까지 왔는지 보여 준다.
+// 진행 상태 알약: 단계마다 색이 다르고, 동그라미가 시계처럼 캡처 → 요약 → 점검 → 채점 네 칸(한 칸 = 90°)만큼 찬다.
 const STAGE_STEPS = { new: 0, capt: 1, read: 2, checked: 3, final: 4 };
 function stageMark(status) {
   const done = STAGE_STEPS[status.key];
-  const steps = [0, 1, 2, 3].map((i) => `<i${i < done ? ' class="on"' : ""}></i>`).join("");
-  return `<span class="status status-${status.key}"><span class="steps" aria-hidden="true">${steps}</span>${esc(status.label)}</span>`;
+  return `<span class="status status-${status.key}" title="${done} / 4단계"><span class="status-clock" style="--done:${done}" aria-hidden="true"></span>${esc(status.label)}</span>`;
 }
 
 // 같은 머리말("공개 추가검증 · …")이 2개 이상이면 묶음 제목으로 한 번만 보여 준다.

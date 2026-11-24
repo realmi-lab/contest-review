@@ -7,6 +7,8 @@ import { $, api, claim, emptyState, glossaryNote, refs } from "./ui.mjs";
 
 /* ─────────────────────────── 내용 요약 탭 ─────────────────────────── */
 
+// 줄 목록 모양: 핵심 요약은 촘촘한 개조식(main), 세부 요약은 예전 핵심 요약처럼 크게(lead). 예전 형식은 핵심만 크게 보여 준다.
+const listClass = (lead, former) => (former ? (lead ? " lead" : "") : lead ? " lead main" : " lead");
 // 핵심 요약(제목 아래 한 줄 요약·배경·내용·효과)과 세부 요약(문제 → 목표 → 방법 → 결과 → 시사점), 두 묶음만 한 화면에 차례로 보여 준다.
 const MAIN = "핵심 요약", TITLE = "제목";
 function summaryGroups(r) {
@@ -113,7 +115,7 @@ export function readingPane() {
       // 핵심 요약의 제목은 줄 목록 위에 따로 크게 둔다(문서 전체를 말하므로 근거 쪽은 붙이지 않는다).
       const title = lead && points.find((p) => p.topic === TITLE);
       return `<div class="summary-group${lead ? "" : " summary-detail"}"><h2>${heading}</h2>${title ? `<p class="summary-title">${esc(title.text)}</p>` : ""}
-        <ul class="summary-points${lead ? " lead" : ""}${lead && !former ? " main" : ""}">${join(points.filter((p) => p !== title), item)}</ul></div>`;
+        <ul class="summary-points${listClass(lead, former)}">${join(points.filter((p) => p !== title), item)}</ul></div>`;
     }) :
       `<h2>${MAIN}</h2><p>이 화면에 추가할 확인된 요점이 없습니다.</p>`}
     ${unfilled}
