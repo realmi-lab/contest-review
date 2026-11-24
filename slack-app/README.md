@@ -114,6 +114,26 @@ slack trigger create --trigger-def triggers/review_webhook.ts
 
 그다음 아이디어정리를 `./start.sh`로 다시 켭니다.
 
+## 보내기에서 '평가 단추 앱 웹훅 HTTP 400'이 나면
+
+웹훅을 만든 뒤 앱 코드가 바뀌어(입력 이름이 달라져) 웹훅 정의가 옛것인 경우입니다. `slack-app` 폴더에서:
+
+```sh
+git pull
+```
+```sh
+slack deploy
+```
+```sh
+slack trigger list
+```
+
+목록에서 '아이디어정리 평가 요청'의 ID(`Ft…`)를 확인하고 웹훅 정의를 새로 고칩니다(주소는 그대로):
+
+```sh
+slack trigger update --trigger-id Ft여기에 --trigger-def triggers/review_webhook.ts
+```
+
 ## 고친 뒤 다시 올리기
 
 `slack deploy` 한 번이면 됩니다(웹훅 주소는 그대로).

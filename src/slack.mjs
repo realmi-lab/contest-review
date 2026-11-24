@@ -75,7 +75,8 @@ export async function sendHtml(user, { workId, title, filename, html, comment })
   });
   const hook = await send(reviewWebhook, { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user_id: user, work_id: workId, title, reply_channel: channel }) });
-  if (!hook.ok) err("평가 단추를 보내지 못했습니다 · 평가 단추 앱 웹훅 HTTP " + hook.status, 502);
+  // 400은 대개 웹훅의 입력(user_id·work_id·title·reply_channel)과 배포한 앱의 웹훅 정의가 다를 때다. Slack이 준 까닭을 붙여 보여 준다.
+  if (!hook.ok) err(`평가 단추를 보내지 못했습니다 · 평가 단추 앱 웹훅 HTTP ${hook.status} ${(await hook.text().catch(() => "")).slice(0, 200)}`.trim(), 502);
   return { channel };
 }
 
