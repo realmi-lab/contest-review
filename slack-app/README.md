@@ -7,6 +7,22 @@
 흐름: 아이디어정리 **보내기** → idea_proposal 봇이 담당자 + 이 앱 봇과 그룹 DM을 열어 HTML 파일을 올림 → 이 앱의 웹훅을 불러
 같은 그룹 DM에 단추를 올림 → 담당자가 단추를 눌러 의견 보내기 → 이 앱이 의견 메시지를 남김 → 아이디어정리가 가져가 채점표에 담음.
 
+## 지금 할 일 (체크리스트)
+
+관리자 승인을 요청해 둔 뒤에는 이 순서로 합니다.
+
+1. [ ] **승인 나면 다시 배포**: `slack-app` 폴더에서 `slack deploy` (승인 전에 실패했으면 다시 실행)
+2. [ ] **웹훅 만들기**: `slack trigger create --trigger-def triggers/review_webhook.ts`
+   - 앱을 고르라고 하면 `(local)`이 아닌 **배포한 앱**
+   - 나온 `https://hooks.slack.com/triggers/…` 주소 복사 (처음 한 번만, 다시 배포해도 그대로)
+3. [ ] **idea-review 봇 ID**: Slack에서 idea-review 앱 프로필 → **⋮ → 멤버 ID 복사** (U로 시작)
+4. [ ] **idea_proposal 권한 더하기**: App Manifest `scopes: bot:`에 `- mpim:write`, `- mpim:history` → **Save Changes** → **reinstall your app** → **허용** (이번 한 번)
+5. [ ] **site.json 채우기**: `deploy/site.json`의 `slack`에 `reviewWebhook`, `reviewBotId` (재설치로 토큰이 바뀌었으면 `botToken`도)
+6. [ ] **아이디어정리 다시 켜기**: `git pull` → `./start.sh`
+7. [ ] **시험**: 채점표 탭 → 담당자 검색 → **보내기** → Slack 그룹 DM에 HTML 파일과 [평가 답장하기] 단추가 오면, 단추로 의견을 보내고 1분 안에 채점표 **담당자 의견**에 담기는지 확인
+
+막히면 화면을 그대로 보여 주세요. 아래는 각 단계의 자세한 방법입니다.
+
 ## 처음 한 번 (맥 터미널)
 
 Slack 유료 플랜(워크플로 앱 배포 가능)이어야 합니다. 명령은 **한 줄씩 따로** 붙여 넣으세요(설명 줄까지 붙여 넣으면 `command not found: #`가 납니다).
