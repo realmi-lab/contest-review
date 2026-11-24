@@ -1,9 +1,9 @@
 // 목록 화면: 진행 현황, 작품 목록·검색·정렬, 직접 접수, 아이디어 공모(MS Forms) 연동 현황
-import { esc, join, seoulMinute } from "../lib/html.mjs";
+import { esc, join, sentences, seoulMinute } from "../lib/html.mjs";
 import { select, splitName } from "./navigation.mjs";
 import { state } from "./state.mjs";
 import { summaryActions } from "./summary.mjs";
-import { $, button, count, dialog, emptyState, field, icon, input } from "./ui.mjs";
+import { $, button, count, dialog, emptyState, field, icon, input, noPeriod } from "./ui.mjs";
 
 /* ─────────────────────────── 상태 표시와 진행 단계 ─────────────────────────── */
 
@@ -189,7 +189,7 @@ export function overviewView() {
 // 표 위의 탭마다 보여 주는 열. 접수 정보·작품명·진행 상태는 같고, 가운데 열이 그 단계의 결과다.
 // done: 그 단계를 마친 작품인가(탭의 숫자) · heads: 가운데 열 이름 · cells: 가운데 칸들
 const summaryCell = (x, brief) => `<td class="cell-wide">${x.hasReading
-  ? `${x.title ? `<b class="rowsummary-title">${esc(x.title)}</b>` : ""}${brief && x.title ? "" : `<span class="rowsummary">${esc(x.gist || "요약을 열어 확인하세요.")}</span>`}`
+  ? `${x.title ? `<b class="rowsummary-title">${esc(x.title)}</b>` : ""}${brief && x.title ? "" : `<span class="rowsummary">${esc(x.gist ? sentences(x.gist).map(noPeriod).join(" ") : "요약을 열어 확인하세요")}</span>`}`
   : `<span class="muted">${x.count ? "요약 전" : "캡처 전"}</span>${summaryActions(x)}`}</td>`;
 const scoreCell = (x) => `<td class="cell-number">${x.final ? x.score.toFixed(1) + "점" : "—"}</td>`;
 const VIEWS = {

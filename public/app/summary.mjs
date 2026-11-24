@@ -3,7 +3,7 @@ import { explainOcr, readingViews, representativeCaptures } from "../lib/expande
 import { esc, join } from "../lib/html.mjs";
 import { currentReading, splitName, sync } from "./navigation.mjs";
 import { cloudScope, state, submittingSummaries } from "./state.mjs";
-import { $, api, claim, emptyState, glossaryNote, refs } from "./ui.mjs";
+import { $, api, claim, emptyState, glossaryNote, noPeriod, refs } from "./ui.mjs";
 
 /* ─────────────────────────── AI 요약 탭 ─────────────────────────── */
 
@@ -100,7 +100,7 @@ export function readingPane() {
     const figure = figures.get(p);
     const shown = lead && !former ? { ...p, refs: [] } : p;
     const cls = [figure ? "with-figure" : "", gist(p) ? "gist" : ""].filter(Boolean).join(" ");
-    return `<li${cls ? ` class="${cls}"` : ""} data-topic="${esc(p.topic)}" style="--i:${i}"><b>${esc(p.topic)}</b>${claim(shown, "div", "", terms)}${figure ? figureButton(figure) : ""}</li>`;
+    return `<li${cls ? ` class="${cls}"` : ""} data-topic="${esc(p.topic)}" style="--i:${i}"><b>${esc(p.topic)}</b>${claim(shown, "div", "", terms, true)}${figure ? figureButton(figure) : ""}</li>`;
   };
   // 비워 둔 물음. 다른 줄로 메우지 않고, 내용을 찾지 못했는지 쓴 문장이 원문 대조에서 떨어졌는지 심사자에게 알린다.
   const missing = (r.edition?.missing || []).map((m) => `${m.topic}(${m.why === "답 없음" ? "내용을 찾지 못함" : "원문 대조 미통과"})`);
@@ -112,7 +112,7 @@ export function readingPane() {
       // 예전 형식은 한 줄 요약을 전처럼 회색 상자로 둔다.
       const top = lead && !former && (points.find(gist) || points.find((p) => p.topic === TITLE));
       const rows = lead && !former ? points.filter((p) => p.topic !== TITLE && !gist(p)) : points;
-      return `<div class="summary-group${lead ? "" : " summary-detail"}"><h2>${heading}</h2>${top ? `<p class="summary-title">${esc(top.text)}</p>` : ""}
+      return `<div class="summary-group${lead ? "" : " summary-detail"}"><h2>${heading}</h2>${top ? `<p class="summary-title">${esc(noPeriod(top.text))}</p>` : ""}
         <ul class="summary-points${listClass(lead, former)}">${join(rows, item(lead))}</ul></div>`;
     }) :
       `<h2>${MAIN}</h2><p>이 화면에 추가할 확인된 요점이 없습니다.</p>`}
