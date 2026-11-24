@@ -47,12 +47,12 @@ export function queueStage(id) {
 export const queueLabels = { run: "처리 중", wait: "대기" };
 
 // 목록의 진행 상태: 캡처 → 요약 → 점검 → 채점 네 칸 눈금과 글자. 확정은 도장.
-const STAGE_STEPS = { new: 0, capt: 1, read: 2, checked: 3 };
+// 진행 상태 알약: 단계마다 색이 다르고, 캡처 → 요약 → 점검 → 채점 네 칸 눈금으로 어디까지 왔는지 보여 준다.
+const STAGE_STEPS = { new: 0, capt: 1, read: 2, checked: 3, final: 4 };
 function stageMark(status) {
-  if (status.key === "final") return `<span class="progress final">${esc(status.label)}</span>`;
   const done = STAGE_STEPS[status.key];
   const steps = [0, 1, 2, 3].map((i) => `<i${i < done ? ' class="on"' : ""}></i>`).join("");
-  return `<span class="progress"><span class="steps" aria-hidden="true">${steps}</span>${esc(status.label)}</span>`;
+  return `<span class="status status-${status.key}"><span class="steps" aria-hidden="true">${steps}</span>${esc(status.label)}</span>`;
 }
 
 // 같은 머리말("공개 추가검증 · …")이 2개 이상이면 묶음 제목으로 한 번만 보여 준다.
@@ -207,7 +207,7 @@ export function workListHtml() {
   if (!works.length) return emptyState("조건에 맞는 작품이 없습니다", "검색어를 지워 보세요.");
   const view = VIEWS[state.listQuery.view];
   return `<table class="works-table view-${state.listQuery.view}" aria-label="작품별 ${view.label}">
-    <thead><tr>${columnHeaders([...intakeHeadings, "작품명", ...view.heads, "진행 상태"])}</tr></thead>
+    <thead><tr>${columnHeaders(["진행 상태", ...intakeHeadings, "작품명", ...view.heads])}</tr></thead>
     ${join(groupWorks(works), ([prefix, items]) => `<tbody>${join(items, (item) => workRow(item, prefix, view))}</tbody>`)}
   </table>`;
 }
@@ -215,10 +215,10 @@ export function workListHtml() {
 function workRow({ work: x, title }, prefix, view) {
   const stage = queueStage(x.id);
   return `<tr class="workrow" data-work="${esc(x.id)}">
+    <td class="cell-status"><span class="badges">${stageMark(workStatus(x))}<span data-queue="${stage}" class="badge" ${stage ? "" : "hidden"}>${queueLabels[stage] || ""}</span></span>${x.duplicates ? `<small class="warn-text">중복 판정 ${x.duplicates}건</small>` : ""}</td>
     ${intakeCells(x)}
     <th scope="row"><button class="rowtitle" type="button" data-work="${esc(x.id)}" title="${esc(x.name)}"><span>${esc(title)}</span></button></th>
     ${view.cells(x, prefix)}
-    <td><span class="badges"><span data-queue="${stage}" class="badge" ${stage ? "" : "hidden"}>${queueLabels[stage] || ""}</span>${stageMark(workStatus(x))}</span>${x.duplicates ? `<small class="warn-text">중복 판정 ${x.duplicates}건</small>` : ""}</td>
   </tr>`;
 }
 

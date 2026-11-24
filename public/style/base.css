@@ -38,6 +38,7 @@
   --accent-on-dark: #ff8a33; /* 검은 바탕 위 오렌지 글자 (6.9:1) */
   --green: #03b26c;
   --green-text: #0a6440; /* 흰 바탕 위 초록 글자 (6:1) */
+  --green-soft: #e3f6ec; /* 옅은 초록 면 */
   --warn-text: #7f5a00; /* 주의 (오렌지와 구분되는 노랑 계열) */
   --warn-soft: #fff5d6;
   --red: #e42939;
