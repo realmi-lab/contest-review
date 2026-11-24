@@ -10,10 +10,23 @@ import { err } from "./validate.mjs";
 const token = () => process.env.SLACK_BOT_TOKEN || readSite().slack?.botToken || "";
 export const slackReady = () => !!token();
 
+// slack.com에 닿지 못하면 'fetch failed'만 나와 원인을 알 수 없다. 원인 코드(인증서·이름 찾기·시간 초과 등)를 붙여 보여 준다.
+// 회사망에서 흔한 원인: 프록시(서버 Node는 브라우저의 프록시 설정을 쓰지 않는다), 보안 장비가 바꿔 끼운 인증서.
+async function send(url, options) {
+  try {
+    return await fetch(url, options);
+  } catch (e) {
+    const cause = e.cause?.code || e.cause?.message || e.message;
+    const hint = /CERT|SSL|TLS/i.test(cause) ? " · 회사 보안 장비의 인증서 때문일 수 있습니다(NODE_EXTRA_CA_CERTS로 회사 인증서를 지정)"
+      : /ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT/.test(cause) ? " · 이 서버에서 slack.com으로 나가는 길이 막혔을 수 있습니다(방화벽·프록시)" : "";
+    err(`Slack에 연결하지 못했습니다 · ${cause}${hint}`, 502);
+  }
+}
+
 // Slack Web API 한 번 부르기(폼 형식: 모든 메서드가 받는다). 실패하면 Slack이 준 오류 이름을 보여 준다.
 async function call(method, params) {
   const key = token() || err("Slack 봇 토큰이 없습니다. deploy/site.json에 slack.botToken을 넣으세요.");
-  const res = await fetch("https://slack.com/api/" + method, {
+  const res = await send("https://slack.com/api/" + method, {
     method: "POST",
     headers: { Authorization: "Bearer " + key, "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(params),
@@ -48,7 +61,7 @@ export async function sendHtml(user, { filename, html, comment }) {
   const channel = (await call("conversations.open", { users: user })).channel.id;
   const bytes = Buffer.from(html, "utf8");
   const slot = await call("files.getUploadURLExternal", { filename, length: String(bytes.length) });
-  const up = await fetch(slot.upload_url, { method: "POST", body: bytes });
+  const up = await send(slot.upload_url, { method: "POST", body: bytes });
   if (!up.ok) err("Slack 파일 올리기 실패 · HTTP " + up.status, 502);
   await call("files.completeUploadExternal", {
     files: JSON.stringify([{ id: slot.file_id, title: filename }]),

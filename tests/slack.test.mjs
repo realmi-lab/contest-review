@@ -67,3 +67,10 @@ test("DM 답장은 그보다 먼저 보낸 가장 최근 작품에, 스레드 �
   assert.deepEqual(load(second.id).slackReplies.map((r) => [r.name, r.text]), [["김철수", "둘째는 좋아요"], ["김철수", "둘째 추가 의견"]]);
   assert.equal(load(first.id).slackSent[0].seen, "310.1"); // 다음에는 여기부터 읽는다
 });
+
+test("slack.com에 닿지 못하면 원인 코드와 짐작되는 까닭을 함께 알린다", async () => {
+  const before = globalThis.fetch;
+  globalThis.fetch = async () => { throw Object.assign(new TypeError("fetch failed"), { cause: { code: "SELF_SIGNED_CERT_IN_CHAIN" } }); };
+  await assert.rejects(sendHtml("U1", { filename: "a.html", html: "a", comment: "" }), /SELF_SIGNED_CERT_IN_CHAIN · 회사 보안 장비의 인증서/);
+  globalThis.fetch = before;
+});
