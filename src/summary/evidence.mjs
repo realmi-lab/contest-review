@@ -1,5 +1,6 @@
 // 캡처의 글자 인식 결과를 요약의 근거 구절(S쪽.번호)로 바꾼다.
 import sharp from "sharp";
+import { mapLimit } from "../ai/batches.mjs";
 import { chat } from "../ai/claude-summary.mjs";
 import { preferNativeGroups, readingBlocks } from "../ocr/layout.mjs";
 
@@ -28,7 +29,7 @@ async function capturePng(imageFor, id, maxSide) {
 }
 
 // 캡처마다 글자를 읽는 순서대로 묶어 근거 구절을 만든다. 도식 검토로 지정한 쪽은 그림을 AI에게 보여
-// 그래프 설명과 어림값을 한 구절(S쪽.V)로 더한다.
+// 그래프 설명과 어림값을 한 구절(S쪽.V)로 더한다. 그래프는 3쪽씩 함께 읽고, 몇 쪽째인지 진행 상황에 보여 준다.
 export async function collectEvidence(captures, imageFor, progress) {
   const evidence = {},
     blocks = [];
@@ -36,15 +37,22 @@ export async function collectEvidence(captures, imageFor, progress) {
     evidence[id] = { capture: c.id, label: c.label, text, indexes, kind };
     blocks.push({ id, text, source: c.label, ...(kind === "OCR 수치 대조 필요" ? { uncertain: true } : {}) });
   };
+  const charts = captures.filter((c) => c.visual);
+  let done = 0;
+  if (charts.length) progress(`그래프 값 읽는 중 · 0 / ${charts.length}쪽`);
+  const visuals = new Map(await mapLimit(charts, 3, async (c) => {
+    const visual = await chat(CHART_SYSTEM, CHART_PROMPT, CHART_SCHEMA, [await capturePng(imageFor, c.id, 1500)], 900);
+    progress(`그래프 값 읽는 중 · ${++done} / ${charts.length}쪽 (${c.label} 완료)`);
+    return [c.id, visual];
+  }));
   for (const [index, c] of captures.entries()) {
     const page = "S" + (index + 1);
     for (const [i, block] of preferNativeGroups(readingBlocks(c.lines), c.ocrInfo?.tables).entries()) {
       const disputed = block.indexes.some((j) => c.lines[j].numericDispute);
       add(page + "." + (i + 1), c, block.text, block.indexes, disputed ? "OCR 수치 대조 필요" : "OCR");
     }
-    if (c.visual) {
-      progress(c.label + " · 그래프 값 읽는 중");
-      const visual = await chat(CHART_SYSTEM, CHART_PROMPT, CHART_SCHEMA, [await capturePng(imageFor, c.id, 1500)], 900);
+    const visual = visuals.get(c.id);
+    if (visual) {
       const values = visual.values.trim();
       add(page + ".V", c, visual.description + (values ? " 눈금으로 읽은 어림값: " + values : ""), [], "이미지 판독 · 어림값");
     }
