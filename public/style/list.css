@@ -163,8 +163,6 @@
   text-align: left;
   overflow-wrap: anywhere;
 }
-/* 긴 제목은 두 줄까지 (전체 이름은 title 툴팁과 작품 화면) */
-.rowtitle > span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .rowtitle:hover { background: transparent; text-decoration: underline; text-underline-offset: 3px; }
 /* 제목 아래 한 줄 요약: 한 줄만 (전체는 작품 화면에서) */
 .detail-title { display: grid; min-width: 0; gap: 6px; }

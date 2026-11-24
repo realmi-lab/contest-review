@@ -125,12 +125,9 @@
   gap: 10px;
   padding: 8px 10px;
   font-weight: 500;
+  text-align: left;
 }
-.nav-title {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
+.nav-title { line-height: 1.4; overflow-wrap: anywhere; } /* 긴 작품명도 말줄임 없이 줄을 바꿔 다 보인다 */
 
 .navwork.active {
   font-weight: 700;
