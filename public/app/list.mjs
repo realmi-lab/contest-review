@@ -1,9 +1,9 @@
-// 목록 화면: 진행 현황, 작품 목록·검색·정렬, 직접 접수, MS Forms 공모 연동 현황
+// 목록 화면: 진행 현황, 작품 목록·검색·정렬, 직접 접수, 아이디어 공모(MS Forms) 연동 현황
 import { esc, join, seoulMinute } from "../lib/html.mjs";
 import { select, splitName } from "./navigation.mjs";
 import { state } from "./state.mjs";
 import { summaryActions } from "./summary.mjs";
-import { $, button, count, dialog, emptyState, field, input } from "./ui.mjs";
+import { $, button, count, dialog, emptyState, field, icon, input } from "./ui.mjs";
 
 /* ─────────────────────────── 상태 표시와 진행 단계 ─────────────────────────── */
 
@@ -222,7 +222,8 @@ function workRow({ work: x, title }, prefix, view) {
   </tr>`;
 }
 
-// MS Forms 공모 연동 현황(설정: deploy/site.json의 forms). 응답은 1분마다 들어오고, 심사 배포는 버튼으로 한다.
+// 아이디어 공모(MS Forms) 연동 현황(설정: deploy/site.json의 forms). 응답은 1분마다 들어온다.
+// 번개 표시는 1분마다 응답 엑셀을 확인할 때(확인 시각이 바뀌어 다시 그릴 때) 잠깐 반짝여 살아 있음을 알린다.
 const SHARE_BADGES = { "공유 완료": "badge-ok", "공유 대기": "badge-warn" };
 function formsPanel() {
   const v = state.app.intake;
@@ -234,7 +235,7 @@ function formsPanel() {
     <td class="number">${e.done} / ${e.assigned}${e.fix ? `<small class="warn-text">고칠 칸 ${e.fix}건</small>` : ""}${e.error ? `<small class="warn-text">${esc(e.error)}</small>` : ""}</td>
     <td>${e.readAt ? esc(seoulMinute(e.readAt).slice(5)) : "—"}</td></tr>`);
   return `<section class="card forms-intake">
-    <div class="toolbar"><h2 class="cardtitle">MS Forms 공모</h2><span class="muted">응답 ${v.responses}건${v.waiting ? ` · 첨부 동기화 대기 ${v.waiting}건` : ""}${v.checkedAt ? ` · ${esc(seoulMinute(v.checkedAt).slice(11))} 확인` : ""}</span>
+    <div class="toolbar"><h2 class="cardtitle">아이디어 공모<span class="live-bolt" title="1분마다 응답을 확인합니다">${icon("bolt", 16)}</span></h2><span class="muted">응답 ${v.responses}건${v.waiting ? ` · 첨부 동기화 대기 ${v.waiting}건` : ""}${v.checkedAt ? ` · ${esc(seoulMinute(v.checkedAt).slice(11))} 확인` : ""}</span>
       <span class="spacer"></span>${button("intake-sync", "지금 가져오기")}</div>
     ${v.error ? `<p class="warn-text small">${esc(v.error)}</p>` : ""}
     ${gaps.length ? `<p class="warn-text small">심사자가 없는 분야 · ${esc(gaps.map(([c, n]) => `${c} ${n}건`).join(" · "))}</p>` : ""}

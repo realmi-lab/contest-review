@@ -40,7 +40,11 @@
   color: var(--desk-muted);
   font-size: var(--fs-ui);
 }
-/* MS Forms 공모 연동 현황: 응답·심사자별 배정·공유·평가 진행. 작품 표와 같은 머리글·줄 간격을 쓴다. */
+/* 아이디어 공모 머리의 번개: 확인할 때마다 다시 그려져 2초 동안 반짝이고 사라진다. */
+.live-bolt { display: inline-flex; margin-left: 6px; color: var(--accent); vertical-align: -2px; opacity: 0; animation: bolt-flash 2s ease-out; }
+@keyframes bolt-flash { 0%, 60% { opacity: 1; transform: scale(1.15); } 100% { opacity: 0; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .live-bolt { animation: none; } }
+/* 아이디어 공모(MS Forms) 연동 현황: 응답·심사자별 배정·공유·평가 진행. 작품 표와 같은 머리글·줄 간격을 쓴다. */
 .forms-intake {
   margin-bottom: 20px;
   overflow: hidden;

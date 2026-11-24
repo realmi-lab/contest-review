@@ -48,6 +48,9 @@
 .summary-edition { padding: 22px 0 8px; }
 .summary-edition h2 { margin: 0; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .summary-points { list-style: none; margin: 0; padding: 0; }
+/* 세부 요약은 회색 면 위에 둬 핵심 요약과 구분한다. */
+.summary-detail { margin-top: 28px; padding: 20px 24px 12px; border-radius: 12px; background: var(--fill); }
+.summary-detail h2 { border-bottom-color: var(--line); }
 .summary-points + h2, .summary-missing + h2 { margin-top: 48px; }
 .summary-missing { margin: 0; padding: 12px 0 0; border-top: 1px solid var(--line-soft); color: var(--text-3); font-size: var(--fs-meta); line-height: 1.6; }
 .summary-missing b { margin-right: 10px; color: var(--text-2); font-weight: 600; }

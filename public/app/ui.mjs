@@ -17,6 +17,7 @@ const ICONS = {
   prev: '<path d="m15 18-6-6 6-6"/>',
   next: '<path d="m9 18 6-6-6-6"/>',
   back: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
+  bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>',
   settings:
     '<path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/>',
 };

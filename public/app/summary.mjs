@@ -112,8 +112,8 @@ export function readingPane() {
       const lead = heading === MAIN;
       // 핵심 요약의 제목은 줄 목록 위에 따로 크게 둔다(문서 전체를 말하므로 근거 쪽은 붙이지 않는다).
       const title = lead && points.find((p) => p.topic === TITLE);
-      return `<h2>${heading}</h2>${title ? `<p class="summary-title">${esc(title.text)}</p>` : ""}
-        <ul class="summary-points${lead ? " lead" : ""}${lead && !former ? " main" : ""}">${join(points.filter((p) => p !== title), item)}</ul>`;
+      return `<div class="summary-group${lead ? "" : " summary-detail"}"><h2>${heading}</h2>${title ? `<p class="summary-title">${esc(title.text)}</p>` : ""}
+        <ul class="summary-points${lead ? " lead" : ""}${lead && !former ? " main" : ""}">${join(points.filter((p) => p !== title), item)}</ul></div>`;
     }) :
       `<h2>${MAIN}</h2><p>이 화면에 추가할 확인된 요점이 없습니다.</p>`}
     ${unfilled}

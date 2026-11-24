@@ -62,7 +62,7 @@
 | `reviewDir` | 작품 폴더·심사자 폴더·공유 요청을 만들 심사 폴더 |
 | `evaluators` | 심사자 `name`·`email`·`categories`(담당 분야, 응답의 분야 값과 같은 글자). 한 분야에 여러 명 가능 |
 
-열 이름이 틀리면 목록의 'MS Forms 공모' 칸에 엑셀에 실제로 있는 열 이름을 보여 줍니다. 시험할 때는 `node scripts/forms-sample.mjs qa-onedrive`로 가짜 OneDrive(응답 3건·첨부·심사자 2명)를 만들고 `forms`를 그 폴더로 맞춰 시험할 수 있습니다.
+열 이름이 틀리면 목록의 '아이디어 공모' 칸에 엑셀에 실제로 있는 열 이름을 보여 줍니다. 시험할 때는 `node scripts/forms-sample.mjs qa-onedrive`로 가짜 OneDrive(응답 3건·첨부·심사자 2명)를 만들고 `forms`를 그 폴더로 맞춰 시험할 수 있습니다.
 
 ### AI 연결 (회사망: LiteLLM · Bedrock)
 
