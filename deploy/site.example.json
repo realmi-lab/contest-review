@@ -45,7 +45,6 @@
   },
   "slack": {
     "botToken": "",
-    "reviewWebhook": "",
-    "reviewBotId": ""
+    "reviewWebhook": ""
   }
 }

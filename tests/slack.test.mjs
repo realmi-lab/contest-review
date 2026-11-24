@@ -9,7 +9,7 @@ const temp = mkdtempSync(path.join(os.tmpdir(), "slack-test-"));
 process.env.SLACK_BOT_TOKEN = "xoxb-test";
 process.env.REVIEW_DATA_DIR = temp;
 process.env.REVIEW_SITE_FILE = path.join(temp, "site.json");
-writeFileSync(process.env.REVIEW_SITE_FILE, JSON.stringify({ slack: { reviewWebhook: "https://hooks.slack.com/triggers/T1/1/hook", reviewBotId: "UREVIEW" } }));
+writeFileSync(process.env.REVIEW_SITE_FILE, JSON.stringify({ slack: { reviewWebhook: "https://hooks.slack.com/triggers/T1/1/hook" } }));
 const { collectReplies, sendHtml, slackPeople } = await import("../src/slack.mjs");
 const { load, newWork, save } = await import("../src/store.mjs");
 
@@ -22,7 +22,7 @@ globalThis.fetch = async (url, { body, headers }) => {
   const reply = {
     "users.list": params.cursor
       ? { ok: true, members: [{ id: "U2", profile: { real_name: "이영희", title: "보안팀" } }] }
-      : { ok: true, members: [{ id: "U1", profile: { real_name: "김철수", display_name: "철수" } }, { id: "B1", is_bot: true, name: "봇" }, { id: "U3", deleted: true, name: "퇴사자" }], response_metadata: { next_cursor: "next" } },
+      : { ok: true, members: [{ id: "U1", profile: { real_name: "김철수", display_name: "철수" } }, { id: "B1", is_bot: true, name: "봇" }, { id: "UREVIEW", is_bot: true, name: "idea_review", real_name: "idea-review" }, { id: "U3", deleted: true, name: "퇴사자" }], response_metadata: { next_cursor: "next" } },
     "conversations.open": { ok: true, channel: { id: "G9" } },
     "files.getUploadURLExternal": { ok: true, upload_url: "https://files.slack.com/upload/abc", file_id: "F1" },
     abc: { ok: true },
@@ -40,7 +40,7 @@ test("담당자 검색은 쪽을 넘겨 다 모으고, 나간 사람·봇은 빼
   assert.equal(calls[0][2], "Bearer xoxb-test");
 });
 
-test("보내기는 담당자·평가 단추 앱과 그룹 DM을 열고, HTML을 올린 뒤, 평가 단추 앱 웹훅으로 단추를 올리게 한다", async () => {
+test("보내기는 담당자·평가 단추 앱(사람 목록에서 찾은 봇)과 그룹 DM을 열고, HTML을 올린 뒤, 평가 단추 앱 웹훅으로 단추를 올리게 한다", async () => {
   calls.length = 0;
   const sent = await sendHtml("U1", { workId: "W1", title: "작품", filename: "작품.html", html: "<p>안녕</p>", comment: "*작품*" });
   assert.deepEqual(calls.map(([m]) => m), ["conversations.open", "files.getUploadURLExternal", "abc", "files.completeUploadExternal", "hook"]);

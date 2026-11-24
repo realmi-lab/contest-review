@@ -3,7 +3,8 @@
 //          평가 단추 앱의 웹훅을 불러 같은 그룹 DM에 [평가 답장하기] 단추를 올리게 한다.
 //   받기: 단추·입력 창은 Slack 서버에서 돌아가므로 아이디어정리가 꺼져 있어도 된다. 평가 단추 앱이 남긴 의견 메시지
 //          (첫 블록 block_id "review|작품 id|보낸 사람")를 1분마다·켜질 때 찾아 담는다. 사람이 그냥 쓴 글은 받지 않는다.
-// 설정(deploy/site.json의 slack, 부를 때마다 읽는다): botToken(xoxb-), reviewWebhook(평가 단추 앱 웹훅 주소), reviewBotId(평가 단추 앱 봇 ID)
+// 설정(deploy/site.json의 slack, 부를 때마다 읽는다): botToken(xoxb-), reviewWebhook(평가 단추 앱 웹훅 주소),
+//   reviewBotId(평가 단추 앱 봇 ID, 비우면 사람 목록에서 이름이 idea-review인 봇을 찾는다. CLI로 올린 앱은 웹 설정 화면이 없어 ID를 찾기 어렵다)
 // 봇 권한: users:read, chat:write, files:write, mpim:write, mpim:history. 토큰은 서버에만 있고 화면으로 보내지 않는다.
 import { readSite } from "../deploy/site.mjs";
 import { list, load, save } from "./store.mjs";
@@ -40,7 +41,7 @@ async function call(method, params) {
 }
 
 // 사람 목록은 10분 동안 기억한다(검색 글자를 칠 때마다 Slack에 묻지 않게). 나간 사람·봇은 뺀다.
-let people = { at: 0, list: [] };
+let people = { at: 0, list: [] }, reviewBot = "";
 export async function slackPeople(query) {
   if (Date.now() - people.at > 600_000) {
     const list = [];
@@ -50,6 +51,7 @@ export async function slackPeople(query) {
       for (const m of out.members)
         if (!m.deleted && !m.is_bot && m.id !== "USLACKBOT")
           list.push({ id: m.id, name: m.profile?.real_name || m.real_name || m.name, nick: m.profile?.display_name || "", title: m.profile?.title || "" });
+        else if (m.is_bot && !m.deleted && [m.name, m.real_name, m.profile?.real_name].some((v) => /^idea[\s_-]?review$/i.test(v || ""))) reviewBot = m.id;
       cursor = out.response_metadata?.next_cursor || "";
     } while (cursor);
     people = { at: Date.now(), list };
@@ -61,8 +63,10 @@ export async function slackPeople(query) {
 // user에게 DM 채널을 열고, 파일 올릴 주소를 받아 올린 뒤, 그 DM에 메시지(comment)와 함께 붙인다.
 // 이어서 '의견 요청' 메시지를 하나 더 보내고, 답장을 찾을 자리({ channel, ts })를 돌려준다.
 export async function sendHtml(user, { workId, title, filename, html, comment }) {
-  const { reviewWebhook, reviewBotId } = slack();
-  if (!reviewWebhook || !reviewBotId) err("평가 단추 앱 설정이 없습니다. deploy/site.json의 slack에 reviewWebhook·reviewBotId를 넣으세요.");
+  const { reviewWebhook } = slack();
+  if (!reviewWebhook) err("평가 단추 앱 설정이 없습니다. deploy/site.json의 slack에 reviewWebhook(웹훅 주소)을 넣으세요.");
+  await slackPeople(""); // 사람 목록을 읽으며 평가 단추 앱 봇도 찾는다
+  const reviewBotId = slack().reviewBotId || reviewBot || err("평가 단추 앱(idea-review) 봇을 찾지 못했습니다. slack deploy가 끝났는지 확인하거나 site.json에 reviewBotId를 넣으세요.");
   const channel = (await call("conversations.open", { users: `${user},${reviewBotId}` })).channel.id; // 담당자 + 두 봇의 그룹 DM
   const bytes = Buffer.from(html, "utf8");
   const slot = await call("files.getUploadURLExternal", { filename, length: String(bytes.length) });

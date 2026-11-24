@@ -15,9 +15,9 @@
 2. [ ] **웹훅 만들기**: `slack trigger create --trigger-def triggers/review_webhook.ts`
    - 앱을 고르라고 하면 `(local)`이 아닌 **배포한 앱**
    - 나온 `https://hooks.slack.com/triggers/…` 주소 복사 (처음 한 번만, 다시 배포해도 그대로)
-3. [ ] **idea-review 봇 ID**: Slack에서 idea-review 앱 프로필 → **⋮ → 멤버 ID 복사** (U로 시작)
+3. [ ] ~~idea-review 봇 ID~~: 하지 않아도 됩니다. 아이디어정리가 Slack 사람 목록에서 이름이 idea-review인 봇을 스스로 찾습니다(CLI로 올린 앱은 웹 설정 화면이 없습니다)
 4. [ ] **idea_proposal 권한 더하기**: App Manifest `scopes: bot:`에 `- mpim:write`, `- mpim:history` → **Save Changes** → **reinstall your app** → **허용** (이번 한 번)
-5. [ ] **site.json 채우기**: `deploy/site.json`의 `slack`에 `reviewWebhook`, `reviewBotId` (재설치로 토큰이 바뀌었으면 `botToken`도)
+5. [ ] **site.json 채우기**: `deploy/site.json`의 `slack`에 `reviewWebhook` (재설치로 토큰이 바뀌었으면 `botToken`도)
 6. [ ] **아이디어정리 다시 켜기**: `git pull` → `./start.sh`
 7. [ ] **시험**: 채점표 탭 → 담당자 검색 → **보내기** → Slack 그룹 DM에 HTML 파일과 [평가 답장하기] 단추가 오면, 단추로 의견을 보내고 1분 안에 채점표 **담당자 의견**에 담기는지 확인
 
@@ -92,19 +92,22 @@ slack trigger create --trigger-def triggers/review_webhook.ts
 
 ### 5. 아이디어정리에 넣기
 
-1. Slack에서 **idea-review** 앱 이름을 눌러 프로필을 열고 **⋮ → 멤버 ID 복사**(U로 시작)
+1. idea-review 봇 ID는 넣지 않아도 됩니다(아이디어정리가 사람 목록에서 찾습니다). 못 찾는다는 오류가 나면 Slack에서 idea-review 앱 프로필 → ⋮ → 멤버 ID 복사 → `reviewBotId`에 넣습니다.
 2. 아이디어정리 `deploy/site.json`의 `slack`에 넣기(토큰·주소는 채팅이나 사진에 보이지 않게):
 
 ```json
 "slack": {
   "botToken": "xoxb-…",
-  "reviewWebhook": "https://hooks.slack.com/triggers/…",
-  "reviewBotId": "U…"
+  "reviewWebhook": "https://hooks.slack.com/triggers/…"
 }
 ```
 
 3. idea_proposal 앱의 App Manifest `scopes: bot:`에 `- mpim:write`, `- mpim:history` 두 줄을 더하고 **Reinstall**(그룹 DM을 열고 읽기)
 4. 아이디어정리를 `./start.sh`로 다시 켭니다.
+
+## CLI로 올린 앱 관리
+
+idea-review는 Slack 웹(api.slack.com)의 앱 설정 화면이 없습니다. 배포·웹훅·삭제는 모두 `slack-app` 폴더에서 CLI로 합니다(`slack deploy`, `slack trigger list`, `slack delete`).
 
 ## 고친 뒤 다시 올리기
 
