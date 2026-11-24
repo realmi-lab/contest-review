@@ -39,7 +39,6 @@ export function chooseWork(id) {
   closeDialog();
   closeViewer();
   state.selected = id;
-  state.editingSheet = false;
   state.docFields = { ...DEFAULT_FIELDS };
   state.tab = state.app?.works.find((x) => x.id === id)?.hasReading ? "요약" : "자료";
   saveSelection();

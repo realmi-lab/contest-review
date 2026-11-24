@@ -25,8 +25,6 @@ export const state = {
   docFields: { ...DEFAULT_FIELDS }, // 캡처 추가 입력값 (다시 그려도 유지)
   shownWork: "", // 화면에 그려진 작품 id
   shownKey: "", // 화면에 그려진 작품 id + 수정 시각
-  editingSheet: false, // 확정한 채점표를 고치는 중
-  stampNext: false, // 방금 확정했으면 도장 찍히는 움직임을 한 번 보여 준다
   unsavedForm: false, // 저장하지 않은 폼 입력이 있으면 자동 갱신을 멈춤
   listQuery: { text: "", view: "all", sort: "todo" }, // 목록 화면 검색·표 위의 탭(all·summary·check·sheet)·정렬
   uploading: false, // 캡처를 올리는 중

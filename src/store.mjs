@@ -60,12 +60,11 @@ const sql = {
     CASE WHEN json_extract(data,'$.cloudReading.rev')=json_extract(data,'$.rev') AND json_extract(data,'$.cloudLogic.reading')=json_extract(data,'$.cloudReading.id')
       THEN 1 ELSE 0 END hasLogic, -- 지금 요약에 대한 사실·논리 점검이 끝났는가
     json_array_length(data,'$.captures') count,
-    CASE WHEN json_type(data,'$.final')='object' THEN 1 ELSE 0 END final,
-    json_extract(data,'$.final.decision') decision, json_extract(data,'$.final.scale') scale, json_extract(data,'$.final.score') score,
+    coalesce(json_array_length(data,'$.slackReplies'), 0) + (coalesce(json_extract(data,'$.reviewNote'), '') <> '') opinions, -- 받은 의견 수(담당자 답장 + 검토 의견)
+    coalesce((SELECT json_extract(value,'$.text') FROM json_each(data,'$.slackReplies') ORDER BY key DESC LIMIT 1),
+      nullif(json_extract(data,'$.reviewNote'), '')) opinion, -- 채점표 탭: 가장 최근 담당자 의견, 없으면 검토 의견
     json_extract(data,'$.category') category, json_extract(data,'$.source.formId') formId, -- MS Forms로 들어온 작품
     json_array_length(data,'$.source.missing') waiting, -- 아직 OneDrive에 동기화되지 않은 첨부 수
-    (SELECT count(*) FROM json_each(data,'$.evaluations') WHERE json_extract(value,'$.complete')) evalDone,
-    (SELECT round(avg(json_extract(value,'$.score')), 2) FROM json_each(data,'$.evaluations') WHERE json_extract(value,'$.complete')) evalAvg,
     (SELECT count(*) FROM json_each(data,'$.similar') WHERE value='중복') duplicates -- 사람이 '중복'으로 판정한 비슷한 제안 수
     FROM works ORDER BY rowid DESC`,
   ),

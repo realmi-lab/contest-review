@@ -78,6 +78,14 @@ export default {
     res.end(await shareHtml(w));
   },
 
+  // 채점표 탭의 검토 의견(점수 없이 자유롭게 쓰는 메모). 자료 판(rev)과 상관없이 저장한다.
+  "POST /api/review-note": ({ b, json }) => {
+    const w = load(b.id);
+    w.reviewNote = bounded(b.note, 4000).trim();
+    save(w);
+    json({ ok: true });
+  },
+
   // Slack 담당자 검색(이름·표시 이름·직함)
   "GET /api/slack-people": async ({ query, json }) => json(await slackPeople(query.get("q"))),
 

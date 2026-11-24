@@ -23,10 +23,10 @@ const STAGES = {
   capt: "요약 전",
   read: "요약 완료",
   checked: "점검 완료",
-  final: "심사 확정",
+  final: "의견 받음",
 };
 export function workStatus(x) {
-  const key = x.final
+  const key = x.opinions
     ? "final"
     : x.hasLogic
       ? "checked"
@@ -35,8 +35,7 @@ export function workStatus(x) {
         : x.count
           ? "capt"
           : "new";
-  const label = key === "final" ? `확정 ${x.score.toFixed(1)}점` : STAGES[key];
-  return { key, label };
+  return { key, label: STAGES[key] };
 }
 
 export function queueStage(id) {
@@ -191,17 +190,15 @@ export function overviewView() {
 const summaryCell = (x, brief) => `<td class="cell-wide">${x.hasReading
   ? `${x.title ? `<b class="rowsummary-title">${esc(x.title)}</b>` : ""}${brief && x.title ? "" : `<span class="rowsummary">${esc(x.gist ? sentences(x.gist).map(noPeriod).join(" ") : "요약을 열어 확인하세요")}</span>`}`
   : `<span class="muted">${x.count ? "요약 전" : "캡처 전"}</span>${summaryActions(x)}`}</td>`;
-const scoreCell = (x) => `<td class="cell-number">${x.final ? x.score.toFixed(1) + "점" : "—"}</td>`;
+const opinionCell = (x) => `<td class="cell-wide">${x.opinion ? `<span class="rowsummary">${esc(x.opinion)}</span>` : '<span class="muted">의견 전</span>'}</td>`; // 가장 최근 담당자 의견(없으면 검토 의견)
 const VIEWS = {
-  all: { label: "전체", done: () => true, heads: ["핵심 요약", "확정 점수"],
-    cells: (x) => summaryCell(x, true) + scoreCell(x) },
+  all: { label: "전체", done: () => true, heads: ["핵심 요약", "의견"],
+    cells: (x) => summaryCell(x, true) + opinionCell(x) },
   summary: { label: "AI 요약", done: (x) => x.hasReading, heads: ["핵심 요약"], cells: (x) => summaryCell(x, false) },
   check: { label: "AI 논리점검", done: (x) => x.hasLogic, heads: ["AI 한마디 평"],
     cells: (x) => `<td class="cell-wide">${x.hasLogic ? `<span class="rowsummary">${esc(x.take || "점검 결과를 열어 확인하세요.")}</span>`
       : `<span class="muted">${x.hasReading ? "점검 전" : "요약 전"}</span>`}</td>` },
-  sheet: { label: "채점표", done: (x) => x.final, heads: ["분야", "심사자 평가", "확정 점수", "1차 결정"],
-    cells: (x, prefix) => `<td class="cell-short">${esc(x.category || prefix || "기타")}</td><td>${evaluationNote(x) || "—"}</td>
-      ${scoreCell(x)}<td>${x.decision ? `${esc(x.decision)}<small>${esc(x.scale)}</small>` : "—"}</td>` },
+  sheet: { label: "채점표", done: (x) => x.opinions > 0, heads: ["담당자·검토 의견"], cells: opinionCell },
 };
 
 // 같은 머리말끼리 묶은 작품 목록 (한 줄에 한 작품)
@@ -246,21 +243,13 @@ function formsPanel() {
       : ""}
   </section>`;
 }
-// MS Forms 작품의 담당 심사자(분야로 배정)
-export const assignedEvaluators = (x) => (x.formId ?? x.source?.formId) ? (state.app.intake?.evaluators ?? []).filter((e) => e.categories.includes(x.category)) : [];
-// 목록의 평가 진행: 다 채운 평가표 수 / 배정 수 · 평균
-function evaluationNote(x) {
-  const assigned = assignedEvaluators(x).length;
-  return assigned ? `평가 ${x.evalDone} / ${assigned}${x.evalAvg != null ? ` · 평균 ${x.evalAvg}` : ""}` : "";
-}
-
 function howTo() {
   return `
     <ol class="howto">
       <li><b>캡처 자료</b>제출 문서의 화면을 이미지로 올리고 빠짐없이 들어왔는지 확인합니다.</li>
       <li><b>AI 요약</b>AI가 핵심 내용을 정리하고 원문 근거를 연결합니다.</li>
       <li><b>AI 논리점검</b>요약에 이어 AI가 수치·조건 불일치와 논리 비약을 찾습니다.</li>
-      <li><b>채점표</b>항목별 점수와 처리 방향을 남기고 확정합니다.</li>
+      <li><b>채점표</b>담당자에게 Slack으로 보내고, 받은 의견과 검토 의견을 남깁니다.</li>
     </ol>`;
 }
 

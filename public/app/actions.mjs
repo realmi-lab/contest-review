@@ -6,7 +6,6 @@ import { filteredWorks, intakeInputs, openCreate } from "./list.mjs";
 import { currentEvidence, select, sync } from "./navigation.mjs";
 import { render } from "./render.mjs";
 import { formsPick, openFormsSettings, openSelfCheck, openSummarySettings, showSelfCheck } from "./settings.mjs";
-import { criterionRow } from "./sheet.mjs";
 import { aiLabel, cloudScope, state, submittingSummaries } from "./state.mjs";
 import { markSimilar, summaryUnavailable } from "./summary.mjs";
 import { $, api, button, closeDialog, dialog, notify } from "./ui.mjs";
@@ -97,30 +96,11 @@ const actions = {
     await setComplete(true);
   },
   "open-summary": () => switchTab("요약"),
-  "go-final": () => {
-    $("finalpanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    document.querySelector("#final [name=score]")?.focus({ preventScroll: true });
-  },
   "next-work": () => stepWork(1),
   "check-logic": () => startJob("check-logic", "점검"),
   "remake-summary": () => runSummaryCommand(state.work.id), // AI 요약 탭 머리의 'AI 재요약'
-  print: () => {
-    for (const fold of document.querySelectorAll("#content details")) fold.open = true; // 접힌 내용도 인쇄한다
-    window.print();
-  },
-  "edit-sheet": () => {
-    state.editingSheet = true;
-    render();
-  },
   screen: openScreen,
   snap: snapScreen,
-  "add-criterion": () => {
-    $("criteria").insertAdjacentHTML(
-      "beforeend",
-      criterionRow({ name: "", weight: 1, guide: "" }),
-    );
-    state.unsavedForm = true;
-  },
   "mark-visual": async () => {
     const ids = suggestedVisual().map((c) => c.id);
     if (!ids.length || !confirm(`도식 검토 추천 ${ids.length}쪽을 도식 검토로 지정할까요?\n다음 요약부터 이 쪽들은 이미지도 AI에 보내 읽습니다. 지금의 요약·점검·확정 채점표는 다시 만들어야 합니다.`)) return;

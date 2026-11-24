@@ -39,40 +39,11 @@ const forms = {
     closeDialog();
     notify(inExcel ? "접수 정보를 저장하고 응답 엑셀도 고쳤습니다." : "접수 정보를 저장했습니다.");
   },
-  rubric: async () => {
-    const criteria = [...$("criteria").children].map((row) =>
-      Object.fromEntries(
-        [...row.querySelectorAll("[data-k]")].map((el) => [
-          el.dataset.k,
-          el.dataset.k === "weight" ? Number(el.value) : el.value,
-        ]),
-      ),
-    );
-    await api("settings", {
-      ...workRef(),
-      complete: state.work.complete,
-      rubric: { categories: state.work.rubric.categories, criteria },
-    });
-    notify("이 작품의 기준을 저장했습니다.");
-  },
-  final: async (form) => {
-    const picked = (name) => [...form.querySelectorAll(`[name=${name}]:checked`)].map((x) => x.value);
-    await api("final", {
-      ...workRef(),
-      scores: [...form.querySelectorAll("[name=score]")].map((x) => Number(x.value)),
-      checks: picked("check"),
-      scale: picked("scale")[0],
-      decision: picked("decision")[0],
-      department: fieldValue("sheetdept"),
-      feedback: fieldValue("sheetfeedback"),
-      note: fieldValue("finalnote"),
-      by: fieldValue("sheetby"),
-      base: form.dataset.base || null, // 연 뒤에 다른 평가자가 바꿨으면 서버가 거절한다
-    });
-    localStorage.setItem("review.evaluator", fieldValue("sheetby"));
-    state.editingSheet = false;
-    state.stampNext = true;
-    notify("채점표를 확정했습니다.");
+  "review-note": async (form) => {
+    await api("review-note", { id: state.work.id, note: form.elements.note.value });
+    state.unsavedForm = false;
+    notify("검토 의견을 저장했습니다.");
+    await sync(true);
   },
 };
 

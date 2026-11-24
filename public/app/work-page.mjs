@@ -10,17 +10,19 @@ import { readingPane, summaryUnavailable } from "./summary.mjs";
 import { $, button, count, icon } from "./ui.mjs";
 
 // 진행 단계. 끝나지 않은 첫 단계가 '다음 할 일'이다.
+// 받은 의견 수: 담당자 의견(Slack 답장) + 검토 의견
+const opinions = () => (state.work.slackReplies?.length || 0) + (state.work.reviewNote ? 1 : 0);
 // 다음에 할 일 (오른쪽 위 버튼 하나)
 function nextAction() {
   if (!state.work.captures.length) return autoCaptured() ? [] : ["upload", "캡처 올리기"]; // Forms 첨부는 서버가 캡처한다
   if (!state.work.complete) return ["confirm-complete", "빠짐없음 확인"];
   // 채점표 화면에서는 채점이 할 일이다.
-  if (state.tab === "결과") return state.work.final ? ["next-work", "다음 작품"] : ["go-final", "채점하기"];
+  if (state.tab === "결과") return ["next-work", "다음 작품"];
   if (state.tab === "요약" && currentReading()) return ["remake-summary", "AI 재요약"];
   if (state.tab === "점검" && currentLogic()) return ["check-logic", "AI 재점검"];
   if (!currentReading()) return state.tab === "요약" ? [] : ["open-summary", "AI 요약으로"];
   if (!currentLogic()) return ["check-logic", "AI 논리점검 실행"];
-  return state.work.final ? ["next-work", "다음 작품"] : []; // 채점표는 단계 탭에서 연다
+  return opinions() ? ["next-work", "다음 작품"] : []; // 채점표는 단계 탭에서 연다
 }
 
 // 단계별 완료 여부와 한 줄 설명 (왼쪽 메뉴의 단계 목록)
@@ -48,10 +50,8 @@ function stepStates() {
       note: logic ? "AI 의견" : "점검 전",
     },
     결과: {
-      done: !!state.work.final,
-      note: state.work.final
-        ? `확정 ${state.work.final.score.toFixed(1)}점`
-        : "채점 전",
+      done: opinions() > 0,
+      note: opinions() ? `의견 ${opinions()}건` : "의견 전",
     },
   };
 }

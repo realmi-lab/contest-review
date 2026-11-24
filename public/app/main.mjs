@@ -6,7 +6,6 @@ import { tiltPages } from "./interactions.mjs";
 import { workListHtml } from "./list.mjs";
 import { poll, saveSelection, sync, viewUrl } from "./navigation.mjs";
 import { render } from "./render.mjs";
-import { updateSheet } from "./sheet.mjs";
 import { POLL_BUSY_MS, STEP_TABS, aiLabel, state } from "./state.mjs";
 import { $, api, closeDialog, notify, stopCapture } from "./ui.mjs";
 import { closeViewer } from "./viewer.mjs";
@@ -97,7 +96,6 @@ document.addEventListener("input", (e) => {
     $("worklist").innerHTML = workListHtml();
     return;
   }
-  if (e.target.name === "score") updateSheet(e.target.form);
   if (e.target.form && $("main").contains(e.target)) state.unsavedForm = true;
 });
 $("close").onclick = closeDialog;

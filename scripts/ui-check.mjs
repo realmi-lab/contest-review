@@ -99,21 +99,12 @@ try {
     await press("3");
     await until("점검 내용", async () => /점검/.test(await page.$eval("#main", (e) => e.textContent)));
   });
-  await step("채점표를 채워 확정한다", async () => {
+  await step("채점표에 검토 의견을 적어 저장한다(점수 없이)", async () => {
     await press("4");
-    await until("채점표", async () => !!(await page.$("#final")));
-    for (const input of await page.$$('#final input[name="score"]')) {
-      await input.click({ clickCount: 3 });
-      await input.type("1");
-    }
-    await page.evaluate(() => {
-      for (const r of document.querySelectorAll('#final input[type="radio"]'))
-        if (!document.querySelector(`#final input[name="${r.name}"]:checked`)) r.checked = true;
-      document.querySelector("#sheetby").value = "화면 점검";
-      document.querySelector("#finalnote").value = "화면 점검";
-    });
-    await page.$eval("#final", (f) => f.requestSubmit());
-    await until("확정", async () => (await state()).works.some((w) => w.final));
+    await until("채점표", async () => !!(await page.$("#review-note")));
+    await page.type('#review-note textarea[name="note"]', "화면 점검 의견");
+    await page.$eval("#review-note", (f) => f.requestSubmit());
+    await until("의견 받음", async () => (await state()).works.some((w) => w.opinions > 0));
   });
   await step("요약 설정·공모 연동 설정·운영 맥 점검 대화상자를 열고 닫는다", async () => {
     for (const action of ["summary-settings", "forms-settings", "self-check"]) {
@@ -131,7 +122,7 @@ try {
     await until("검색 결과", async () => /우산/.test(await page.$eval("#worklist", (e) => e.textContent)));
     // 표 위의 탭 네 개(전체 · AI 요약 · AI 논리점검 · 채점표)가 같은 작품을 단계별 결과로 보여 준다
     assert.deepEqual(await page.$$eval(".stagetab", (tabs) => tabs.map((t) => t.firstChild.textContent)), ["전체", "AI 요약", "AI 논리점검", "채점표"]);
-    for (const [view, heading] of [["summary", "핵심 요약"], ["check", "AI 한마디 평"], ["sheet", "1차 결정"], ["all", "확정 점수"]]) {
+    for (const [view, heading] of [["summary", "핵심 요약"], ["check", "AI 한마디 평"], ["sheet", "담당자·검토 의견"], ["all", "의견"]]) {
       await click(`[data-list-view="${view}"]`);
       await until(heading, async () => (await page.$eval(".works-table thead", (e) => e.textContent)).includes(heading));
     }

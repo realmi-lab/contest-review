@@ -16,8 +16,8 @@ export function viewKey() {
   return (
     "overview" +
     JSON.stringify(state.app.works.map((x) => [x.id, x.receivedOn, x.intakeTeam,
-      x.submitterName, x.name, x.count, x.hasReading, x.hasLogic, x.gist, x.final, x.score, x.decision, x.category,
-      x.evalDone, x.evalAvg, x.title, x.take, x.duplicates])) + JSON.stringify(state.app.intake)
+      x.submitterName, x.name, x.count, x.hasReading, x.hasLogic, x.gist, x.opinions, x.opinion, x.category,
+      x.title, x.take, x.duplicates])) + JSON.stringify(state.app.intake)
   );
 }
 
