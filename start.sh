@@ -57,6 +57,13 @@ done
 # 회사 프록시(HTTPS_PROXY)가 있으면 AI 요청도 그 프록시로 보낸다.
 if [ -n "${HTTPS_PROXY:-}" ]; then export NODE_USE_ENV_PROXY=1; fi
 echo "아이디어정리를 실행합니다: http://localhost:18765 (끄려면 Ctrl+C)"
+# 맥: 시스템·로그인 키체인의 인증서(회사가 넣은 보안 장비 인증서 포함)를 꺼내 Node가 더 믿을 인증서로 준다.
+# --use-system-ca만으로 안 되는 회사 맥(UNABLE_TO_GET_ISSUER_CERT_LOCALLY)을 위해서다. 켤 때마다 새로 꺼낸다.
+if [ "$(uname)" = Darwin ]; then
+  CA="$HOME/.contest-review-ca.pem"
+  security find-certificate -a -p /Library/Keychains/System.keychain "$HOME/Library/Keychains/login.keychain-db" >"$CA" 2>/dev/null &&
+    [ -s "$CA" ] && export NODE_EXTRA_CA_CERTS="$CA"
+fi
 # --use-system-ca: 이 컴퓨터(키체인·인증서 저장소)에 등록된 인증서도 믿는다. 회사 보안 장비가 HTTPS 인증서를 바꿔 끼우는 망에서
 # 브라우저·curl은 되는데 서버만 Slack·AI에 'fetch failed'가 나는 것을 막는다.
 exec node --use-system-ca server.mjs

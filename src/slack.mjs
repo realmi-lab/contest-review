@@ -17,7 +17,7 @@ async function send(url, options) {
     return await fetch(url, options);
   } catch (e) {
     const cause = e.cause?.code || e.cause?.message || e.message;
-    const hint = /CERT|SSL|TLS/i.test(cause) ? " · 회사 보안 장비의 인증서 때문일 수 있습니다(NODE_EXTRA_CA_CERTS로 회사 인증서를 지정)"
+    const hint = /CERT|SSL|TLS/i.test(cause) ? " · 회사 보안 장비의 인증서 때문일 수 있습니다(서버를 start.sh·start.bat으로 다시 켜면 이 컴퓨터의 인증서를 믿습니다)"
       : /ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT/.test(cause) ? " · 이 서버에서 slack.com으로 나가는 길이 막혔을 수 있습니다(방화벽·프록시)" : "";
     err(`Slack에 연결하지 못했습니다 · ${cause}${hint}`, 502);
   }
