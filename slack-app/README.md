@@ -1,11 +1,11 @@
 # 평가 단추 앱 (idea-review, Slack Deno 앱)
 
-아이디어정리에서 담당자에게 보낸 작품에 **[평가 답장하기]** 단추를 붙이는 Slack 앱입니다.
+아이디어정리에서 고른 담당자에게 작품 HTML 파일과 **[평가 답장하기]** 단추를 보내는 Slack 앱입니다(담당자에게는 이 앱 하나로 보입니다).
 단추와 입력 창은 Slack 서버에서 돌아가므로, 아이디어정리 서버가 꺼져 있어도 담당자는 의견을 보낼 수 있습니다.
 idea_proposal 앱 설정은 바꾸지 않습니다.
 
-흐름: 아이디어정리 **보내기** → idea_proposal 봇이 담당자 DM에 HTML 파일을 보냄 → 이 앱의 웹훅을 불러 담당자에게 단추 DM을 보냄
-→ 담당자가 단추를 눌러 의견 보내기 → 이 앱이 idea_proposal 봇의 토큰으로 그 봇의 DM(HTML 파일이 간 곳)에 의견을 남김
+흐름: 아이디어정리 **보내기** → 이 앱의 웹훅에 HTML을 실어 보냄 → 이 앱이 담당자 DM에 HTML 파일과 단추를 보냄
+→ 담당자가 단추를 눌러 의견 보내기 → 이 앱이 idea_proposal 봇의 토큰으로 그 봇의 DM에 의견을 남김(수집용)
 → 아이디어정리가 켜질 때·1분마다 그 DM에서 의견을 찾아 채점표에 담음.
 
 ## 지금 할 일 (체크리스트)
@@ -25,7 +25,7 @@ idea_proposal 앱 설정은 바꾸지 않습니다.
    - 나온 `https://hooks.slack.com/triggers/…` 주소 복사 (처음 한 번만, 다시 배포해도 그대로)
 4. [ ] **site.json에 넣기**: 아이디어정리 `deploy/site.json`의 `slack`에 `"reviewWebhook": "https://hooks.slack.com/triggers/…"`
 5. [ ] **아이디어정리 다시 켜기**: `git pull` → `./start.sh`
-6. [ ] **시험**: 채점표 탭 → 담당자 검색 → **보내기** → 담당자에게 idea_proposal DM(HTML 파일)과 idea-review DM([평가 답장하기])이 오면, 단추로 의견을 보내고 1분 안에 채점표 **담당자 의견**에 담기는지 확인
+6. [ ] **시험**: 채점표 탭 → 담당자 검색 → **보내기** → 담당자에게 idea-review DM(HTML 파일 + [평가 답장하기])이 오면, 단추로 의견을 보내고 1분 안에 채점표 **담당자 의견**에 담기는지 확인
 
 idea-review는 CLI로 올린 앱이라 Slack 웹(api.slack.com) 설정 화면이 없습니다. 배포·환경 변수·웹훅·삭제는 모두 CLI로 합니다
 (`slack deploy`, `slack env list`, `slack trigger list`, `slack delete`). 막히면 화면을 그대로 보여 주세요.
@@ -113,6 +113,11 @@ slack trigger create --trigger-def triggers/review_webhook.ts
 ```
 
 그다음 아이디어정리를 `./start.sh`로 다시 켭니다.
+
+## HTML을 이 앱이 보내도록 바꾼 뒤 (한 번)
+
+권한이 늘어(`files:write`, `im:write`) 배포할 때 관리자 승인을 다시 요청할 수 있습니다. 승인 뒤 아래 'HTTP 400' 순서(`git pull` → `slack deploy` → `slack trigger update`)를 한 번 하고, 아이디어정리도 `git pull` → `./start.sh`로 다시 켭니다.
+보내기는 됐는데 담당자에게 아무것도 오지 않으면 `slack activity --tail`을 켜 두고 다시 보내 오류를 확인합니다(HTML이 너무 커 막히면 웹훅이 HTTP 413을 줍니다).
 
 ## 보내기에서 '평가 단추 앱 웹훅 HTTP 400'이 나면
 

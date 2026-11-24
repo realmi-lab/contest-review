@@ -24,9 +24,6 @@ globalThis.fetch = async (url, { body, headers }) => {
       ? { ok: true, members: [{ id: "U2", profile: { real_name: "이영희", title: "보안팀" } }] }
       : { ok: true, members: [{ id: "U1", profile: { real_name: "김철수", display_name: "철수" } }, { id: "B1", is_bot: true, name: "봇" }, { id: "U3", deleted: true, name: "퇴사자" }], response_metadata: { next_cursor: "next" } },
     "conversations.open": { ok: true, channel: { id: "G9" } },
-    "files.getUploadURLExternal": { ok: true, upload_url: "https://files.slack.com/upload/abc", file_id: "F1" },
-    abc: { ok: true },
-    "files.completeUploadExternal": { ok: true },
     hook: { ok: true },
     ...replies,
   }[method];
@@ -40,14 +37,12 @@ test("담당자 검색은 쪽을 넘겨 다 모으고, 나간 사람·봇은 빼
   assert.equal(calls[0][2], "Bearer xoxb-test");
 });
 
-test("보내기는 담당자 DM에 HTML을 올리고, 평가 단추 앱 웹훅으로 단추 DM을 보내게 한다(의견을 남길 곳은 이 DM)", async () => {
+test("보내기는 의견 자리(이 봇의 DM)만 열고, HTML은 평가 단추 앱 웹훅에 실어 보낸다", async () => {
   calls.length = 0;
   const sent = await sendHtml("U1", { workId: "W1", title: "작품", filename: "작품.html", html: "<p>안녕</p>", comment: "*작품*" });
-  assert.deepEqual(calls.map(([m]) => m), ["conversations.open", "files.getUploadURLExternal", "abc", "files.completeUploadExternal", "hook"]);
+  assert.deepEqual(calls.map(([m]) => m), ["conversations.open", "hook"]);
   assert.equal(calls[0][1].users, "U1");
-  assert.equal(calls[1][1].length, String(Buffer.byteLength("<p>안녕</p>")));
-  assert.deepEqual(calls[3][1], { files: JSON.stringify([{ id: "F1", title: "작품.html" }]), channel_id: "G9", initial_comment: "*작품*" });
-  assert.deepEqual(calls[4][1], { user_id: "U1", work_id: "W1", title: "작품", reply_channel: "G9" });
+  assert.deepEqual(calls[1][1], { user_id: "U1", work_id: "W1", title: "작품", reply_channel: "G9", filename: "작품.html", comment: "*작품*", html: "<p>안녕</p>" });
   assert.deepEqual(sent, { channel: "G9" });
 });
 

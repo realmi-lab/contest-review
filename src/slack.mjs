@@ -1,10 +1,10 @@
 // Slack 보내기: 담당자 찾기(users.list), HTML 파일 보내기, 평가 의견 받아 작품에 담기.
-//   보내기: 이 봇(idea_proposal)이 담당자에게 DM으로 HTML 파일을 보내고, 평가 단추 앱(slack-app/, Deno, idea-review)의
-//          웹훅을 불러 담당자에게 [평가 답장하기] 단추 DM을 보내게 한다.
+//   보내기: 평가 단추 앱(slack-app/, Deno, idea-review)의 웹훅에 HTML을 실어 부르면, 그 앱이 담당자 DM에
+//          HTML 파일과 [평가 답장하기] 단추를 보낸다(담당자에게는 idea-review 하나로 보인다).
 //   받기: 단추·입력 창은 Slack 서버에서 돌아가므로 아이디어정리가 꺼져 있어도 된다. 평가 단추 앱이 이 봇의 DM에 남긴 의견 메시지
 //          (첫 블록 block_id "review|작품 id|보낸 사람")를 1분마다·켜질 때 찾아 담는다. 사람이 그냥 쓴 글은 받지 않는다.
 // 설정(deploy/site.json의 slack, 부를 때마다 읽는다): botToken(xoxb-), reviewWebhook(평가 단추 앱 웹훅 주소)
-// 봇 권한: users:read, chat:write, files:write, im:write, im:history. 토큰은 서버에만 있고 화면으로 보내지 않는다.
+// 봇 권한: users:read, chat:write, files:write, im:write, im:history(files:write는 이제 쓰지 않는다). 토큰은 서버에만 있고 화면으로 보내지 않는다.
 import { readSite } from "../deploy/site.mjs";
 import { list, load, save } from "./store.mjs";
 import { err } from "./validate.mjs";
@@ -58,25 +58,16 @@ export async function slackPeople(query) {
   return people.list.filter((p) => !q || [p.name, p.nick, p.title].some((v) => v.toLowerCase().includes(q))).slice(0, 20);
 }
 
-// user에게 DM 채널을 열고, 파일 올릴 주소를 받아 올린 뒤, 그 DM에 메시지(comment)와 함께 붙인다.
-// 이어서 '의견 요청' 메시지를 하나 더 보내고, 답장을 찾을 자리({ channel, ts })를 돌려준다.
+// 평가 단추 앱의 웹훅에 HTML과 안내 글(comment)을 실어 보낸다. 파일 올리기·단추 DM은 그 앱이 한다.
+// 의견을 남길 자리는 이 봇과 담당자의 DM(열기만 하고 아무것도 보내지 않는다)이고, 그 자리({ channel })를 돌려준다.
 export async function sendHtml(user, { workId, title, filename, html, comment }) {
   const { reviewWebhook } = slack();
   if (!reviewWebhook) err("평가 단추 앱 설정이 없습니다. deploy/site.json의 slack에 reviewWebhook(웹훅 주소)을 넣으세요.");
   const channel = (await call("conversations.open", { users: user })).channel.id;
-  const bytes = Buffer.from(html, "utf8");
-  const slot = await call("files.getUploadURLExternal", { filename, length: String(bytes.length) });
-  const up = await send(slot.upload_url, { method: "POST", body: bytes });
-  if (!up.ok) err("Slack 파일 올리기 실패 · HTTP " + up.status, 502);
-  await call("files.completeUploadExternal", {
-    files: JSON.stringify([{ id: slot.file_id, title: filename }]),
-    channel_id: channel,
-    initial_comment: comment,
-  });
   const hook = await send(reviewWebhook, { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: user, work_id: workId, title, reply_channel: channel }) });
-  // 400은 대개 웹훅의 입력(user_id·work_id·title·reply_channel)과 배포한 앱의 웹훅 정의가 다를 때다. Slack이 준 까닭을 붙여 보여 준다.
-  if (!hook.ok) err(`평가 단추를 보내지 못했습니다 · 평가 단추 앱 웹훅 HTTP ${hook.status} ${(await hook.text().catch(() => "")).slice(0, 200)}`.trim(), 502);
+    body: JSON.stringify({ user_id: user, work_id: workId, title, reply_channel: channel, filename, comment, html }) });
+  // 400은 대개 웹훅의 입력과 배포한 앱의 웹훅 정의가 다를 때, 413은 HTML이 너무 클 때다. Slack이 준 까닭을 붙여 보여 준다.
+  if (!hook.ok) err(`평가 단추 앱에 보내지 못했습니다 · 웹훅 HTTP ${hook.status} ${(await hook.text().catch(() => "")).slice(0, 200)}`.trim(), 502);
   return { channel };
 }
 

@@ -1,4 +1,4 @@
-// [평가 답장하기] 단추 DM → 입력 창 → 의견을 idea_proposal 봇의 DM(HTML 파일이 간 곳)에 남긴다.
+// 담당자 DM에 HTML 파일과 [평가 답장하기] 단추를 보낸다 → 입력 창 → 의견을 idea_proposal 봇의 DM에 남긴다.
 // Slack 서버에서 돌아가므로 아이디어정리가 꺼져 있어도 된다. idea_proposal 설정은 바꾸지 않는다:
 // 의견은 그 봇의 토큰(환경 변수 PROPOSAL_BOT_TOKEN, slack env add로 넣는다)으로 그 봇의 DM에 쓰고, 아이디어정리는 그 DM을 읽어 담는다.
 // 의견 메시지의 첫 블록 block_id에 "review|작품 id|보낸 사람"을 숨겨 둔다. 의견은 한 번 보내면 단추를 '의견을 보냈습니다'로 바꾸고 마친다.
@@ -15,18 +15,40 @@ export const PostReviewAsk = DefineFunction({
       work_id: { type: Schema.types.string },
       title: { type: Schema.types.string },
       reply_channel: { type: Schema.types.string },
+      filename: { type: Schema.types.string },
+      comment: { type: Schema.types.string },
+      html: { type: Schema.types.string },
     },
-    required: ["user_id", "work_id", "title", "reply_channel"],
+    required: ["user_id", "work_id", "title", "reply_channel", "filename", "comment", "html"],
   },
   output_parameters: { properties: {}, required: [] },
 });
 
 const BUTTON = "review_reply", FORM = "review_form";
-const askText = (title: string) => `💬 *[${title}] 평가 의견을 보내 주세요*\n작품 HTML은 idea_proposal 봇이 보낸 DM에 있습니다. 아래 *평가 답장하기*를 눌러 의견을 적어 보내면 아이디어정리 채점표에 담깁니다.`;
+const askText = (title: string) => `💬 *[${title}] 평가 의견을 보내 주세요*\n위 HTML 파일을 열어 보고 아래 *평가 답장하기*를 눌러 의견을 적어 보내면 아이디어정리 채점표에 담깁니다.`;
+
+// 파일 올리기 3단계: 올릴 주소 받기 → 올리기 → 채널에 안내 글과 함께 붙이기
+async function uploadHtml(client: any, channel: string, filename: string, html: string, comment: string) {
+  const bytes = new TextEncoder().encode(html);
+  const slot = await client.apiCall("files.getUploadURLExternal", { filename, length: bytes.length });
+  if (!slot.ok) return slot.error;
+  const up = await fetch(slot.upload_url, { method: "POST", body: bytes });
+  if (!up.ok) return "HTTP " + up.status;
+  const done = await client.apiCall("files.completeUploadExternal", {
+    files: JSON.stringify([{ id: slot.file_id, title: filename }]),
+    channel_id: channel,
+    initial_comment: comment,
+  });
+  return done.ok ? "" : done.error;
+}
 
 export default SlackFunction(PostReviewAsk, async ({ inputs, client }) => {
+  const dm = await client.conversations.open({ users: inputs.user_id }); // 이 앱과 담당자의 DM
+  if (!dm.ok) return { error: `DM을 열지 못했습니다: ${dm.error}` };
+  const failed = await uploadHtml(client, dm.channel.id, inputs.filename, inputs.html, inputs.comment);
+  if (failed) return { error: `HTML 파일을 보내지 못했습니다: ${failed}` };
   const posted = await client.chat.postMessage({
-    channel: inputs.user_id, // 이 앱과 담당자의 DM
+    channel: dm.channel.id,
     text: `[${inputs.title}] 평가 의견을 보내 주세요`,
     blocks: [
       { type: "section", text: { type: "mrkdwn", text: askText(inputs.title) } },
