@@ -59,7 +59,7 @@ function stageMark(status) {
   return `<span class="status status-${status.key}" title="${done} / 4단계">${ring}${esc(status.label)}</span>`;
 }
 
-// 같은 머리말("공개 추가검증 · …")이 2개 이상이면 묶음 제목으로 한 번만 보여 준다.
+// 같은 머리말("공개 추가검증 · …")이 2개 이상인 작품끼리 표의 한 묶음(tbody)으로 모은다.
 export function groupWorks(works) {
   const shared = new Map();
   for (const x of state.app.works) {
@@ -68,10 +68,10 @@ export function groupWorks(works) {
   }
   const groups = new Map();
   for (const x of works) {
-    const [prefix, rest] = splitName(x.name);
+    const [prefix] = splitName(x.name);
     const key = shared.get(prefix) > 1 ? prefix : "";
     if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push({ work: x, title: key ? rest : x.name });
+    groups.get(key).push(x);
   }
   return [...groups];
 }
@@ -215,12 +215,14 @@ export function workListHtml() {
   </table>`;
 }
 
-function workRow({ work: x, title }, prefix, view) {
+// 작품명 칸: 공모전 이름(머리말)은 작은 회색 줄로 위에, 작품명은 말줄임 없이 아래에
+function workRow(x, prefix, view) {
   const stage = queueStage(x.id);
+  const [contest, title] = splitName(x.name);
   return `<tr class="workrow" data-work="${esc(x.id)}">
     <td class="cell-status"><span class="badges">${stageMark(workStatus(x))}<span data-queue="${stage}" class="badge" ${stage ? "" : "hidden"}>${queueLabels[stage] || ""}</span></span>${x.duplicates ? `<small class="warn-text">중복 판정 ${x.duplicates}건</small>` : ""}</td>
     ${intakeCells(x)}
-    <th scope="row"><button class="rowtitle" type="button" data-work="${esc(x.id)}" title="${esc(x.name)}"><span>${esc(title)}</span></button></th>
+    <th scope="row"><button class="rowtitle" type="button" data-work="${esc(x.id)}" title="${esc(x.name)}">${contest ? `<small class="rowcontest">${esc(contest)}</small>` : ""}<span>${esc(title)}</span></button></th>
     ${view.cells(x, prefix)}
   </tr>`;
 }
