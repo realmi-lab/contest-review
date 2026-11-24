@@ -18,7 +18,7 @@ function sentList() {
     <table><thead><tr><th>받는 사람</th><th>보낸 시각</th><th>답장</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
 }
 
-// 담당자가 봇 DM에 남긴 답장(서버가 1분마다 가져온다). 채점표 탭에 그대로 보여 준다.
+// 담당자가 [평가 답장하기]로 보낸 의견(서버가 1분마다 평가 단추 앱 저장소에서 가져온다). 채점표 탭에 그대로 보여 준다.
 // 여러 사람이 보낸 의견은 사람마다 카드 하나로 묶어 각각 보여 준다(카드 안은 보낸 순서).
 function repliesList() {
   const replies = state.work.slackReplies || [];
@@ -35,7 +35,7 @@ function repliesList() {
 export function slackPanel() {
   if (!state.work.captures.length) return "";
   if (!state.app.slack)
-    return `<section class="panel slack-send no-print"><h3>담당자에게 보내기</h3><p class="small muted">deploy/site.json에 Slack 봇 토큰(slack.botToken)을 넣으면 Slack에 있는 사람을 검색해 보낼 수 있습니다.</p>${repliesList()}</section>`;
+    return `<section class="panel slack-send no-print"><h3>담당자에게 보내기</h3><p class="small muted">deploy/site.json의 slack에 평가 단추 앱의 웹훅 주소(reviewWebhook)를 넣으면 Slack에 있는 사람을 검색해 보낼 수 있습니다(slack-app/README.md).</p>${repliesList()}</section>`;
   picked = null;
   return `<section class="panel slack-send no-print"><h3>담당자에게 보내기</h3>
     <p class="small muted">캡처 자료·AI 요약·AI 논리점검을 HTML 한 파일로 만들어 Slack DM으로 보냅니다. 받은 사람이 [평가 답장하기]로 보낸 의견이 아래 담당자 의견에 담깁니다(아이디어정리가 꺼져 있어도 보낼 수 있고, 켜지면 가져옵니다).</p>

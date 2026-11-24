@@ -1,34 +1,38 @@
 # 평가 단추 앱 (idea-review, Slack Deno 앱)
 
-아이디어정리에서 고른 담당자에게 작품 HTML 파일과 **[평가 답장하기]** 단추를 보내는 Slack 앱입니다(담당자에게는 이 앱 하나로 보입니다).
-단추와 입력 창은 Slack 서버에서 돌아가므로, 아이디어정리 서버가 꺼져 있어도 담당자는 의견을 보낼 수 있습니다.
-idea_proposal 앱 설정은 바꾸지 않습니다.
+아이디어정리의 Slack 보내기를 이 앱 하나로 합니다. 봇 토큰(idea_proposal)은 필요 없습니다.
 
-흐름: 아이디어정리 **보내기** → 이 앱의 웹훅에 HTML을 실어 보냄 → 이 앱이 담당자 DM에 HTML 파일과 단추를 보냄
-→ 담당자가 단추를 눌러 의견 보내기 → 이 앱이 idea_proposal 봇의 토큰으로 그 봇의 DM에 의견을 남김(수집용)
-→ 아이디어정리가 켜질 때·1분마다 그 DM에서 의견을 찾아 채점표에 담음.
+- **보내기**: 아이디어정리가 이 앱의 웹훅에 HTML을 실어 보냄 → 이 앱이 담당자 DM에 HTML 파일과 **[평가 답장하기]** 단추를 보냄
+- **의견**: 담당자가 단추를 눌러 의견을 보내면 이 앱의 저장소(reviews)에 담김 → 아이디어정리가 켜질 때·1분마다 Slack CLI로 읽어 채점표에 담음
+- **담당자 검색**: 이 앱이 매일 Slack 사람 목록을 저장소(people)에 맞춰 둠 → 아이디어정리가 Slack CLI로 읽어 검색
+
+단추와 입력 창은 Slack 서버에서 돌아가므로 아이디어정리가 꺼져 있어도 담당자는 의견을 보낼 수 있습니다.
+아이디어정리를 켜는 컴퓨터에 Slack CLI가 설치·로그인돼 있어야 합니다(아래 '처음 한 번'의 1·2).
 
 ## 지금 할 일 (체크리스트)
 
-관리자 승인을 요청해 둔 뒤에는 이 순서로 합니다(모두 `slack-app` 폴더의 터미널에서).
+모두 `slack-app` 폴더의 터미널에서 합니다.
 
-1. [ ] **배포**: `slack deploy` (승인 전에 실패했으면 다시 실행. 배포가 설치까지 하므로 따로 재설치하지 않습니다)
-2. [ ] **idea_proposal 토큰을 이 앱에 넣기**: 아래를 실행하고, 묻는 값에 idea_proposal의 `xoxb-…` 토큰(= site.json의 botToken)을 붙여 넣기
+1. [ ] **코드 받기**: `git pull`
+2. [ ] **배포**: `slack deploy` (권한이 늘어 관리자 승인을 다시 요청할 수 있습니다. 승인 뒤 다시 실행)
+3. [ ] **웹훅 새로 고치기**: `slack trigger list`로 '아이디어정리 평가 요청'의 ID(`Ft…`)를 확인하고
 
    ```sh
-   slack env add PROPOSAL_BOT_TOKEN
+   slack trigger update --trigger-id Ft여기에 --trigger-def triggers/review_webhook.ts
    ```
 
-   (이 앱이 의견을 idea_proposal DM에 남길 때 씁니다. 토큰은 Slack 서버의 이 앱에만 저장됩니다)
-3. [ ] **웹훅 만들기**: `slack trigger create --trigger-def triggers/review_webhook.ts`
-   - 앱을 고르라고 하면 `(local)`이 아닌 **배포한 앱**
-   - 나온 `https://hooks.slack.com/triggers/…` 주소 복사 (처음 한 번만, 다시 배포해도 그대로)
-4. [ ] **site.json에 넣기**: 아이디어정리 `deploy/site.json`의 `slack`에 `"reviewWebhook": "https://hooks.slack.com/triggers/…"`
-5. [ ] **아이디어정리 다시 켜기**: `git pull` → `./start.sh`
-6. [ ] **시험**: 채점표 탭 → 담당자 검색 → **보내기** → 담당자에게 idea-review DM(HTML 파일 + [평가 답장하기])이 오면, 단추로 의견을 보내고 1분 안에 채점표 **담당자 의견**에 담기는지 확인
+   (웹훅이 아직 없으면 `slack trigger create --trigger-def triggers/review_webhook.ts` → 배포한 앱 고르기 → 나온 주소를 site.json에)
+4. [ ] **사람 목록 맞추기 만들기** (처음 한 번): `slack trigger create --trigger-def triggers/people_daily.ts` → 배포한 앱 고르기. 1분 뒤 처음 돌고, 그 뒤 매일 돕니다
+5. [ ] **site.json**: `slack`에는 `reviewWebhook`만 있으면 됩니다(botToken은 지워도 됩니다). 아이디어정리는 이 폴더에서 배포한 앱의 저장소를 읽습니다
+6. [ ] **아이디어정리 다시 켜기**: 아이디어정리 폴더에서 `git pull` → `./start.sh`
+7. [ ] **시험**: 채점표 탭 → 담당자 검색 → **보내기** → 담당자에게 idea-review DM(HTML 파일 + [평가 답장하기])이 오면, 단추로 의견을 보내고 1분 안에 채점표 **담당자 의견**에 담기는지 확인
+8. [ ] (선택) 옛 설정 지우기: `slack env remove PROPOSAL_BOT_TOKEN`
 
-idea-review는 CLI로 올린 앱이라 Slack 웹(api.slack.com) 설정 화면이 없습니다. 배포·환경 변수·웹훅·삭제는 모두 CLI로 합니다
-(`slack deploy`, `slack env list`, `slack trigger list`, `slack delete`). 막히면 화면을 그대로 보여 주세요.
+보내기는 됐는데 담당자에게 아무것도 오지 않으면 `slack activity --tail`을 켜 두고 다시 보내 오류를 확인합니다(HTML이 너무 커 막히면 보내기에서 웹훅 HTTP 413이 납니다).
+검색에서 'Slack 저장소를 읽지 못했습니다'가 나오면 그 뒤의 까닭을 봅니다. 로그인이 풀렸으면 `slack login`을 다시 합니다.
+
+idea-review는 CLI로 올린 앱이라 Slack 웹(api.slack.com) 설정 화면이 없습니다. 배포·웹훅·저장소·삭제는 모두 CLI로 합니다
+(`slack deploy`, `slack trigger list`, `slack datastore query --datastore reviews '{}'`, `slack delete`). 막히면 화면을 그대로 보여 주세요.
 
 ## 처음 한 번 (맥 터미널)
 
@@ -89,35 +93,24 @@ slack deploy
 
 워크스페이스를 고르라고 하면 회사 워크스페이스를 고릅니다. `idea-review` 앱이 Slack에 올라갑니다.
 
-### 4. idea_proposal 토큰 넣기
-
-```sh
-slack env add PROPOSAL_BOT_TOKEN
-```
-
-묻는 값에 idea_proposal의 `xoxb-…` 토큰을 붙여 넣습니다.
-
-### 5. 웹훅 만들기
+### 4. 웹훅·사람 목록 맞추기 만들기
 
 ```sh
 slack trigger create --trigger-def triggers/review_webhook.ts
 ```
+```sh
+slack trigger create --trigger-def triggers/people_daily.ts
+```
 
-배포한 앱을 고르고, 나온 주소(`https://hooks.slack.com/triggers/…`)를 아이디어정리 `deploy/site.json`에 넣습니다(토큰·주소는 채팅이나 사진에 보이지 않게):
+둘 다 배포한 앱을 고릅니다. 첫 번째에서 나온 주소(`https://hooks.slack.com/triggers/…`)를 아이디어정리 `deploy/site.json`에 넣습니다(주소는 채팅이나 사진에 보이지 않게):
 
 ```json
 "slack": {
-  "botToken": "xoxb-…",
   "reviewWebhook": "https://hooks.slack.com/triggers/…"
 }
 ```
 
 그다음 아이디어정리를 `./start.sh`로 다시 켭니다.
-
-## HTML을 이 앱이 보내도록 바꾼 뒤 (한 번)
-
-권한이 늘어(`files:write`, `im:write`) 배포할 때 관리자 승인을 다시 요청할 수 있습니다. 승인 뒤 아래 'HTTP 400' 순서(`git pull` → `slack deploy` → `slack trigger update`)를 한 번 하고, 아이디어정리도 `git pull` → `./start.sh`로 다시 켭니다.
-보내기는 됐는데 담당자에게 아무것도 오지 않으면 `slack activity --tail`을 켜 두고 다시 보내 오류를 확인합니다(HTML이 너무 커 막히면 웹훅이 HTTP 413을 줍니다).
 
 ## 보내기에서 '평가 단추 앱 웹훅 HTTP 400'이 나면
 

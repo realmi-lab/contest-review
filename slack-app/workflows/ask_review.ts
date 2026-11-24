@@ -10,12 +10,11 @@ const AskReviewWorkflow = DefineWorkflow({
       user_id: { type: Schema.types.string }, // 담당자
       work_id: { type: Schema.types.string },
       title: { type: Schema.types.string },
-      reply_channel: { type: Schema.types.string }, // idea_proposal 봇과 담당자의 DM. 의견을 여기에 남긴다
       filename: { type: Schema.types.string },
       comment: { type: Schema.types.string }, // 파일과 함께 보낼 안내 글
       html: { type: Schema.types.string },
     },
-    required: ["user_id", "work_id", "title", "reply_channel", "filename", "comment", "html"],
+    required: ["user_id", "work_id", "title", "filename", "comment", "html"],
   },
 });
 
@@ -23,7 +22,6 @@ AskReviewWorkflow.addStep(PostReviewAsk, {
   user_id: AskReviewWorkflow.inputs.user_id,
   work_id: AskReviewWorkflow.inputs.work_id,
   title: AskReviewWorkflow.inputs.title,
-  reply_channel: AskReviewWorkflow.inputs.reply_channel,
   filename: AskReviewWorkflow.inputs.filename,
   comment: AskReviewWorkflow.inputs.comment,
   html: AskReviewWorkflow.inputs.html,

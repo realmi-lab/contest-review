@@ -40,7 +40,7 @@ export default {
       sheet,
       intake: intake.view,
       ai: { provider: ai.provider, label: haikuLabel },
-      slack: slackReady(), // Slack 보내기를 쓸 수 있는가(봇 토큰이 있는가)
+      slack: slackReady(), // Slack 보내기를 쓸 수 있는가(평가 단추 앱 설정이 있는가)
     }),
 
   // 전체 채점 결과 (엑셀에서 여는 CSV)

@@ -1,9 +1,7 @@
-// 담당자 DM에 HTML 파일과 [평가 답장하기] 단추를 보낸다 → 입력 창 → 의견을 idea_proposal 봇의 DM에 남긴다.
-// Slack 서버에서 돌아가므로 아이디어정리가 꺼져 있어도 된다. idea_proposal 설정은 바꾸지 않는다:
-// 의견은 그 봇의 토큰(환경 변수 PROPOSAL_BOT_TOKEN, slack env add로 넣는다)으로 그 봇의 DM에 쓰고, 아이디어정리는 그 DM을 읽어 담는다.
-// 의견 메시지의 첫 블록 block_id에 "review|작품 id|보낸 사람"을 숨겨 둔다. 의견은 한 번 보내면 단추를 '의견을 보냈습니다'로 바꾸고 마친다.
+// 담당자 DM에 HTML 파일과 [평가 답장하기] 단추를 보낸다 → 입력 창 → 의견을 reviews 저장소에 담는다.
+// Slack 서버에서 돌아가므로 아이디어정리가 꺼져 있어도 되고, 아이디어정리는 켜질 때·1분마다 저장소를 읽어 채점표에 담는다.
+// 의견은 한 번 보내면 단추를 '의견을 보냈습니다'로 바꾸고 마친다.
 import { DefineFunction, Schema, SlackFunction } from "deno-slack-sdk/mod.ts";
-import { SlackAPI } from "deno-slack-api/mod.ts";
 
 export const PostReviewAsk = DefineFunction({
   callback_id: "post_review_ask",
@@ -14,12 +12,11 @@ export const PostReviewAsk = DefineFunction({
       user_id: { type: Schema.types.string },
       work_id: { type: Schema.types.string },
       title: { type: Schema.types.string },
-      reply_channel: { type: Schema.types.string },
       filename: { type: Schema.types.string },
       comment: { type: Schema.types.string },
       html: { type: Schema.types.string },
     },
-    required: ["user_id", "work_id", "title", "reply_channel", "filename", "comment", "html"],
+    required: ["user_id", "work_id", "title", "filename", "comment", "html"],
   },
   output_parameters: { properties: {}, required: [] },
 });
@@ -75,18 +72,14 @@ export default SlackFunction(PostReviewAsk, async ({ inputs, client }) => {
       }],
     },
   });
-}).addViewSubmissionHandler([FORM], async ({ view, body, client, env }) => {
+}).addViewSubmissionHandler([FORM], async ({ view, body, client }) => {
   const { inputs } = body.function_data;
   const { channel, ts } = JSON.parse(view.private_metadata ?? "{}");
   const text = String(view.state.values.opinion.text.value ?? "").trim();
   if (!text) return { response_action: "errors", errors: { opinion: "의견을 적어 주세요" } };
-  const saved = await SlackAPI(env.PROPOSAL_BOT_TOKEN).chat.postMessage({
-    channel: inputs.reply_channel,
-    text: `✅ [${inputs.title}] 의견이 채점표에 담깁니다`,
-    blocks: [
-      { type: "section", block_id: `review|${inputs.work_id}|${body.user.id}`, text: { type: "mrkdwn", text: `✅ <@${body.user.id}> 님의 *[${inputs.title}]* 의견이 아이디어정리 채점표에 담깁니다` } },
-      { type: "section", text: { type: "plain_text", text } },
-    ],
+  const saved = await client.apps.datastore.put({
+    datastore: "reviews",
+    item: { id: crypto.randomUUID(), work_id: inputs.work_id, user_id: body.user.id, text, at: new Date().toISOString() },
   });
   if (!saved.ok) return { response_action: "errors", errors: { opinion: `의견을 남기지 못했습니다(${saved.error}). 잠시 뒤 다시 보내 주세요.` } };
   await client.chat.update({
