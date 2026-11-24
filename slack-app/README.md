@@ -9,24 +9,60 @@
 
 ## 처음 한 번 (맥 터미널)
 
-Slack 유료 플랜(워크플로 앱 배포 가능)이어야 합니다.
+Slack 유료 플랜(워크플로 앱 배포 가능)이어야 합니다. 명령은 **한 줄씩 따로** 붙여 넣으세요(설명 줄까지 붙여 넣으면 `command not found: #`가 납니다).
+
+### 1. Deno·Slack CLI 설치
 
 ```sh
-# 1. Deno와 Slack CLI 설치
 curl -fsSL https://deno.land/install.sh | sh
+```
+```sh
 curl -fsSL https://downloads.slack-edge.com/slack-cli/install.sh | bash
+```
 
-# 2. 이 폴더에서 로그인·배포 (로그인은 Slack 창에서 /slackauthticket 명령을 붙여 넣으라고 안내합니다)
-cd slack-app
+Deno 설치 끝에 `JSR package manifest … failed`가 나오면 터미널이 deno를 못 찾습니다. 길을 직접 넣습니다:
+
+```sh
+echo 'export PATH="$HOME/.deno/bin:$PATH"' >> ~/.zshrc
+```
+```sh
+source ~/.zshrc
+```
+
+### 2. Slack 로그인
+
+```sh
 slack login
-slack deploy            # 워크스페이스를 고르면 idea-review 앱이 Slack에 올라갑니다
+```
 
-# 3. 웹훅 만들기 → 나온 주소(https://hooks.slack.com/triggers/…)를 복사
+1. 터미널에 나온 `/slackauthticket …` 줄 전체를 복사해 Slack 아무 채널이나 내 DM에 붙여 넣고 보냅니다.
+2. 승인 창에서 **허용** → 나온 **challenge code**를 복사해 터미널의 `Enter challenge code`에 붙여 넣고 Enter.
+
+### 3. 배포
+
+contest-review 폴더 안의 `slack-app`으로 이동합니다(위치를 모르면 아이디어정리 서버를 켠 터미널에서 `pwd`).
+
+```sh
+cd ~/(contest-review 폴더 위치)/slack-app
+```
+```sh
+slack deploy
+```
+
+워크스페이스를 고르라고 하면 회사 워크스페이스를 고릅니다. `idea-review` 앱이 Slack에 올라갑니다.
+
+### 4. 웹훅 만들기
+
+```sh
 slack trigger create --trigger-def triggers/review_webhook.ts
 ```
 
-4. Slack에서 **idea-review** 앱 이름을 눌러 프로필을 열고 **⋮ → 멤버 ID 복사**(U로 시작)
-5. 아이디어정리 `deploy/site.json`의 `slack`에 넣기:
+나온 주소(`https://hooks.slack.com/triggers/…`)를 복사해 둡니다.
+
+### 5. 아이디어정리에 넣기
+
+1. Slack에서 **idea-review** 앱 이름을 눌러 프로필을 열고 **⋮ → 멤버 ID 복사**(U로 시작)
+2. 아이디어정리 `deploy/site.json`의 `slack`에 넣기(토큰·주소는 채팅이나 사진에 보이지 않게):
 
 ```json
 "slack": {
@@ -36,7 +72,8 @@ slack trigger create --trigger-def triggers/review_webhook.ts
 }
 ```
 
-6. idea_proposal 앱 권한에 `mpim:write`, `mpim:history`를 더하고 다시 설치(그룹 DM을 열고 읽기)
+3. idea_proposal 앱의 App Manifest `scopes: bot:`에 `- mpim:write`, `- mpim:history` 두 줄을 더하고 **Reinstall**(그룹 DM을 열고 읽기)
+4. 아이디어정리를 `./start.sh`로 다시 켭니다.
 
 ## 고친 뒤 다시 올리기
 
