@@ -23,6 +23,7 @@ const attachmentFolder = (config, w) => path.join(config.reviewDir, "작품", w.
 
 // 응답 엑셀에서 지워진 응답의 작품을 지운다(캡처·요약·채점표까지. 심사 폴더에 복사한 첨부 파일은 그대로 둔다).
 // 잘못 지우지 않게: 머리글 행까지 읽힌 엑셀일 때만(빈 파일·덜 내려받은 파일이 아닐 때), 그 엑셀에서 들어온 작품(source.book)만 지운다.
+// source.book이 없는 작품(이 기능 전에 들어왔고 그 뒤 엑셀에서 지워진 응답)은 지금 엑셀의 것으로 본다.
 // 연동 설정에서 응답 엑셀을 다른 파일로 바꿔도 앞 공모의 작품은 남는다. 작업 중인 작품은 끝난 뒤 다음 확인 때 지운다.
 async function removeGone(config, { list: entries, headed }) {
   const ids = new Set(entries.map((entry) => entry.id));
@@ -33,7 +34,7 @@ async function removeGone(config, { list: entries, headed }) {
         latest.source.book = config.formsWorkbook;
         save(latest);
       }
-    } else if (headed && w.source.book === config.formsWorkbook && !busy(w.id)) {
+    } else if (headed && (w.source.book ?? config.formsWorkbook) === config.formsWorkbook && !busy(w.id)) {
       removeWork(w.id);
       await rm(uploadDir(w.id), { recursive: true, force: true });
     }

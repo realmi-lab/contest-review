@@ -10,6 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { DatabaseSync } from "node:sqlite";
 import { readSheet, writeWorkbook } from "../src/intake/xlsx.mjs";
 
 const project = fileURLToPath(new URL("../", import.meta.url));
@@ -160,7 +161,10 @@ try {
     const after = await get("/api/state").then((r) => r.json());
     assert.deepEqual(after.works.map((w) => [w.id, w.count]), before.works.map((w) => [w.id, w.count]));
   });
-  await step("응답 엑셀에서 지워진 응답은 작품도 지운다. 머리글도 없는 빈 엑셀이면 지우지 않는다", async () => {
+  await step("응답 엑셀에서 지워진 응답은 작품도 지운다(이 기능 전에 들어온 작품 포함). 머리글도 없는 빈 엑셀이면 지우지 않는다", async () => {
+    const db = new DatabaseSync(path.join(temp, "data", "desk.sqlite3")); // 이 기능 전에 들어온 작품처럼 source.book을 뺀다
+    db.exec("UPDATE works SET data = json_remove(data, '$.source.book') WHERE json_extract(data, '$.source.formId') IS NOT NULL");
+    db.close();
     const forms = async () => (await get("/api/state").then((r) => r.json())).works.filter((w) => w.formId).length;
     const head = readSheet(await readFile(workbook))[0];
     await writeFile(workbook, writeWorkbook([{ name: "Form1", rows: [] }])); // 덜 내려받은 파일처럼 비어 있다
