@@ -20,7 +20,14 @@ function captureCard(c) {
 // 도식 검토 추천 쪽: 그래프 축은 있는데 값이 글자로 적혀 있지 않은 캡처 (diagram-hint.mjs)
 export const suggestedVisual = () => state.work.captures.filter((c) => !c.visual && diagramHint(c.lines));
 
-// MS Forms 첨부는 보호 문서라 내용을 직접 읽지 못한다. 어디에 있는지 알려 주고 캡처를 받는다.
+// MS Forms 첨부를 서버가 아직 캡처하는 중인가(동기화 대기·읽는 중이고 못 읽은 첨부는 없음). 이때는 직접 올리기를 보이지 않는다.
+// 못 읽은 첨부가 있거나, 다 읽은 뒤 캡처를 지운 작품은 직접 올린다.
+export const autoCaptured = () => {
+  const s = state.work.source;
+  const waiting = (name) => s.missing.includes(name) || !s.read?.[name];
+  return !!s?.files.length && s.files.some(waiting) && !s.files.some((name) => s.read?.[name]?.error);
+};
+
 // MS Forms 첨부: 서버가 열어서 캡처로 자동 접수한 결과(파일마다). 못 읽은 파일만 심사자가 직접 캡처한다.
 function formsFilesNote() {
   const s = state.work.source;
@@ -42,6 +49,7 @@ function formsFilesNote() {
 export function intakePane() {
   const { captures } = state.work;
   const coverage = coverageText();
+  if (!captures.length && autoCaptured()) return formsFilesNote();
   if (!captures.length) return `${formsFilesNote()}
     <section class="panel">
       <div class="intake-document">

@@ -1,6 +1,6 @@
 // 작품 화면의 틀: 왼쪽 메뉴, 단계 탭, 다음 할 일 버튼, 작업 진행 표시
 import { esc, join } from "../lib/html.mjs";
-import { intakePane } from "./captures.mjs";
+import { autoCaptured, intakePane } from "./captures.mjs";
 import { filteredWorks, formsNote, groupWorks, intakeHeadings, intakeValues, queueLabels, queueStage, sortWorks, workStatus } from "./list.mjs";
 import { logicPane } from "./logic.mjs";
 import { currentLogic, currentReading, splitName } from "./navigation.mjs";
@@ -12,7 +12,7 @@ import { $, button, count, icon } from "./ui.mjs";
 // 진행 단계. 끝나지 않은 첫 단계가 '다음 할 일'이다.
 // 다음에 할 일 (오른쪽 위 버튼 하나)
 function nextAction() {
-  if (!state.work.captures.length) return ["upload", "캡처 올리기"];
+  if (!state.work.captures.length) return autoCaptured() ? [] : ["upload", "캡처 올리기"]; // Forms 첨부는 서버가 캡처한다
   if (!state.work.complete) return ["confirm-complete", "빠짐없음 확인"];
   // 채점표 화면에서는 채점이 할 일이다.
   if (state.tab === "결과") return state.work.final ? ["next-work", "다음 작품"] : ["go-final", "채점하기"];
@@ -30,7 +30,7 @@ function stepStates() {
     자료: {
       done: state.work.captures.length > 0 && !!state.work.complete,
       note: !state.work.captures.length
-        ? "캡처 전"
+        ? autoCaptured() ? "첨부 캡처 중" : "캡처 전"
         : state.work.complete
           ? `${state.work.captures.length}장 · 확인됨`
           : missing
