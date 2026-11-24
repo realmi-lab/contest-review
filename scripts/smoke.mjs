@@ -85,7 +85,6 @@ try {
     const state = await get("/api/state").then((r) => r.json());
     assert.equal(state.app, "contest-review-desk");
     assert.match(state.build, /^(빌드|버전) /);
-    assert.deepEqual(Object.keys(state.cost), ["today", "week"]);
   });
   let id, capture;
   await step("운영 맥 점검: 결과를 알려 주고, 맥이 아닌 서버에서는 시작하지 않는다", async () => {

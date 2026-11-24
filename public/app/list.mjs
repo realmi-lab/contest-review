@@ -1,7 +1,6 @@
 // 목록 화면: 진행 현황, 작품 목록·검색·정렬, 직접 접수, MS Forms 공모 연동 현황
 import { esc, join, seoulMinute } from "../lib/html.mjs";
 import { select, splitName } from "./navigation.mjs";
-import { costText } from "./render.mjs";
 import { state } from "./state.mjs";
 import { summaryActions } from "./summary.mjs";
 import { $, button, count, dialog, emptyState, field, input } from "./ui.mjs";
@@ -165,7 +164,6 @@ export function overviewView() {
       <h1>전체 작품${count(works.length)}</h1>
       <p id="queue-summary"></p>
       <span class="spacer"></span>
-      <button type="button" class="link cost-note" data-action="summary-settings" title="토큰 수에 단가를 곱해 이 서버에서 계산한 추정값입니다. 누르면 날짜별로 봅니다.">${costText()}</button>
       ${button("create", "직접 접수")}
     </section>
     ${formsPanel()}

@@ -15,7 +15,7 @@ import {
   atomic, changed, deleteImage, deleteImagesOf, image, intakeFields, lastUsage, list, load, newWork, removeWork, save, summaryList, thumbnail, today,
 } from "../store.mjs";
 import { shownRefs } from "../summary/reading-edition.mjs";
-import { costSummary, startSummary } from "../summary/run.mjs";
+import { startSummary } from "../summary/run.mjs";
 import { bounded, err } from "../validate.mjs";
 
 // 본문의 id로 작품을 읽고, 화면이 본 자료 번호(rev)가 지금과 같은지 확인한다(그사이 바뀌었으면 거절).
@@ -31,7 +31,6 @@ export default {
     json({
       app: "contest-review-desk",
       build,
-      cost: costSummary(),
       works: summaryList(),
       tasks: [...tasks.values()],
       health: { ocrReady: await ocrReady() },

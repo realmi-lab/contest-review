@@ -17,11 +17,9 @@ export function viewKey() {
     "overview" +
     JSON.stringify(state.app.works.map((x) => [x.id, x.receivedOn, x.intakeTeam,
       x.submitterName, x.name, x.count, x.hasReading, x.hasLogic, x.gist, x.final, x.score, x.decision, x.category,
-      x.evalDone, x.evalAvg, x.title, x.take, x.issues, x.duplicates])) + JSON.stringify(state.app.intake) + costText()
+      x.evalDone, x.evalAvg, x.title, x.take, x.issues, x.duplicates])) + JSON.stringify(state.app.intake)
   );
 }
-// 목록 머리의 AI 비용 요약(센트 단위, 서버가 토큰 수 × 단가로 계산)
-export const costText = () => `AI 비용 · 오늘 $${state.app.cost.today.toFixed(2)} · 최근 7일 $${state.app.cost.week.toFixed(2)}`;
 
 // 화면을 다시 그린다. 작품이나 단계가 바뀌었으면 그 방향으로 넘기며 그린다(interactions.mjs).
 // 다 그리면 끝나는 약속을 돌려준다.

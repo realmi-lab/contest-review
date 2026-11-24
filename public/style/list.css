@@ -262,4 +262,3 @@ ol.howto b {
 }
 
 /* 목록 머리의 AI 비용 요약 */
-.listhead .cost-note { background: transparent; color: var(--text-3); font-size: var(--fs-meta); font-variant-numeric: tabular-nums; white-space: nowrap; }

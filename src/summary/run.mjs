@@ -121,9 +121,3 @@ export async function autoSummarize(wid) {
 // 최근 7일(UTC) AI 사용량: 응답마다 받은 토큰 수에 공식 단가를 곱해 이 서버에서 계산한 날짜별 기록
 export const utcDay = (offset) => new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
 export const recentUsage = () => dailyUsage(runsSince(utcDay(-6) + "T00:00:00Z"));
-// 목록 화면에 늘 보여 주는 비용 요약(달러): 오늘(UTC)과 최근 7일
-export function costSummary() {
-  const days = recentUsage();
-  const usd = (list) => list.reduce((sum, d) => sum + (d.estimatedUsd ?? 0), 0);
-  return { today: usd(days.filter((d) => d.day === utcDay(0))), week: usd(days) };
-}
