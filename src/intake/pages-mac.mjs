@@ -302,7 +302,8 @@ async function edgeSaved(windowId, only) {
 }
 
 // Edge: 따로 새 창을 열어 PDF를 연다. 먼저 '다른 이름으로 저장'한 사본을 읽어 보고(edgeSaved), 안 되면 쪽 번호
-// (#page=N, 쪽 맞춤, 뷰어 도구 막대 숨김)로 열어 그 창을 캡처한 뒤 쪽만 잘라 낸다.
+// (#page=N&view=FitV: 쪽 높이를 창에 맞춤)로 열어 그 창을 캡처한 뒤 쪽만 잘라 낸다(도구 막대도 잘려 나간다).
+// (실측: 윈도우 Edge는 view=Fit·toolbar=0을 따르지 않아 쪽 아래가 잘렸고 FitV는 따랐다. 같은 뷰어라 맥도 FitV를 쓴다.)
 // 창은 가로로 넓게 두어(화면 높이의 90% × 2.1배) 가로 슬라이드도 옆에 여백이 남게 한다(그래야 쪽 경계를 찾는다).
 // 쓰던 Edge 창·탭은 건드리지 않고, 끝나면 그 창만 닫는다(원래 Edge가 꺼져 있었으면 Edge도 끈다).
 // 캡처할 때는 쪽마다 빈 화면을 거쳐 새로 열어 그 쪽에서 시작하게 한다.
@@ -328,7 +329,7 @@ end run`, url, String(windowId), String(page)], "Edge에서 PDF를 열지 못했
   };
   const open = (windowId, page) => edge(`set URL of active tab of window id w to "about:blank"
     delay 0.3
-    set URL of active tab of window id w to u & "#page=" & p & "&view=Fit&toolbar=0"
+    set URL of active tab of window id w to u & "#page=" & p & "&view=FitV"
     set index of window id w to 1
     activate`, windowId, page);
   const before = await windows(EDGE).catch(() => []);

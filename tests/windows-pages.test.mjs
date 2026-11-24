@@ -40,21 +40,21 @@ test("PDF는 Windows PDF 기능으로 쪽마다 PNG가 되고, 한 쪽만·없�
   assert.equal((await documentPages("pdf", sample, 2, {})).length, 1);
 });
 
-test("Forms 첨부 PDF는 이 앱 전용 Edge 프로필을 화면 밖에 열어 쪽마다 캡처하고 쪽만 잘라 낸다", { skip: skip || "Edge 보기 맞춤 방식을 정하는 중", timeout: 240_000 }, async () => {
+test("Forms 첨부 PDF는 이 앱 전용 Edge 프로필을 창 없이 열어 쪽마다 캡처하고 쪽만 잘라 낸다", { skip, timeout: 240_000 }, async () => {
   process.env.REVIEW_EDGE_PROFILE = mkdtempSync(path.join(os.tmpdir(), "edge-profile-"));
   const { documentPages } = await load();
   const options = { secured: true };
   const pages = await documentPages("pdf", sample, 0, options);
   mkdirSync("test-output", { recursive: true }); // CI가 산출물로 올린다(실제 Edge 화면 확인용)
   pages.forEach((page, i) => writeFileSync(`test-output/edge-page-${i + 1}.png`, page));
-  // 기록에서도 볼 수 있게 첫 쪽을 작게 남긴다
-  console.log("EDGE_PAGE_JPEG " + (await sharp(pages[0]).resize({ width: 600 }).jpeg({ quality: 55 }).toBuffer()).toString("base64"));
-  assert.equal(options.how, "Edge 화면 캡처(이 앱 전용 Edge 프로필)");
+  // 기록에서도 볼 수 있게 두 쪽을 작게 남긴다
+  for (const page of pages) console.log("EDGE_PAGE_JPEG " + (await sharp(page).resize({ width: 400 }).jpeg({ quality: 55 }).toBuffer()).toString("base64"));
+  assert.equal(options.how, "Edge 화면 캡처(이 앱 전용 프로필, 창 없이)");
   assert.equal(pages.length, 2);
   for (const page of pages) {
     const { width, height } = await sharp(page).metadata();
     const { channels } = await sharp(page).stats();
-    assert.ok(width < 3000 && height > width, `쪽만 남아야 한다: ${width}x${height}`); // 세로 A4 쪽
+    assert.ok(height > 1700 && Math.abs(height / width - 842 / 595) < 0.03, `세로 A4 쪽만 남아야 한다: ${width}x${height}`);
     assert.ok(channels.some((c) => c.stdev > 10), "빈 화면이 아니어야 한다");
   }
 });

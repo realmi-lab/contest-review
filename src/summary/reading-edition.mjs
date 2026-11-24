@@ -7,7 +7,7 @@ import { excerptSentences, sentencesOf } from "./long-brief.mjs";
 import { chat } from "../ai/claude-summary.mjs";
 import { object } from "../ai/schema.mjs";
 import { compactLower as normalized } from "../text.mjs";
-import { claimsAbsence, danglingStart, describesDocument, digits, notStatement, plainVoice, unprintedNumbers } from "./statement-filters.mjs";
+import { claimsAbsence, danglingStart, describesDocument, digits, guesses, notStatement, plainVoice, unprintedNumbers } from "./statement-filters.mjs";
 import { storyBrief } from "./story-brief.mjs";
 import { sourceSections, draftSections, includeSections, overviewItems } from "./source-sections.mjs";
 
@@ -125,11 +125,12 @@ function sourceExcerpt(p, evidence, maxLength) {
   return best && score >= 2 && grounded(best, evidence) ? best : null;
 }
 
-// 세부 내용에 넣지 않을 요점: "~가 제시되지 않았다"는 판단(제출자의 말이 아니고 한계는 핵심 요약이 다룬다),
-// 문서 소개("제출 주체는 … 소개 자료다"), 핵심 요약 한 줄과 낱말이 거의 같은 반복.
+// 세부 요약에 넣지 않을 요점: "~가 제시되지 않았다"는 판단(제출자의 말이 아니고 한계는 새로 쓴 '한계·확인할 점'이 다룬다),
+// 화면만 보고 짐작한 문장("~로 보인다"), 문서 소개("제출 주체는 … 소개 자료다"), 새로 쓴 줄과 낱말이 거의 같은 반복.
+// (실측: 강군마켓 세부 요약에 "…구조로 보인다. 다만 등급 조건은 원문에 없다."와 한계 줄 두 개가 나란히 나왔다.)
 // (실측: 마인드필 세부 내용의 '제출자가 밝힌 한계'가 AI의 판단이었고, '검증과 비교'가 '무엇이 문제인가'를 되풀이했다.)
 function repeatsOrJudges(p, core) {
-  if (claimsAbsence(p.text) || describesDocument(p.text)) return true;
+  if (claimsAbsence(p.text) || guesses(p.text) || describesDocument(p.text)) return true;
   const mine = words(p.text);
   return core.some((c) => overlap(mine, words(c.text)) >= mine.size * 0.6);
 }

@@ -2,7 +2,7 @@
 //   PDF: Windows 기본 PDF 기능(Windows.Data.Pdf, PowerShell)으로 쪽마다 PNG
 //   Word·PowerPoint·Excel: Office 앱을 창 없이 열어(회사 계정, COM) PDF로 내보낸 뒤 PDF와 같이 바꾼다.
 //     보호(MIP) 문서는 내보낸 PDF도 보호되므로 아래 보호 PDF 길로 간다. 문서 권한이 내보내기를 막으면 읽지 못한다.
-//   보호 PDF(MS Forms 첨부는 모두 보호 문서로 본다): 이 앱 전용 Edge 프로필을 화면 밖 창으로 열어
+//   보호 PDF(MS Forms 첨부는 모두 보호 문서로 본다): 이 앱 전용 Edge 프로필을 창 없이(헤드리스) 열어
 //     DevTools 프로토콜(파이프)로 쪽마다 화면을 받아 쪽만 잘라 낸다. 처음 한 번 그 프로필에 회사 계정으로 로그인해야 한다
 //     (deploy/edge-login.bat).
 import { spawn } from "node:child_process";
@@ -89,7 +89,7 @@ async function officePdf(kind, file, pdf) {
 }
 
 // ── 보호 PDF: 이 앱 전용 Edge 프로필(회사 계정 로그인이 남는다)
-export const edgeExe = () =>
+const edgeExe = () =>
   [process.env["ProgramFiles(x86)"], process.env.ProgramFiles, process.env.LOCALAPPDATA]
     .filter(Boolean)
     .map((dir) => path.join(dir, "Microsoft", "Edge", "Application", "msedge.exe"))
@@ -97,7 +97,7 @@ export const edgeExe = () =>
 export const edgeProfile = () => process.env.REVIEW_EDGE_PROFILE || path.join(appDir("ContestReviewDesk"), "edge-profile");
 
 // Edge와 주고받는 DevTools 프로토콜(파이프: Edge가 3번으로 받고 4번으로 보낸다. 글 끝은 \0)
-export function devtools(edge) {
+function devtools(edge) {
   const [, , , input, output] = edge.stdio;
   const waiting = new Map();
   let id = 0, buffer = "";
@@ -132,16 +132,17 @@ export function devtools(edge) {
     });
 }
 
-// 쪽 번호(#page=N, 쪽 맞춤, 뷰어 도구 막대 숨김)로 열고, 다 읽은 뒤 화면이 두 번 연달아 같으면(최대 seconds초) 캡처해 쪽만 잘라 낸다.
-// 쪽 수는 알 수 없어 넘기다 같은 화면이 다시 나오면 마지막 쪽으로 본다.
+// 쪽 번호와 높이 맞춤(#page=N&view=FitV)으로 열고, 다 읽은 뒤 화면이 두 번 연달아 같으면(최대 seconds초) 캡처해 쪽만 잘라 낸다.
+// 창 없는(헤드리스) Edge라 화면 크기에 묶이지 않는다: 가로로 넓은 3200×1400 화면(1.5배 → 4800×2100점)에 쪽 높이를 맞추면
+// 세로 쪽도 가로 슬라이드도 양옆에 회색 여백이 남아 쪽 경계를 찾을 수 있고, A4 한 쪽이 약 1340×1890점으로 찍힌다
+// (실측: 윈도우 Edge는 view=Fit·toolbar=0을 따르지 않고 FitV는 따른다. 창을 띄우면 화면 크기에 묶여 쪽이 잘렸다).
+// 쪽 수는 알 수 없어 넘기다 같은 화면이 다시 나오면(끝을 넘으면 마지막 쪽이 다시 나온다) 마지막 쪽으로 본다.
 async function edgePages(file, only, options) {
   const exe = edgeExe();
   if (!exe) throw new Error("보호된 PDF라 Microsoft Edge(회사 계정)로 열어야 하는데 이 PC에 Edge가 없습니다.");
   const edge = spawn(exe, [
-    `--user-data-dir=${edgeProfile()}`, "--remote-debugging-pipe", "--no-first-run", "--no-default-browser-check",
-    "--window-position=-32000,-32000", "--window-size=1600,1100", // 화면 밖에 둔다
-    "--disable-features=CalculateNativeWinOcclusion", "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
-    "about:blank",
+    `--user-data-dir=${edgeProfile()}`, "--headless=new", "--remote-debugging-pipe", "--no-first-run", "--no-default-browser-check",
+    "--window-size=3200,1400", "--force-device-scale-factor=1.5", "about:blank",
   ], { stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] });
   const send = devtools(edge);
   try {
@@ -153,13 +154,12 @@ async function edgePages(file, only, options) {
     if (!tab) throw new Error("Edge 창을 열지 못했습니다");
     const { sessionId } = await send("Target.attachToTarget", { targetId: tab.targetId, flatten: true });
     const call = (method, params) => send(method, params, sessionId);
-    await call("Emulation.setDeviceMetricsOverride", { width: 1500, height: 1000, deviceScaleFactor: 2, mobile: false }); // 글자 인식에 넉넉한 2배
     const url = pathToFileURL(file).href;
     const screen = async () => Buffer.from((await call("Page.captureScreenshot", { format: "png" })).data, "base64");
     const open = async (page, first) => {
       const seconds = first ? 60 : 15;
       await call("Page.navigate", { url: "about:blank" });
-      const target = `${url}#page=${page}&view=Fit&toolbar=0`;
+      const target = `${url}#page=${page}&view=FitV`;
       await call("Page.navigate", { url: target });
       for (let t = 0; t < seconds * 2; t++) {
         const { result } = await call("Runtime.evaluate", { expression: "location.href + ' ' + document.readyState", returnByValue: true });
@@ -183,7 +183,7 @@ async function edgePages(file, only, options) {
       if (pages.length && (await samePage(page, pages.at(-1)))) break; // 더 넘어가지 않는다(마지막 쪽)
       pages.push(page);
     }
-    options.how = "Edge 화면 캡처(이 앱 전용 Edge 프로필)";
+    options.how = "Edge 화면 캡처(이 앱 전용 프로필, 창 없이)";
     return pages;
   } finally {
     await send("Browser.close").catch(() => {});
