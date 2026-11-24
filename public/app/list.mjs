@@ -60,7 +60,7 @@ function stageMark(status) {
 }
 
 // 같은 머리말("공개 추가검증 · …")이 2개 이상인 작품끼리 표의 한 묶음(tbody)으로 모은다.
-export function groupWorks(works) {
+function groupWorks(works) {
   const shared = new Map();
   for (const x of state.app.works) {
     const [prefix] = splitName(x.name);
