@@ -1,5 +1,4 @@
 // 작품 화면의 틀: 왼쪽 메뉴, 단계 탭, 다음 할 일 버튼, 작업 진행 표시
-import { readingViews } from "../lib/expanded-reading.mjs";
 import { esc, join } from "../lib/html.mjs";
 import { intakePane } from "./captures.mjs";
 import { filteredWorks, formsNote, groupWorks, intakeHeadings, intakeValues, queueLabels, queueStage, sortWorks, workStatus } from "./list.mjs";
@@ -40,7 +39,7 @@ function stepStates() {
     },
     요약: {
       done: !!reading,
-      note: reading ? `핵심 요점 ${readingViews(reading).brief.length}개` : "요약 전",
+      note: reading ? "요약 완료" : "요약 전",
     },
     점검: {
       done: !!logic,

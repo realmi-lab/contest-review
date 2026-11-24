@@ -39,19 +39,20 @@ export function updateSheet(form) {
   $("sheetmeter").style.setProperty("--fill", sum / 10);
 }
 
-// 채점 항목마다 판단에 쓰는 핵심 요약 항목. 기본 채점 기준의 이름으로 잇고, 이름을 바꾼 항목에는 붙이지 않는다.
+// 채점 항목마다 판단에 쓰는 요약 줄. 기본 채점 기준의 이름으로 잇고, 이름을 바꾼 항목에는 붙이지 않는다.
+// 뒤쪽 이름은 예전 형식(한 줄 요약 → 문제 → … → 한계)으로 저장된 요약의 줄이다.
 const CRITERION_TOPICS = {
-  "문제 정의": ["무엇이 문제인가"],
-  "효과 크기": ["시사점과 활용"],
-  "실행 가능성": ["어떻게 푸는가"],
-  근거: ["무엇을 얻었나", "한계·확인할 점"],
+  "문제 정의": ["배경", "무엇이 문제인가"],
+  "효과 크기": ["효과", "시사점과 활용"],
+  "실행 가능성": ["내용", "어떻게 푸는가"],
+  근거: ["결과·근거", "무엇을 얻었나", "한계·확인할 점"],
   차별성: ["무엇을 하려는가"],
 };
 function criterionSummary(name, terms) {
   const r = currentReading();
   if (!r || !CRITERION_TOPICS[name]) return "";
-  const brief = readingViews(r).brief;
-  const points = CRITERION_TOPICS[name].map((topic) => brief.find((p) => p.topic === topic)).filter(Boolean);
+  const { brief, detail } = readingViews(r);
+  const points = CRITERION_TOPICS[name].map((topic) => [...brief, ...detail].find((p) => p.topic === topic)).filter(Boolean);
   return points.length
     ? `<ul class="from-summary">${join(points, (p) => `<li data-topic="${esc(p.topic)}"><b>요약 · ${esc(p.topic)}</b>${claim(p, "div", "", terms)}</li>`)}</ul>`
     : "";

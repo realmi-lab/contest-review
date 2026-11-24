@@ -46,8 +46,9 @@ const sql = {
     `SELECT id, json_extract(data,'$.name') name, json_extract(data,'$.rev') rev, json_extract(data,'$.updated') updated,
     json_extract(data,'$.receivedOn') receivedOn, json_extract(data,'$.intakeTeam') intakeTeam, json_extract(data,'$.submitterName') submitterName,
     CASE WHEN json_extract(data,'$.cloudReading.rev')=json_extract(data,'$.rev') THEN 1 ELSE 0 END hasReading, -- 지금 자료의 AI 요약이 있는가
-    CASE WHEN json_extract(data,'$.cloudReading.rev')=json_extract(data,'$.rev') AND json_extract(data,'$.cloudReading.edition.brief[0].topic')='한 줄 요약'
-      THEN json_extract(data,'$.cloudReading.edition.brief[0].text') END gist, -- 목록에서 제목 아래에 보여 준다
+    CASE WHEN json_extract(data,'$.cloudReading.rev')=json_extract(data,'$.rev') THEN (SELECT json_extract(line.value,'$.text')
+      FROM json_each(data,'$.cloudReading.edition.brief') line WHERE json_extract(line.value,'$.topic') IN ('내용','한 줄 요약') LIMIT 1)
+      END gist, -- 목록에서 제목 아래에 보여 준다(메인 요약의 '내용', 예전 요약은 '한 줄 요약')
     CASE WHEN json_extract(data,'$.cloudReading.rev')=json_extract(data,'$.rev') AND json_extract(data,'$.cloudLogic.reading')=json_extract(data,'$.cloudReading.id')
       THEN 1 ELSE 0 END hasLogic, -- 지금 요약에 대한 사실·논리 점검이 끝났는가
     json_array_length(data,'$.captures') count,

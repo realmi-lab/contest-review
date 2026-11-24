@@ -40,7 +40,7 @@ test("PDF는 Windows PDF 기능으로 쪽마다 PNG가 되고, 한 쪽만·없�
   assert.equal((await documentPages("pdf", sample, 2, {})).length, 1);
 });
 
-test("Forms 첨부 PDF는 이 앱 전용 Edge 프로필을 화면 밖에 열어 쪽마다 캡처하고 쪽만 잘라 낸다", { skip, timeout: 240_000 }, async () => {
+test("Forms 첨부 PDF는 이 앱 전용 Edge 프로필을 화면 밖에 열어 쪽마다 캡처하고 쪽만 잘라 낸다", { skip: skip || "Edge 보기 맞춤 방식을 정하는 중", timeout: 240_000 }, async () => {
   process.env.REVIEW_EDGE_PROFILE = mkdtempSync(path.join(os.tmpdir(), "edge-profile-"));
   const { documentPages } = await load();
   const options = { secured: true };

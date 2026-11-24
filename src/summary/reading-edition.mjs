@@ -266,14 +266,14 @@ async function draftEdition(r, progress, run, { captures = [] } = {}) {
   const points = usable(r.points), lead = usable(r.lead);
   const picked = briefAnchors(lead.length ? lead : points);
   if (!picked.length) return emptyEdition();
-  // 핵심 요약을 한 줄 요약 → 문제 → 목표 → 방법 → 결과 → 시사점 → 한계 순서로 새로 쓴다(story-brief.mjs).
-  // 세 가지 이상 통과했을 때만 쓰고, 아니면 고른 요점을 한 줄씩 다듬는 기존 방식으로 간다.
+  // 메인 요약(제목 → 배경 → 내용 → 효과)과 세부 요약의 결과·한계를 새로 쓴다(story-brief.mjs).
+  // 배경·내용·효과 가운데 둘 이상 통과했을 때만 쓰고, 아니면 고른 요점을 한 줄씩 다듬는 기존 방식으로 간다.
   // 답은 여러 요점을 엮은 문장이라, 수치는 그 요점들의 근거 전부와 대조하고 인용 검토는 요점 문장(basis)과 대조한다.
   // 한 근거 문장을 전제로 한 나머지 대조(그림 서술·세부 조건·의무 표현)는 엮은 문장에서 오탐이 나므로 쓰지 않는다
   // (실측: "…기능을 담은 플랫폼이 화면으로 소개된다" 탈락). 재료가 된 요점은 이미 그 대조를 거쳤다.
   // 끝내 쓰지 못한 물음은 다른 줄로 메우지 않고 edition.missing에 이름과 이유를 남겨 화면이 알린다.
   let story = [];
-  progress("핵심 요약 작성 · 문제·목표·방법·결과·시사점·한계 순서");
+  progress("메인 요약 작성 · 제목·배경·내용·효과");
   // 답을 문장으로 나눠 문장마다 대조하고, 통과한 문장만 남긴다. 여러 사실을 엮은 줄은 구절 하나가 걸려도
   // 줄 전체가 빠졌다(실측: 전체 30개 다시 요약에서 정확한 '어떻게 푸는가' 3개가 통째로 빠짐).
   const accept = async (answers) => { // 답마다 { why: 탈락 이유(통과면 ""), text: 통과한 문장들 }
@@ -297,10 +297,11 @@ async function draftEdition(r, progress, run, { captures = [] } = {}) {
   } catch (err) { // 응답이 잘리거나 양식이 틀리면 기존 방식으로 계속한다.
     if (!/응답이 길어|양식에 맞게 응답하지/u.test(err.message)) throw err;
   }
-  const told = story.filter((s) => s.point).length >= 3;
-  const brief = told ? story.filter((s) => s.point).map(({ point }) => ({ ...point, refs: shownRefs(point, r.evidence) })) : picked;
-  progress("추가 설명 선정 · 핵심에 빠진 절차와 실제 결과물 대조");
-  const detail = await detailAnchors(r, brief, lead, points, excluded, run);
+  const told = story.filter((s) => s.report && s.point).length >= 2;
+  const written = (told ? story.filter((s) => s.point) : []).map((s) => ({ ...s, point: { ...s.point, refs: shownRefs(s.point, r.evidence) } }));
+  const brief = told ? written.filter((s) => s.view === "brief").map((s) => s.point) : picked;
+  progress("세부 요약 선정 · 메인 요약에 빠진 절차와 실제 결과물 대조");
+  const detail = await detailAnchors(r, told ? written.map((s) => s.point) : picked, lead, points, excluded, run); // 새로 쓴 줄과 겹치지 않게 고른다
   const entries = [];
   for (const [view, anchors] of [["brief", told ? [] : brief], ["detail", detail]]) {
     for (const anchor of anchors) {
@@ -328,23 +329,29 @@ async function draftEdition(r, progress, run, { captures = [] } = {}) {
   }
   const reviewed = await reviewEntries(entries, r, progress, run);
   const edition = emptyEdition(), seen = new Set();
+  const shaped = (point) => markDisputedDefinition({ ...point, topic: shownTopic(point) }, r.sourceAlerts);
   const add = (view, point) => {
     if (!point || seen.has(normalized(point.text))) return;
     seen.add(normalized(point.text));
-    edition[view].push(markDisputedDefinition({ ...point, topic: shownTopic(point) }, r.sourceAlerts));
+    edition[view].push(shaped(point));
   };
   if (told) {
     brief.forEach((point) => add("brief", point));
     // rejected: 검증에서 떨어진 마지막 초안. 화면에는 쓰지 않고 원인을 확인할 때 본다.
-    edition.missing = story.filter((s) => !s.point).map(({ label, why, text }) => ({ topic: label, why, ...(text ? { rejected: text } : {}) }));
+    edition.missing = story.filter((s) => s.report && !s.point).map(({ label, why, text }) => ({ topic: label, why, ...(text ? { rejected: text } : {}) }));
   }
   entries.forEach(({ view, point, fallback }, i) => add(view, reviewed.has(i + 1) ? point : fallback));
-  if (points.length < 16) return edition;
+  // 새로 쓴 요약이면 메인 요약은 그 줄만 두고(절 묶음이 더한 줄은 세부 요약으로), 세부 요약은 결과·근거로 시작해 한계·확인할 점으로 끝낸다.
+  const main = edition.brief;
+  const storyDetail = (key) => written.filter((s) => s.key === key).map((s) => shaped(s.point));
+  const finish = (e) => (told ? { ...e, brief: main,
+    detail: [...storyDetail("result"), ...e.brief.filter((p) => !main.includes(p)), ...e.detail, ...storyDetail("limit")] } : e);
+  if (points.length < 16) return finish(edition);
   const plan = sourceSections(r, excluded, captures);
-  if (plan.groups.length < 3) return edition;
+  if (plan.groups.length < 3) return finish(edition);
   const cited = new Set([...edition.brief, ...edition.detail].flatMap((p) => p.refs.map((ref) => r.evidence[ref].capture)));
   const missing = plan.groups.filter((g) => g.pages.every((p) => !cited.has(p.capture)));
-  if (edition.brief.length >= 3 && edition.detail.length >= 3 && (!plan.explicit || !missing.length)) return edition;
+  if (edition.brief.length >= 3 && edition.detail.length >= 3 && (!plan.explicit || !missing.length)) return finish(edition);
   const sections = await draftSections(plan, r.title, progress, run, points);
   const overview = overviewItems(plan, points);
   const proposed = [...overview, ...sections.flatMap((s) => [s.core, s.detail, s.coreQuote, s.detailQuote, s.example, s.representative])].filter((p) => p && grounded(p, r.evidence));
@@ -354,10 +361,10 @@ async function draftEdition(r, progress, run, { captures = [] } = {}) {
   const checks = await reviewEntries(drafts.map((point) => ({ point })), r, progress, run);
   const accepted = new Set([...proposed.filter((p) => captureQuotes.has(p)), ...drafts.filter((_, i) => checks.has(i + 1))]);
   const keep = (p) => accepted.has(p) ? markDisputedDefinition(p, r.sourceAlerts) : null;
-  return includeSections(edition, sections.map((s) => ({ ...s,
+  return finish(includeSections(edition, sections.map((s) => ({ ...s,
     core: keep(s.example) || keep(s.core) || keep(s.coreQuote) || keep(s.representative),
     detail: keep(s.example) || keep(s.detail) || keep(s.detailQuote) || keep(s.representative),
-    representative: keep(s.example) || keep(s.representative) })), overview.map(keep).filter(Boolean));
+    representative: keep(s.example) || keep(s.representative) })), overview.map(keep).filter(Boolean)));
 }
 
 // 원문 줄과 대조하는 문장의 검토 기준, 그리고 확인된 요점 여러 개를 엮어 쓴 문장(basis가 있는 것)의 검토 기준.
