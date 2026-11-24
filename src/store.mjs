@@ -53,7 +53,6 @@ const sql = {
       FROM json_each(data,'$.cloudReading.edition.brief') line WHERE json_extract(line.value,'$.topic')='제목' LIMIT 1) END title, -- 핵심 요약의 제목
     CASE WHEN json_extract(data,'$.cloudReading.rev')=json_extract(data,'$.rev') AND json_extract(data,'$.cloudLogic.reading')=json_extract(data,'$.cloudReading.id')
       THEN json_extract(data,'$.cloudLogic.opinion.take') END take, -- 사실·논리 점검 탭: AI 한마디 평
-    (SELECT count(*) FROM json_each(data,'$.cloudLogic.issues') WHERE json_extract(value,'$.status') IS NOT '참고') issues, -- 확인할 점 수(hasLogic일 때만 쓴다)
     CASE WHEN json_extract(data,'$.cloudReading.rev')=json_extract(data,'$.rev') AND json_extract(data,'$.cloudLogic.reading')=json_extract(data,'$.cloudReading.id')
       THEN 1 ELSE 0 END hasLogic, -- 지금 요약에 대한 사실·논리 점검이 끝났는가
     json_array_length(data,'$.captures') count,
