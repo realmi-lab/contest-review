@@ -29,8 +29,6 @@ function ocrNotes(c) {
   if (!info) return "";
   const uncertain = join(info.uncertain || [], (t, i) => ocrDifference(c, t, i));
   return (
-    `<p class="muted small">${info.detailRead ? `기본·정밀 OCR 대조 · 추가 문장 ${info.added}개` : "기본 OCR"}` +
-    ` · 셀 위치를 확인한 표 ${info.tables.length}개</p>` +
     (info.detailFailed
       ? '<p class="warning">정밀 판독을 완료하지 못했습니다.</p>'
       : "") +

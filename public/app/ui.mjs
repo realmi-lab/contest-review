@@ -20,6 +20,7 @@ const ICONS = {
   alert: '<path d="M12 3 2 21h20L12 3z"/><path d="M12 10v4M12 17.5h.01"/>',
   help: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
   shield: '<path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10z"/>',
+  building: '<path d="M4 21V5l8-3v19M12 9h8v12M8 8v.01M8 12v.01M8 16v.01M16 13v.01M16 17v.01M2 21h20"/>',
   bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>',
   settings:
     '<path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/>',
