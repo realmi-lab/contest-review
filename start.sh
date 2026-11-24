@@ -57,4 +57,6 @@ done
 # 회사 프록시(HTTPS_PROXY)가 있으면 AI 요청도 그 프록시로 보낸다.
 if [ -n "${HTTPS_PROXY:-}" ]; then export NODE_USE_ENV_PROXY=1; fi
 echo "아이디어정리를 실행합니다: http://localhost:18765 (끄려면 Ctrl+C)"
-exec node server.mjs
+# --use-system-ca: 이 컴퓨터(키체인·인증서 저장소)에 등록된 인증서도 믿는다. 회사 보안 장비가 HTTPS 인증서를 바꿔 끼우는 망에서
+# 브라우저·curl은 되는데 서버만 Slack·AI에 'fetch failed'가 나는 것을 막는다.
+exec node --use-system-ca server.mjs

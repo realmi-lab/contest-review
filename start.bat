@@ -20,7 +20,8 @@ if not exist node_modules (
 if defined HTTPS_PROXY set NODE_USE_ENV_PROXY=1
 echo 아이디어정리를 실행합니다: http://localhost:18765 (끄려면 Ctrl+C)
 start "" http://localhost:18765
-node server.mjs
+rem --use-system-ca: Windows 인증서 저장소의 회사 인증서도 믿는다(회사망에서 Slack·AI 연결이 'fetch failed'로 끊기지 않게)
+node --use-system-ca server.mjs
 goto end
 
 :install_node

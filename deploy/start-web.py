@@ -65,7 +65,7 @@ def start():
     env = service_env()
     config = {
         "Label": label,
-        "ProgramArguments": [node, str(project / "server.mjs")],
+        "ProgramArguments": [node, "--use-system-ca", str(project / "server.mjs")],  # 키체인의 인증서도 믿는다(start.sh와 같다)
         "WorkingDirectory": str(project),
         "EnvironmentVariables": env,
         "RunAtLoad": True, "KeepAlive": True, "ThrottleInterval": 15,
