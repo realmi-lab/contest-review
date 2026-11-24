@@ -47,11 +47,16 @@ export function queueStage(id) {
 export const queueLabels = { run: "처리 중", wait: "대기" };
 
 // 목록의 진행 상태: 캡처 → 요약 → 점검 → 채점 네 칸 눈금과 글자. 확정은 도장.
-// 진행 상태 알약: 단계마다 색이 다르고, 동그라미가 시계처럼 캡처 → 요약 → 점검 → 채점 네 칸(한 칸 = 90°)만큼 찬다.
+// 진행 상태 알약: 단계마다 색이 다르고, 고리가 시계처럼 12시부터 캡처 → 요약 → 점검 → 채점 네 칸(한 칸 = 90°)만큼 찬다.
+// 다 끝나면(심사 확정) 고리 안에 체크 표시.
 const STAGE_STEPS = { new: 0, capt: 1, read: 2, checked: 3, final: 4 };
+const RING = 2 * Math.PI * 8; // 고리 둘레(반지름 8)
 function stageMark(status) {
   const done = STAGE_STEPS[status.key];
-  return `<span class="status status-${status.key}" title="${done} / 4단계"><span class="status-clock" style="--done:${done}" aria-hidden="true"></span>${esc(status.label)}</span>`;
+  const ring = `<svg class="status-ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="track" cx="10" cy="10" r="8"/>` +
+    (done ? `<circle class="arc" cx="10" cy="10" r="8" stroke-dasharray="${((RING * done) / 4).toFixed(2)} ${RING.toFixed(2)}"/>` : "") +
+    (done === 4 ? `<path class="tick" d="m6.6 10.3 2.3 2.3 4.6-4.7"/>` : "") + `</svg>`;
+  return `<span class="status status-${status.key}" title="${done} / 4단계">${ring}${esc(status.label)}</span>`;
 }
 
 // 같은 머리말("공개 추가검증 · …")이 2개 이상이면 묶음 제목으로 한 번만 보여 준다.

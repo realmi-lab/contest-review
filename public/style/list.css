@@ -186,35 +186,30 @@
   font-weight: 700;
   white-space: nowrap;
 }
-/* 진행 상태(표 첫 열): 단계마다 색을 달리한 알약 안에 시계 모양 동그라미. 네 칸(캡처 → 요약 → 점검 → 채점, 한 칸 90°) 가운데
-   끝낸 칸만큼 12시부터 시계 방향으로 찬다. 회색 캡처 전 → 노랑 요약 전 → 오렌지 요약 완료 → 초록 점검 완료 → 오렌지 바탕 심사 확정. */
+/* 진행 상태(표 첫 열): 단계마다 색을 달리한 알약 안에 진행 고리. 네 칸(캡처 → 요약 → 점검 → 채점, 한 칸 90°) 가운데
+   끝낸 칸만큼 12시부터 시계 방향으로 찬다. 회색 캡처 전 → 노랑 요약 전 → 오렌지 요약 완료 → 초록 점검 완료 → 오렌지 바탕 심사 확정(체크). */
 .cell-status { width: 1%; white-space: nowrap; }
 .status {
-  --pill: var(--fill);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 12px 5px 6px;
+  gap: 7px;
+  padding: 5px 12px 5px 7px;
   border-radius: 999px;
-  background: var(--pill);
+  background: var(--fill);
   font-size: var(--fs-ui);
   font-weight: 700;
   white-space: nowrap;
 }
 .status-new { color: var(--text-3); }
-.status-capt { --pill: var(--warn-soft); color: var(--warn-text); }
-.status-read { --pill: var(--accent-soft); color: var(--accent-text); }
-.status-checked { --pill: var(--green-soft); color: var(--green-text); }
-.status-final { --pill: var(--accent); color: #fff; }
-.status-clock {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1.5px currentColor;
-  background:
-    repeating-conic-gradient(var(--pill) 0 3deg, transparent 3deg 90deg), /* 칸 사이 눈금 */
-    conic-gradient(currentColor calc(var(--done) * 25%), transparent 0);
-}
+.status-capt { background: var(--warn-soft); color: var(--warn-text); }
+.status-read { background: var(--accent-soft); color: var(--accent-text); }
+.status-checked { background: var(--green-soft); color: var(--green-text); }
+.status-final { background: var(--accent); color: #fff; }
+.status-ring { width: 18px; height: 18px; flex: none; transform: rotate(-90deg); }
+.status-ring circle { fill: none; stroke: currentColor; stroke-width: 2.6; }
+.status-ring .track { opacity: 0.22; }
+.status-ring .arc { stroke-linecap: round; }
+.status-ring .tick { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transform: rotate(90deg); transform-origin: 10px 10px; }
 .badge[data-queue="wait"] {
   background: var(--fill);
   color: var(--text-3);
