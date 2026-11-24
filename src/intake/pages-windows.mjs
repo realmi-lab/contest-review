@@ -89,7 +89,7 @@ async function officePdf(kind, file, pdf) {
 }
 
 // ── 보호 PDF: 이 앱 전용 Edge 프로필(회사 계정 로그인이 남는다)
-const edgeExe = () =>
+export const edgeExe = () =>
   [process.env["ProgramFiles(x86)"], process.env.ProgramFiles, process.env.LOCALAPPDATA]
     .filter(Boolean)
     .map((dir) => path.join(dir, "Microsoft", "Edge", "Application", "msedge.exe"))
@@ -97,7 +97,7 @@ const edgeExe = () =>
 export const edgeProfile = () => process.env.REVIEW_EDGE_PROFILE || path.join(appDir("ContestReviewDesk"), "edge-profile");
 
 // Edge와 주고받는 DevTools 프로토콜(파이프: Edge가 3번으로 받고 4번으로 보낸다. 글 끝은 \0)
-function devtools(edge) {
+export function devtools(edge) {
   const [, , , input, output] = edge.stdio;
   const waiting = new Map();
   let id = 0, buffer = "";
