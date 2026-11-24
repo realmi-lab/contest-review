@@ -19,10 +19,16 @@ function sentList() {
 }
 
 // 담당자가 봇 DM에 남긴 답장(서버가 1분마다 가져온다). 채점표 탭에 그대로 보여 준다.
+// 여러 사람이 보낸 의견은 사람마다 카드 하나로 묶어 각각 보여 준다(카드 안은 보낸 순서).
 function repliesList() {
   const replies = state.work.slackReplies || [];
-  return replies.length ? `<div class="slack-replies"><h4>담당자 의견 · ${replies.length}건</h4>
-    <ul>${join(replies, (r) => `<li><b>${esc(r.name)}</b><small>${seoulMinute(r.at)}</small><p>${esc(r.text)}</p></li>`)}</ul></div>` : "";
+  if (!replies.length) return "";
+  const byPerson = Map.groupBy(replies, (r) => r.user);
+  return `<div class="slack-replies"><h4>담당자 의견 · ${byPerson.size}명</h4>
+    <div class="reply-cards">${join([...byPerson.values()], (mine) => `<section class="reply-card">
+      <h5>${esc(mine.at(-1).name)}<small>${mine.length > 1 ? `의견 ${mine.length}건 · ` : ""}${seoulMinute(mine.at(-1).at)}</small></h5>
+      ${join(mine, (r) => `<p>${esc(r.text)}${mine.length > 1 ? `<small>${seoulMinute(r.at)}</small>` : ""}</p>`)}
+    </section>`)}</div></div>`;
 }
 
 // 채점표 탭 맨 위: Slack에 있는 사람을 이름으로 검색 → 고르기 → 보내기. 보낸 기록과 담당자 의견(DM 답장)도 여기 보여 준다.

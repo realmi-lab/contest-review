@@ -190,7 +190,7 @@ export function overviewView() {
 const summaryCell = (x, brief) => `<td class="cell-wide">${x.hasReading
   ? `${x.title ? `<b class="rowsummary-title">${esc(x.title)}</b>` : ""}${brief && x.title ? "" : `<span class="rowsummary">${esc(x.gist ? sentences(x.gist).map(noPeriod).join(" ") : "요약을 열어 확인하세요")}</span>`}`
   : `<span class="muted">${x.count ? "요약 전" : "캡처 전"}</span>${summaryActions(x)}`}</td>`;
-const opinionCell = (x) => `<td class="cell-wide">${x.opinion ? `<span class="rowsummary">${esc(x.opinion)}</span>` : '<span class="muted">의견 전</span>'}</td>`; // 가장 최근 담당자 의견(없으면 검토 의견)
+const opinionCell = (x) => `<td class="cell-wide">${x.opinion ? `${x.reviewers > 1 ? `<b class="rowsummary-title">담당자 ${x.reviewers}명 의견</b>` : ""}<span class="rowsummary">${esc(x.opinion)}</span>` : '<span class="muted">의견 전</span>'}</td>`; // 가장 최근 담당자 의견(없으면 검토 의견)
 const VIEWS = {
   all: { label: "전체", done: () => true, heads: ["핵심 요약", "의견"],
     cells: (x) => summaryCell(x, true) + opinionCell(x) },

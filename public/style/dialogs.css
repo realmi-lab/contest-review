@@ -156,10 +156,12 @@ dialog:has(.capture-stage) .iconbtn:hover {
 .slack-send h3 { margin: 0; }
 .slack-go { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
 .slack-replies h4 { margin: 8px 0; }
-.slack-replies ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-.slack-replies li { padding: 12px 14px; border-radius: 10px; background: var(--fill); }
-.slack-replies small { margin-left: 8px; color: var(--text-3); }
-.slack-replies p { margin: 4px 0 0; white-space: pre-wrap; }
+.reply-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.reply-card { padding: 14px 16px; border-radius: 12px; background: var(--fill); }
+.reply-card h5 { display: flex; gap: 8px; align-items: baseline; margin: 0 0 6px; font-family: var(--font-heading); font-size: var(--fs-ui); }
+.reply-card small { color: var(--text-3); font-family: var(--font); font-size: var(--fs-meta); font-weight: 500; }
+.reply-card p { margin: 6px 0 0; white-space: pre-wrap; }
+.reply-card p small { display: block; }
 .slack-history h4 { margin: 8px 0; }
 .slack-history table { width: 100%; border-collapse: collapse; font-size: var(--fs-meta); }
 .slack-history th, .slack-history td { padding: 6px 8px; border-top: 1px solid var(--line-soft); text-align: left; }
