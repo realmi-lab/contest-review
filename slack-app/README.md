@@ -216,6 +216,18 @@ _작성 2026-11-25 09:20 (한국 시간)_
    slack trigger delete --trigger-id Ft여기에
    ```
 
+   2026-11-25 회사 Mac에 생긴 세 개(사진으로 읽은 ID라 'not found'가 나면 화면의 ID를 복사해 넣습니다):
+
+   ```sh
+   slack trigger delete --trigger-id Ft0CLUENGWQ4
+   ```
+   ```sh
+   slack trigger delete --trigger-id Ft0CLKFJ96CV
+   ```
+   ```sh
+   slack trigger delete --trigger-id Ft0CLQKW9H9Q
+   ```
+
 2. 새 코드로 올리고 하나만 만듭니다(배포한 앱 고르기):
 
    ```sh
@@ -236,4 +248,4 @@ _작성 2026-11-25 09:20 (한국 시간)_
 
 ---
 
-마지막 수정: 2026-11-25 09:20 (한국 시간)
+마지막 수정: 2026-11-25 09:21 (한국 시간)
