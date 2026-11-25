@@ -99,11 +99,12 @@ export async function shareHtml(w) {
 :root { --orange: #ff6c00; --fill: #f3f4f6; --line: #e2e4e8; --text: #1a1c1f; --text-2: #3c3f44; --text-3: #63666b; }
 body { margin: 0; background: #e9eaec; color: var(--text); font: 16px/1.7 "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
 main { max-width: 920px; margin: 32px auto; padding: 40px 48px; border-radius: 16px; background: #fff; }
-.tabs { display: flex; gap: 4px; margin: 24px 0 4px; border-bottom: 2px solid var(--text); }
-.tabs label { padding: 10px 18px; border-radius: 8px 8px 0 0; color: var(--text-3); font-family: "Bithumb Gothic", sans-serif; cursor: pointer; }
-.tabs label:hover { background: var(--fill); }
+/* 탭: 눈에 잘 띄게 큰 단추 세 개로 나란히 두고, 고른 탭은 오렌지. 내려 읽어도 위에 붙어 있어 언제든 바꿀 수 있다 */
+.tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 24px 0 8px; padding: 10px 0; border-bottom: 2px solid var(--text); background: #fff; }
+.tabs label { padding: 14px 12px; border: 2px solid var(--line); border-radius: 12px; background: var(--fill); color: var(--text-2); font-family: "Bithumb Gothic", sans-serif; font-size: 18px; text-align: center; cursor: pointer; }
+.tabs label:hover { border-color: var(--orange); color: var(--orange); }
 .pane, input[name="tab"] { display: none; }
-#tab-1:checked ~ .tabs [for="tab-1"], #tab-2:checked ~ .tabs [for="tab-2"], #tab-3:checked ~ .tabs [for="tab-3"] { background: var(--text); color: #fff; }
+#tab-1:checked ~ .tabs [for="tab-1"], #tab-2:checked ~ .tabs [for="tab-2"], #tab-3:checked ~ .tabs [for="tab-3"] { border-color: var(--orange); background: var(--orange); color: #fff; box-shadow: 0 4px 12px rgba(255, 108, 0, 0.3); }
 #tab-1:checked ~ .p1, #tab-2:checked ~ .p2, #tab-3:checked ~ .p3 { display: block; }
 h1, h2, h3 { font-family: "Bithumb Gothic", sans-serif; letter-spacing: -0.02em; }
 h1 { margin: 0 0 6px; font-size: 28px; line-height: 1.35; }
