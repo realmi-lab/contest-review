@@ -42,7 +42,7 @@ reply?.querySelector(".reply-send").addEventListener("click", async () => {
     await fetch(url, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ ticket, text }) });
     note.textContent = "보냈습니다. 잠시 뒤 Slack의 idea-review에서 '의견을 받았습니다' 알림이 오면 접수된 것입니다. 오지 않으면 Slack의 [평가 답장하기] 단추로 보내 주세요.";
   } catch {
-    note.textContent = "보내지 못했습니다(이 PC에서 바깥으로 보내는 것이 막혔을 수 있습니다). Slack의 [평가 답장하기] 단추로 보내 주세요.";
+    note.textContent = "보내지 못했습니다. Slack 안 미리보기에서는 보낼 수 없으니 파일을 내려받아 브라우저(크롬·엣지)로 열어 다시 보내 주세요. 그래도 안 되면 Slack의 [평가 답장하기] 단추를 써 주세요.";
   }
 });
 `;
@@ -173,7 +173,7 @@ ${join(panes, (_, i) => `<input type="radio" name="tab" id="tab-${i + 1}"${i ? "
 <nav class="tabs">${join(panes, ([label], i) => `<label for="tab-${i + 1}">${label}</label>`)}</nav>
 ${join(panes, ([, html], i) => `<div class="pane p${i + 1}">${html}</div>`)}
 ${reply ? `<section id="reply" class="reply" data-url="${esc(reply.url)}" data-ticket="${esc(reply.ticket)}">
-  <h2>평가 의견 보내기</h2><p class="muted">여기에 적어 보내면 아이디어 리뷰 채점표에 담깁니다. 다시 보내면 앞의 의견을 바꿉니다.</p>
+  <h2>평가 의견 보내기</h2><p class="muted">여기에 적어 보내면 아이디어 리뷰 채점표에 담깁니다. 다시 보내면 앞의 의견을 바꿉니다. Slack 안 미리보기에서는 보낼 수 없어, 파일을 내려받아 브라우저로 열어 주세요.</p>
   <textarea rows="5" maxlength="4000" placeholder="이 작품에 대한 의견을 자유롭게 적어 주세요"></textarea>
   <p><button type="button" class="reply-send">의견 보내기</button> <span class="reply-note" role="status"></span></p></section>` : ""}
 <div id="viewer" class="viewer" hidden><div class="viewer-box"><button type="button" class="viewer-close" aria-label="닫기">닫기</button>
