@@ -1,4 +1,4 @@
-// 담당자 DM에 HTML 파일, 이어서 [평가 답장하기] 링크를 보낸다(파일 글 맨 위·안내 맨 아래에 구분선 --------). 링크는 이 건만의 워크플로 링크(reply_form, 일회용 표를 담음)라
+// 담당자 DM에 HTML 파일, 이어서 [평가 답장하기] 워크플로 카드를 보낸다(파일 글 맨 위·카드 다음에 구분선 --------). 링크는 이 건만의 워크플로 링크(reply_form, 일회용 표를 담음)라
 // 누를 때마다 새로 시작해 입력 창을 연다(open_reply_form.ts). 그래서 이 함수는 보내고 바로 마치고,
 // 시간이 지나도·휴대폰에서도 링크가 동작한다(예전: 열어 둔 작업의 단추라 휴대폰에서 막혔다).
 // Slack 서버에서 돌아가므로 아이디어정리가 꺼져 있어도 되고, 아이디어정리는 켜질 때·1분마다 저장소를 읽어 채점표에 담는다.
@@ -26,8 +26,10 @@ export const PostReviewAsk = DefineFunction({
 });
 
 // 제목은 넣지 않는다(파일과 함께 가는 글에 있다). Slack 굵게(*…*)는 바로 뒤에 조사가 붙으면 별표가 그대로 보여 안내 글에는 쓰지 않는다.
+// 워크플로 링크는 글자 링크로 걸면 휴대폰에서 브라우저로 열려 '브라우저에서는 쓸 수 없다'가 뜬다. 링크를 그대로 두고
+// Slack이 펼친 워크플로 카드(시작 단추)로 누르게 한다(unfurl_links). 카드는 메시지 아래에 붙어, 구분선은 다음 메시지로 보낸다.
 const ask = (link: string) =>
-  `💬 *평가 의견을 보내 주세요*\n위 HTML 파일을 열어 보고 아래 링크를 눌러 의견을 적어 보내 주시면 감사하겠습니다. 다시 누르면 보낸 의견을 고칠 수 있습니다.\n👉 *<${link}|평가 답장하기>*\n--------`;
+  `💬 *평가 의견을 보내 주세요*\n위 HTML 파일을 열어 보고 아래 *평가 답장하기* 카드의 단추를 눌러 의견을 적어 보내 주시면 감사하겠습니다. 다시 누르면 보낸 의견을 고칠 수 있습니다.\n${link}`;
 
 // 파일 올리기 3단계: 올릴 주소 받기 → 올리기 → 채널에 안내 글과 함께 붙이기
 async function uploadHtml(client: any, channel: string, filename: string, html: string, comment: string) {
@@ -65,10 +67,10 @@ export default SlackFunction(PostReviewAsk, async ({ inputs, client }) => {
   if (failed) return { error: `HTML 파일을 보내지 못했습니다: ${failed}` };
   const posted = await client.chat.postMessage({
     channel: dm.channel.id,
-    text: "평가 의견을 보내 주세요",
-    unfurl_links: false,
-    blocks: [{ type: "section", text: { type: "mrkdwn", text: ask(link.trigger.shortcut_url) } }],
+    text: ask(link.trigger.shortcut_url),
+    unfurl_links: true, // 워크플로 링크를 카드로 펼친다
   });
   if (!posted.ok) return { error: `안내 메시지를 보내지 못했습니다: ${posted.error}` };
+  await client.chat.postMessage({ channel: dm.channel.id, text: "--------" }); // 맨 아래 구분선(카드 다음)
   return { outputs: {} };
 });
