@@ -1,8 +1,6 @@
 # 아이디어정리
 
-[![자동 점검](https://github.com/realmi-lab/idea_review/actions/workflows/ci.yml/badge.svg)](https://github.com/realmi-lab/idea_review/actions/workflows/ci.yml)
-
-**사내 공모에 들어온 제안을 읽고, AI 요약으로 정리하고, 담당자 의견을 모으는 앱**입니다. 저장소 이름은 `idea_review`입니다(예전 `contest-review`). PDF·Word·PowerPoint·Excel·이미지를 쪽마다 캡처해 글자를 읽고, AI가 핵심·세부 요약을 만듭니다. 담당자는 Slack DM으로 받은 자료를 보고 의견을 보냅니다.
+**사내 공모에 들어온 제안을 읽고, AI 요약으로 정리하고, 담당자 의견을 모으는 앱**입니다. 저장소 이름은 `idea_review`입니다. PDF·Word·PowerPoint·Excel·이미지를 쪽마다 캡처해 글자를 읽고, AI가 핵심·세부 요약을 만듭니다. 담당자는 Slack DM으로 받은 자료를 보고 의견을 보냅니다.
 
 AI 키가 없어도 접수·캡처·글자 인식은 바로 쓸 수 있습니다. 키를 넣으면 캡처가 끝날 때마다 요약이 **저절로** 만들어집니다.
 
@@ -180,7 +178,7 @@ npm run smoke     # 임시 서버로 접수·글자 인식·Forms 흐름
 npm run ui-check  # Chrome과 가짜 AI 응답으로 화면 확인 (Chrome 위치는 CHROME_PATH)
 ```
 
-GitHub에 올리면 Mac·Windows에서 같은 점검이 [자동으로 돕니다](https://github.com/realmi-lab/idea_review/actions/workflows/ci.yml). 회사 계정의 Office·보호 문서 권한과 실제 Slack 전송은 운영 컴퓨터에서 확인합니다.
+회사 계정의 Office·보호 문서 권한과 실제 Slack 전송은 운영 컴퓨터에서 확인합니다.
 
 ## 더 알아보기
 
