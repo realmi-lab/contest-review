@@ -1,4 +1,4 @@
-// 담당자 DM에 HTML 파일, 이어서 [평가 답장하기] 워크플로 카드를 보낸다(파일 글 맨 위·카드 다음에 구분선 --------). 링크는 이 건만의 워크플로 링크(reply_form, 일회용 표를 담음)라
+// 담당자 DM에 구분선 → 평가 안내와 [평가 작성하기] 단추 → HTML 파일 → 구분선 순서로 보낸다. 단추는 이 건만의 워크플로 링크(reply_form, 일회용 표를 담음)라
 // 누를 때마다 새로 시작해 입력 창을 연다(open_reply_form.ts). 그래서 이 함수는 보내고 바로 마치고,
 // 시간이 지나도·휴대폰에서도 링크가 동작한다(예전: 열어 둔 작업의 단추라 휴대폰에서 막혔다).
 // Slack 서버에서 돌아가므로 아이디어정리가 꺼져 있어도 되고, 아이디어정리는 켜질 때·1분마다 저장소를 읽어 채점표에 담는다.
@@ -29,15 +29,24 @@ export const PostReviewAsk = DefineFunction({
 // [평가 작성하기]는 Slack의 워크플로 단추(workflow_button): 우리가 글자를 정하는 단추지만 누르면 이 건의 워크플로 링크를
 // Slack이 직접 시작해, 열어 둔 작업이 필요 없어 휴대폰에서도 눌린다(예전 앱 단추는 휴대폰에서 막히는 Slack 쪽 문제가 있었다).
 // 이 단추를 못 쓰는 경우(메시지 거절)에는 링크를 Slack이 펼친 워크플로 카드([워크플로 보기])로 보낸다.
-const ASK = "💬 *평가 의견을 보내 주세요*\n위 HTML 파일을 보고 아래 *평가 작성하기*를 누르면 작성 창이 열립니다(다시 누르면 고칠 수 있습니다).";
+const ASK = "--------\n💬 *평가 의견을 보내 주세요*\n아래 HTML 파일을 보고 *평가 작성하기*를 누르면 작성 창이 열립니다(다시 누르면 고칠 수 있습니다).";
 const askCard = (link: string) =>
-  `💬 *평가 의견을 보내 주세요*\n위 HTML 파일을 보고 아래 카드의 *워크플로 보기*를 누르면 작성 창이 열립니다(다시 누르면 고칠 수 있습니다).<${link}|\u200b>`;
+  `--------\n💬 *평가 의견을 보내 주세요*\n아래 HTML 파일을 보고 카드의 *워크플로 보기*를 누르면 작성 창이 열립니다(다시 누르면 고칠 수 있습니다).<${link}|\u200b>`;
 const workflowButton = (link: string) => ({
   type: "actions",
   elements: [{ type: "workflow_button", action_id: "reply_workflow", style: "primary", text: { type: "plain_text", text: "평가 작성하기" }, workflow: { trigger: { url: link } } }],
 });
 
-// 파일 올리기 3단계: 올릴 주소 받기 → 올리기 → 채널에 안내 글과 함께 붙이기
+// Slack은 파일을 조금 뒤에 DM에 붙인다. 붙은 걸 확인하고 다음 글을 보내야 순서가 바뀌지 않는다(최대 15초).
+async function waitShared(client: any, file: string, channel: string) {
+  for (let i = 0; i < 15; i++) {
+    const shares = (await client.apiCall("files.info", { file })).file?.shares;
+    if (shares?.private?.[channel] || shares?.public?.[channel]) return;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+}
+
+// 파일 올리기 3단계: 올릴 주소 받기 → 올리기 → 채널에 안내 글과 함께 붙이기(붙을 때까지 기다림)
 async function uploadHtml(client: any, channel: string, filename: string, html: string, comment: string) {
   const bytes = new TextEncoder().encode(html);
   const slot = await client.apiCall("files.getUploadURLExternal", { filename, length: bytes.length });
@@ -49,7 +58,9 @@ async function uploadHtml(client: any, channel: string, filename: string, html: 
     channel_id: channel,
     initial_comment: comment,
   });
-  return done.ok ? "" : done.error;
+  if (!done.ok) return done.error;
+  await waitShared(client, slot.file_id, channel);
+  return "";
 }
 
 export default SlackFunction(PostReviewAsk, async ({ inputs, client }) => {
@@ -69,8 +80,6 @@ export default SlackFunction(PostReviewAsk, async ({ inputs, client }) => {
     inputs: { ticket: { value: inputs.ticket }, interactivity: { value: TriggerContextData.Shortcut.interactivity } },
   });
   if (!link.ok || !link.trigger?.shortcut_url) return { error: `평가 답장 링크를 만들지 못했습니다: ${link.error}` };
-  const failed = await uploadHtml(client, dm.channel.id, inputs.filename, inputs.html, inputs.comment); // HTML 먼저
-  if (failed) return { error: `HTML 파일을 보내지 못했습니다: ${failed}` };
   const url = link.trigger.shortcut_url;
   let posted = await client.chat.postMessage({
     channel: dm.channel.id,
@@ -79,6 +88,8 @@ export default SlackFunction(PostReviewAsk, async ({ inputs, client }) => {
   });
   if (!posted.ok) posted = await client.chat.postMessage({ channel: dm.channel.id, text: askCard(url), unfurl_links: true }); // 카드로
   if (!posted.ok) return { error: `안내 메시지를 보내지 못했습니다: ${posted.error}` };
-  await client.chat.postMessage({ channel: dm.channel.id, text: "--------" }); // 맨 아래 구분선(카드 다음)
+  const failed = await uploadHtml(client, dm.channel.id, inputs.filename, inputs.html, inputs.comment);
+  if (failed) return { error: `HTML 파일을 보내지 못했습니다: ${failed}` };
+  await client.chat.postMessage({ channel: dm.channel.id, text: "--------" }); // 맨 아래 구분선(HTML 다음)
   return { outputs: {} };
 });

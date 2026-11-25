@@ -18,5 +18,5 @@ export default Manifest({
   workflows: [AskReviewWorkflow, SyncPeopleWorkflow, HtmlReviewWorkflow, ReplyFormWorkflow],
   datastores: [Reviews, People, Tickets],
   outgoingDomains: ["files.slack.com"], // 파일 올리기 주소
-  botScopes: ["chat:write", "files:write", "im:write", "users:read", "datastore:read", "datastore:write", "triggers:write"], // triggers:write: 건마다 [평가 답장하기] 링크
+  botScopes: ["chat:write", "files:write", "im:write", "users:read", "datastore:read", "datastore:write", "triggers:write", "files:read"], // triggers:write: 건마다 [평가 작성하기] 링크, files:read: HTML이 DM에 붙었는지 확인
 });
