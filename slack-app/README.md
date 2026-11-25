@@ -160,3 +160,23 @@ slack trigger update --trigger-id Ft여기에 --trigger-def triggers/review_webh
   ```
 
   저장한 뒤 아이디어정리를 `./start.sh`로 다시 켭니다. 토큰·주소는 사진을 찍을 때 가립니다.
+
+## 검색에서 'Slack 사람 목록이 아직 없습니다'가 나오면
+
+저장소 읽기는 되고, 사람 목록(people)이 비어 있는 경우입니다. `slack-app` 폴더에서:
+
+1. **사람 목록 트리거가 있는지**: `slack trigger list`에 '아이디어정리 사람 목록 맞추기'가 보이는지 확인합니다. 없으면 만듭니다(배포한 앱 고르기):
+
+   ```sh
+   slack trigger create --trigger-def triggers/people_daily.ts
+   ```
+
+2. **돌았는지**: 트리거는 만든 1분 뒤 처음 돕니다. 1분쯤 기다린 뒤 저장소를 봅니다:
+
+   ```sh
+   slack datastore query --datastore people '{}'
+   ```
+
+3. **그래도 비어 있으면**: `slack activity`에서 '사람 목록 맞추기'의 오류를 확인합니다.
+
+목록이 채워지면 아이디어정리는 다시 켤 필요 없이 다시 검색하면 됩니다.
