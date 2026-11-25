@@ -16,8 +16,9 @@ export const PostReviewAsk = DefineFunction({
       filename: { type: Schema.types.string },
       comment: { type: Schema.types.string },
       html: { type: Schema.types.string },
+      ticket: { type: Schema.types.string }, // HTML [의견 보내기]의 일회용 표
     },
-    required: ["user_id", "work_id", "title", "filename", "comment", "html"],
+    required: ["user_id", "work_id", "title", "filename", "comment", "html", "ticket"],
   },
   output_parameters: { properties: {}, required: [] },
 });
@@ -45,6 +46,12 @@ async function uploadHtml(client: any, channel: string, filename: string, html: 
 export default SlackFunction(PostReviewAsk, async ({ inputs, client }) => {
   const dm = await client.conversations.open({ users: inputs.user_id }); // 이 앱과 담당자의 DM
   if (!dm.ok) return { error: `DM을 열지 못했습니다: ${dm.error}` };
+  // HTML의 [의견 보내기]가 들고 올 일회용 표에 누구에게 어느 작품을 보냈는지 남긴다(save_html_review.ts가 꺼낸다)
+  const kept = await client.apps.datastore.put({
+    datastore: "tickets",
+    item: { id: inputs.ticket, work_id: inputs.work_id, user_id: inputs.user_id, title: inputs.title, at: new Date().toISOString() },
+  });
+  if (!kept.ok) return { error: `일회용 표를 남기지 못했습니다: ${kept.error}` };
   const posted = await client.chat.postMessage({
     channel: dm.channel.id,
     text: "평가 의견을 보내 주세요",

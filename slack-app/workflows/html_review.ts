@@ -7,19 +7,15 @@ const HtmlReviewWorkflow = DefineWorkflow({
   title: "HTML 의견 받기",
   input_parameters: {
     properties: {
-      work_id: { type: Schema.types.string },
-      user_id: { type: Schema.types.string }, // HTML을 받은 담당자
-      title: { type: Schema.types.string },
+      ticket: { type: Schema.types.string }, // 보낸 건의 일회용 표(받는 사람·작품은 표 기록에서 꺼낸다)
       text: { type: Schema.types.string },
     },
-    required: ["work_id", "user_id", "title", "text"],
+    required: ["ticket", "text"],
   },
 });
 
 HtmlReviewWorkflow.addStep(SaveHtmlReview, {
-  work_id: HtmlReviewWorkflow.inputs.work_id,
-  user_id: HtmlReviewWorkflow.inputs.user_id,
-  title: HtmlReviewWorkflow.inputs.title,
+  ticket: HtmlReviewWorkflow.inputs.ticket,
   text: HtmlReviewWorkflow.inputs.text,
 });
 

@@ -16,7 +16,7 @@ import { image } from "../store.mjs";
 import { features } from "../../deploy/site.mjs";
 
 // 쪽 칩을 누르면 그 쪽 캡처(캡처 자료 탭의 그림)를 띄우고 인용 줄에 오렌지 상자를 그린다. 바깥·닫기·Esc로 닫는다.
-// [의견 보내기]는 칸의 data-*(웹훅 주소·작품·받는 사람·제목)로 보낸다. 스크립트는 늘 같아 앱의 보안 정책 해시가 맞는다.
+// [의견 보내기]는 칸의 data-*(웹훅 주소·일회용 표)로 보낸다(받는 사람·작품은 앱이 표 기록에서 꺼낸다). 스크립트는 늘 같아 앱의 보안 정책 해시가 맞는다.
 const VIEWER_SCRIPT = `
 const viewer = document.getElementById("viewer");
 document.addEventListener("click", (e) => {
@@ -36,10 +36,10 @@ const reply = document.getElementById("reply");
 reply?.querySelector(".reply-send").addEventListener("click", async () => {
   const text = reply.querySelector("textarea").value.trim(), note = reply.querySelector(".reply-note");
   if (!text) return void (note.textContent = "의견을 적어 주세요");
-  const { url, work, user, title } = reply.dataset;
+  const { url, ticket } = reply.dataset;
   note.textContent = "보내는 중…";
   try {
-    await fetch(url, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ work_id: work, user_id: user, title, text }) });
+    await fetch(url, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ ticket, text }) });
     note.textContent = "보냈습니다. 잠시 뒤 Slack의 idea-review에서 '의견을 받았습니다' 알림이 오면 접수된 것입니다. 오지 않으면 Slack의 [평가 답장하기] 단추로 보내 주세요.";
   } catch {
     note.textContent = "보내지 못했습니다(이 PC에서 바깥으로 보내는 것이 막혔을 수 있습니다). Slack의 [평가 답장하기] 단추로 보내 주세요.";
@@ -106,7 +106,7 @@ function logicPart(o) {
     <p class="muted">AI 의견입니다. 점수와 채택 판단은 하지 않습니다</p></section>`;
 }
 
-// reply: { url: HTML 의견 받기 웹훅, user: 받는 사람 } — Slack으로 보낼 때만(htmlReply)
+// reply: { url: HTML 의견 받기 웹훅, ticket: 일회용 표 } — Slack으로 보낼 때만(htmlReply)
 export async function shareHtml(w, { reply } = {}) {
   const reading = w.cloudReading?.rev === w.rev ? w.cloudReading : null;
   const opinion = reading && w.cloudLogic?.reading === reading.id ? w.cloudLogic.opinion : null;
@@ -172,7 +172,7 @@ footer { margin-top: 32px; color: var(--text-3); font-size: 13px; }
 ${join(panes, (_, i) => `<input type="radio" name="tab" id="tab-${i + 1}"${i ? "" : " checked"}>`)}
 <nav class="tabs">${join(panes, ([label], i) => `<label for="tab-${i + 1}">${label}</label>`)}</nav>
 ${join(panes, ([, html], i) => `<div class="pane p${i + 1}">${html}</div>`)}
-${reply ? `<section id="reply" class="reply" data-url="${esc(reply.url)}" data-work="${esc(w.id)}" data-user="${esc(reply.user)}" data-title="${esc(w.name)}">
+${reply ? `<section id="reply" class="reply" data-url="${esc(reply.url)}" data-ticket="${esc(reply.ticket)}">
   <h2>평가 의견 보내기</h2><p class="muted">여기에 적어 보내면 아이디어 리뷰 채점표에 담깁니다. 다시 보내면 앞의 의견을 바꿉니다.</p>
   <textarea rows="5" maxlength="4000" placeholder="이 작품에 대한 의견을 자유롭게 적어 주세요"></textarea>
   <p><button type="button" class="reply-send">의견 보내기</button> <span class="reply-note" role="status"></span></p></section>` : ""}

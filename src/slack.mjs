@@ -7,6 +7,7 @@
 //   선택: reviewApp(앱 ID A…, 없으면 slack-app/.slack/apps.json에 남은 배포한 앱 ID), cli(slack 명령 경로),
 //         htmlWebhook(HTML 의견 받기 웹훅 주소: 있으면 보내는 HTML 안에 [의견 보내기] 칸을 넣는다)
 import { execFile } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
@@ -81,15 +82,18 @@ export async function slackPeople(query) {
   return people.list.filter((p) => !q || [p.name, p.nick, p.title].some((v) => v.toLowerCase().includes(q))).slice(0, 20);
 }
 
-// 보내는 HTML 안의 [의견 보내기]가 쓸 곳과 받는 사람(share-html.mjs). HTML 의견 받기 웹훅이 없으면 칸을 넣지 않는다.
-export const htmlReply = (user) => (slack().htmlWebhook ? { url: slack().htmlWebhook, user } : null);
+// 보낼 때마다 만드는 일회용 표(긴 무작위 문자열). 평가 단추 앱이 받는 사람·작품과 함께 남기고, HTML의 [의견 보내기]는
+// 이 표만 들고 간다(받는 사람·작품은 앱이 표 기록에서 꺼낸다). 주소를 알아도 표 없이는 보낼 수 없다.
+export const newTicket = () => randomBytes(24).toString("base64url");
+// 보내는 HTML 안의 [의견 보내기]가 쓸 곳과 표(share-html.mjs). HTML 의견 받기 웹훅이 없으면 칸을 넣지 않는다.
+export const htmlReply = (ticket) => (slack().htmlWebhook ? { url: slack().htmlWebhook, ticket } : null);
 
 // 평가 단추 앱의 웹훅에 HTML과 안내 글(comment)을 실어 보낸다. 파일 올리기·단추 DM은 그 앱이 한다.
-export async function sendHtml(user, { workId, title, filename, html, comment }) {
+export async function sendHtml(user, { workId, title, filename, html, comment, ticket }) {
   const { reviewWebhook } = slack();
   if (!reviewWebhook) err("평가 단추 앱 설정이 없습니다. deploy/site.json의 slack에 reviewWebhook(웹훅 주소)을 넣으세요.");
   const hook = await send(reviewWebhook, { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: user, work_id: workId, title, filename, comment, html }) });
+    body: JSON.stringify({ user_id: user, work_id: workId, title, filename, comment, html, ticket }) });
   // 400은 대개 웹훅의 입력과 배포한 앱의 웹훅 정의가 다를 때, 413은 HTML이 너무 클 때다. Slack이 준 까닭을 붙여 보여 준다.
   if (!hook.ok) err(`평가 단추 앱에 보내지 못했습니다 · 웹훅 HTTP ${hook.status} ${(await hook.text().catch(() => "")).slice(0, 200)}`.trim(), 502);
 }

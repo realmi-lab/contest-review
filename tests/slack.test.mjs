@@ -40,9 +40,9 @@ test("담당자 검색은 앱 저장소의 사람 목록(쪽마다 JSON)을 CLI�
 test("보내기는 HTML을 평가 단추 앱 웹훅에 실어 보낸다(봇 토큰을 쓰지 않는다)", async () => {
   const before = globalThis.fetch, sent = [];
   globalThis.fetch = async (url, { body }) => (sent.push([url, JSON.parse(body)]), { ok: true, status: 200 });
-  await sendHtml("U1", { workId: "W1", title: "작품", filename: "작품.html", html: "<p>안녕</p>", comment: "*작품*" });
+  await sendHtml("U1", { workId: "W1", title: "작품", filename: "작품.html", html: "<p>안녕</p>", comment: "*작품*", ticket: "t-1" });
   globalThis.fetch = before;
-  assert.deepEqual(sent, [["https://hooks.slack.com/triggers/T1/1/hook", { user_id: "U1", work_id: "W1", title: "작품", filename: "작품.html", comment: "*작품*", html: "<p>안녕</p>" }]]);
+  assert.deepEqual(sent, [["https://hooks.slack.com/triggers/T1/1/hook", { user_id: "U1", work_id: "W1", title: "작품", filename: "작품.html", comment: "*작품*", html: "<p>안녕</p>", ticket: "t-1" }]]);
 });
 
 test("받은 의견은 앱 저장소에서 읽어 최근에 보낸 작품에만 담고, 다시 읽어도 늘지 않는다", async () => {

@@ -5,6 +5,7 @@
 import { Manifest } from "deno-slack-sdk/mod.ts";
 import People from "./datastores/people.ts";
 import Reviews from "./datastores/reviews.ts";
+import Tickets from "./datastores/tickets.ts";
 import AskReviewWorkflow from "./workflows/ask_review.ts";
 import HtmlReviewWorkflow from "./workflows/html_review.ts";
 import SyncPeopleWorkflow from "./workflows/sync_people.ts";
@@ -14,7 +15,7 @@ export default Manifest({
   description: "아이디어 리뷰 평가 의견 받기",
   icon: "assets/icon.png",
   workflows: [AskReviewWorkflow, SyncPeopleWorkflow, HtmlReviewWorkflow],
-  datastores: [Reviews, People],
+  datastores: [Reviews, People, Tickets],
   outgoingDomains: ["files.slack.com"], // 파일 올리기 주소
   botScopes: ["chat:write", "files:write", "im:write", "users:read", "datastore:read", "datastore:write"],
 });

@@ -13,8 +13,9 @@ const AskReviewWorkflow = DefineWorkflow({
       filename: { type: Schema.types.string },
       comment: { type: Schema.types.string }, // 파일과 함께 보낼 안내 글
       html: { type: Schema.types.string },
+      ticket: { type: Schema.types.string }, // HTML [의견 보내기]의 일회용 표
     },
-    required: ["user_id", "work_id", "title", "filename", "comment", "html"],
+    required: ["user_id", "work_id", "title", "filename", "comment", "html", "ticket"],
   },
 });
 
@@ -25,6 +26,7 @@ AskReviewWorkflow.addStep(PostReviewAsk, {
   filename: AskReviewWorkflow.inputs.filename,
   comment: AskReviewWorkflow.inputs.comment,
   html: AskReviewWorkflow.inputs.html,
+  ticket: AskReviewWorkflow.inputs.ticket,
 });
 
 export default AskReviewWorkflow;
