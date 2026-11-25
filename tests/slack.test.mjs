@@ -58,6 +58,9 @@ test("받은 의견은 앱 저장소에서 읽어 최근에 보낸 작품에만 
   await collectReplies();
   assert.deepEqual(load(first.id).slackReplies.map((r) => [r.name, r.text]), [["김철수", "첫째 좋아요"]]);
   assert.equal(load(second.id).slackReplies, undefined);
+  setStore("reviews", [{ id: "r1", work_id: first.id, user_id: "U1", text: "고쳤어요", at: new Date().toISOString() }]); // [답변 수정하기]
+  await collectReplies();
+  assert.deepEqual(load(first.id).slackReplies.map((r) => r.text), ["고쳤어요"]);
   const query = JSON.parse(cliCalls().at(-1)[2]);
   assert.equal(query.expression, "#at > :since"); // 최근 30일 것만 읽는다
 });

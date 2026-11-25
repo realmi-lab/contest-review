@@ -90,11 +90,13 @@ export async function sendHtml(user, { workId, title, filename, html, comment })
   if (!hook.ok) err(`평가 단추 앱에 보내지 못했습니다 · 웹훅 HTTP ${hook.status} ${(await hook.text().catch(() => "")).slice(0, 200)}`.trim(), 502);
 }
 
-// 의견 한 건을 작품에 더한다(같은 id는 한 번만). 이름은 사람 목록에서 찾고, 없으면 그 사람에게 보낸 기록의 이름.
+// 의견 한 건을 작품에 담는다. 같은 id가 있으면 담당자가 [답변 수정하기]로 고친 것이므로 바꿔 넣는다(그대로면 두고).
+// 이름은 사람 목록에서 찾고, 없으면 그 사람에게 보낸 기록의 이름.
 function addReply(w, { id, user_id: user, text, at }) {
-  if ((w.slackReplies || []).some((r) => r.id === id)) return;
+  const replies = w.slackReplies || [];
+  if (replies.some((r) => r.id === id && r.text === text)) return;
   const name = people.list.find((p) => p.id === user)?.name || w.slackSent?.findLast((s) => s.user === user)?.name || user;
-  w.slackReplies = [...(w.slackReplies || []), { id, user, name, text, at }].sort((a, b) => a.at.localeCompare(b.at));
+  w.slackReplies = [...replies.filter((r) => r.id !== id), { id, user, name, text, at }].sort((a, b) => a.at.localeCompare(b.at));
   save(w);
 }
 

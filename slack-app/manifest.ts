@@ -9,7 +9,7 @@ import SyncPeopleWorkflow from "./workflows/sync_people.ts";
 
 export default Manifest({
   name: "idea-review",
-  description: "아이디어정리 평가 의견 받기",
+  description: "아이디어 리뷰 평가 의견 받기",
   icon: "assets/icon.png",
   workflows: [AskReviewWorkflow, SyncPeopleWorkflow],
   datastores: [Reviews, People],
