@@ -4,7 +4,7 @@
 // 고른 요점을 한 줄씩 다듬기만 하면 무엇이 문제이고 무엇을 하려는지가 빠져, 읽어도 이해되지 않았다.
 // 이미 원문 근거가 붙은 요점 전체를 재료로 주고, 답마다 쓴 요점 번호를 받아 그 근거를 그대로 잇는다.
 import { pageTag, sentencesOf } from "./long-brief.mjs";
-import { withEffort } from "../ai/claude-summary.mjs";
+import { briefEffort, withEffort } from "../ai/claude-summary.mjs";
 import { describesDocument, notStatement, unprintedNumbers } from "./statement-filters.mjs";
 
 const writer =
@@ -67,8 +67,8 @@ async function draft(title, points, run, slots, again) {
     type: "object", additionalProperties: false, required: ["text", "ids"],
     properties: { text: { type: "string" }, ids: { type: "array", items: { type: "integer" } } },
   };
-  // 문서 전체를 읽고 줄거리를 잡는 일이라 이 단계만 한 단계 깊이 생각하게 한다.
-  const out = await withEffort("high", () => run(writer, [
+  // 문서 전체를 읽고 줄거리를 잡는 일이라 이 단계만 가장 깊게 생각하게 한다(briefEffort).
+  const out = await withEffort(briefEffort, () => run(writer, [
     "이 문서를 처음 보는 심사자가 이 답만 읽고 내용을 파악할 수 있게 요약을 쓴다. " +
       slots.map((s) => s.key + "=" + s.ask).join(". ") + ".",
     `아래 항목은 원문 근거가 확인된 사실을 분류별로, 쪽 순서로 늘어놓은 것이다. 전체를 읽고 줄거리를 잡은 다음, 항목에 있는 내용만 써서 답한다. title은 40자 이내의 제목 한 줄이고 마침표를 찍지 않는다. gist는 한 문장 110자 이내다. background·effect는 답마다 두 문장 안팎, 답 하나가 90~150자가 되게 쓰고, content는 세 문장 안팎 160~240자로 핵심 개념·추진 방식·핵심 기능(분석 과제면 자료·기법·구하는 값)을 쓴다. 한 답이 content는 250자, 나머지는 160자를 넘지 않게 가장 중요한 것만 고르되(덜 중요한 세부 기능부터 버리고, 단계별 도입·먼저 출시할 범위 같은 추진 계획은 남긴다), 60자도 안 되게 줄여 구체적인 대상·기능·조건을 빠뜨리지도 않는다. ${DETAIL}는 답마다 한두 문장 150자 안팎이다. 모두 개조식이다: 문장을 '~필요', '~요구', '~지급', '~제공', '~확보', '~제고'처럼 명사형으로 끝내고 마침표를 찍으며, '~한다', '~합니다'로 끝내지 않는다.`,

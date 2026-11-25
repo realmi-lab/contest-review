@@ -30,11 +30,13 @@ export let haiku = ai.model;
 // (전 단계 xhigh 실측: 묶음당 생각 토큰 1.5만~3.5만, 46쪽 문서 약 $0.6·1시간 → 추출에는 과함)
 export const haikuEffort = "medium";
 export const extractEffort = "low";
+// 핵심·세부 요약 쓰기(story-brief.mjs)는 문서 전체를 읽고 줄거리를 잡는 일이라 가장 깊게 생각한다(작품당 한두 번).
+export const briefEffort = "xhigh";
 export let haikuLabel = ai.label;
-export const haikuEffortNote = "추출 " + extractEffort + " · 판단 " + haikuEffort;
+export const haikuEffortNote = "추출 " + extractEffort + " · 판단 " + haikuEffort + " · 요약 작성 " + briefEffort;
 // max_tokens에 더하는 생각 토큰 여유(쓴 만큼만 과금). high는 생각이 길어 넉넉히 준다
 // (실측: 16000으로는 문서 전체 논리 점검이 한도에 걸려 처음부터 다시 쓰느라 출력 8만 토큰·9분이 들었다).
-const THINKING_ROOM = { low: 16000, medium: 16000, high: 40000 };
+const THINKING_ROOM = { low: 16000, medium: 16000, high: 40000, xhigh: 56000 }; // xhigh는 출력 한도(64000)에 거의 닿게
 const MAX_OUTPUT = 64000;
 const context = new AsyncLocalStorage();
 export const withHaiku = (key, fn, recordUsage) => context.run({ key, recordUsage }, fn);
@@ -139,7 +141,7 @@ export async function verifyKey(key, connection = ai) {
     return;
   }
   const result = await request(key, "models/" + connection.model, undefined, connection);
-  if (result.id !== connection.model || [haikuEffort, extractEffort].some((e) => result.capabilities?.effort?.[e]?.supported === false))
+  if (result.id !== connection.model || [haikuEffort, extractEffort, briefEffort].some((e) => result.capabilities?.effort?.[e]?.supported === false))
     throw Error("이 키에서 " + connection.label + "를 사용할 수 없습니다.");
 }
 
