@@ -37,14 +37,16 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") viewer.hid
 const reply = document.getElementById("reply");
 reply?.querySelector(".reply-send").addEventListener("click", async () => {
   const text = reply.querySelector("textarea").value.trim(), note = reply.querySelector(".reply-note");
-  if (!text) return void (note.textContent = "의견을 적어 주세요");
+  // 결과 글은 눈에 띄게: 보냄은 초록, 못 보냄·빈 칸은 빨간 바탕(work.css .reply-note.ok·.fail)
+  const show = (cls, message) => { note.className = "reply-note " + cls; note.textContent = message; };
+  if (!text) return show("fail", "의견을 적어 주세요");
   const { url, ticket } = reply.dataset;
-  note.textContent = "보내는 중…";
+  show("", "보내는 중…");
   try {
     await fetch(url, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ ticket, text }) });
-    note.textContent = "보냈습니다. 잠시 뒤 Slack의 idea-review에서 '의견을 받았습니다' 알림이 오면 접수된 것입니다. 오지 않으면 Slack의 [평가 답장하기] 단추로 보내 주세요.";
+    show("ok", "보냈습니다. 잠시 뒤 Slack의 idea-review에서 '의견을 받았습니다' 알림이 오면 접수된 것입니다. 오지 않으면 Slack의 [평가 답장하기] 단추로 보내 주세요.");
   } catch {
-    note.textContent = "보내지 못했습니다. Slack 안 미리보기에서는 보낼 수 없으니 파일을 내려받아 브라우저(크롬·엣지)로 열어 다시 보내 주세요. 그래도 안 되면 Slack의 [평가 답장하기] 단추를 써 주세요.";
+    show("fail", "보내지 못했습니다. Slack 안 미리보기에서는 보낼 수 없으니 파일을 내려받아 브라우저(크롬·엣지)로 열어 다시 보내 주세요. 그래도 안 되면 Slack의 [평가 답장하기] 단추를 써 주세요.");
   }
 });
 `;
@@ -170,7 +172,11 @@ footer { margin-top: 32px; color: var(--text-3); font-size: 13px; }
 .reply h2 { margin-top: 16px; border-bottom-color: var(--line); }
 .reply textarea { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
 .reply-send { padding: 10px 20px; border: 0; border-radius: 10px; background: var(--orange); color: #fff; font: inherit; font-family: "Bithumb Gothic", sans-serif; cursor: pointer; }
-.reply-note { color: var(--text-2); font-size: 14px; }
+.reply-guide { margin: 0 0 12px; padding: 12px 16px; border-radius: 10px; background: #fff1e6; color: var(--text); font-size: 16px; font-weight: 700; line-height: 1.6; }
+.reply-note { margin: 10px 0 0; color: var(--text); font-size: 15px; font-weight: 700; }
+.reply-note:empty { display: none; }
+.reply-note.ok { padding: 12px 16px; border-radius: 10px; background: #dff5e7; }
+.reply-note.fail { padding: 12px 16px; border: 2px solid #e5484d; border-radius: 10px; background: #ff9e9e; color: #000; }
 .reply-mobile { display: none; }
 
 /* ── 휴대폰(아이폰): 화면 폭에 맞춘다 ── */
@@ -206,10 +212,10 @@ ${join(panes, (_, i) => `<input type="radio" name="tab" id="tab-${i + 1}"${i ? "
 <nav class="tabs">${join(panes, ([label], i) => `<label for="tab-${i + 1}">${label}</label>`)}</nav>
 ${join(panes, ([, html], i) => `<div class="pane p${i + 1}">${html}</div>`)}
 ${reply ? `<section id="reply" class="reply" data-url="${esc(reply.url)}" data-ticket="${esc(reply.ticket)}">
-  <h2>평가 의견 보내기</h2><p class="muted reply-desktop">여기에 적어 보내면 아이디어 리뷰 채점표에 담깁니다. 지금 제출하신 내용으로 평가됩니다. Slack 안 미리보기에서는 보낼 수 없어, 파일을 내려받아 브라우저로 열어 주세요.</p>
-  <p class="reply-mobile">휴대폰에서는 Slack으로 돌아가 이 파일 위 메시지의 <b>[평가 답장하기]</b> 단추로 의견을 보내 주세요.</p>
+  <h2>평가 의견 보내기</h2><p class="reply-guide reply-desktop">여기에 적어 보내면 아이디어 리뷰 채점표에 담깁니다. 지금 제출하신 내용으로 평가됩니다. Slack 안 미리보기에서는 보낼 수 없어, 파일을 내려받아 브라우저로 열어 주세요.</p>
+  <p class="reply-guide reply-mobile">휴대폰에서는 Slack으로 돌아가 이 파일 위 메시지의 <b>[평가 답장하기]</b> 단추로 의견을 보내 주세요.</p>
   <textarea rows="5" maxlength="4000" placeholder="이 작품에 대한 의견을 자유롭게 적어 주세요"></textarea>
-  <p><button type="button" class="reply-send">의견 보내기</button> <span class="reply-note" role="status"></span></p></section>` : ""}
+  <p><button type="button" class="reply-send">의견 보내기</button></p><p class="reply-note" role="status"></p></section>` : ""}
 <div id="viewer" class="viewer" hidden><div class="viewer-box"><button type="button" class="viewer-close" aria-label="닫기">닫기</button>
   <div class="viewer-stage"><img alt=""><span class="viewer-marks"></span></div><p class="viewer-label"></p></div></div>
 <footer>아이디어정리에서 내보냄 · ${seoulMinute(new Date().toISOString())}</footer>
