@@ -23,7 +23,7 @@
 
    (웹훅이 아직 없으면 `slack trigger create --trigger-def triggers/review_webhook.ts` → 배포한 앱 고르기 → 나온 주소를 site.json에)
 4. [ ] **사람 목록 맞추기 만들기** (처음 한 번): `slack trigger create --trigger-def triggers/people_daily.ts` → 배포한 앱 고르기. 1분 뒤 처음 돌고, 그 뒤 매일 돕니다
-5. [ ] **site.json**: `slack`에는 `reviewWebhook`만 있으면 됩니다(botToken은 지워도 됩니다). 아이디어정리는 이 폴더에서 배포한 앱의 저장소를 읽습니다
+5. [ ] **site.json**: `slack`에는 `reviewWebhook`만 있으면 됩니다(botToken은 지워도 됩니다). 아이디어정리는 이 폴더의 배포 기록(.slack/apps.json)에서 앱 ID를 찾아 저장소를 읽습니다(못 찾으면 `"reviewApp": "A…"`에 `slack app list`의 App ID)
 6. [ ] **아이디어정리 다시 켜기**: 아이디어정리 폴더에서 `git pull` → `./start.sh`
 7. [ ] **시험**: 채점표 탭 → 담당자 검색 → **보내기** → 담당자에게 idea-review DM(HTML 파일 + [평가 답장하기])이 오면, 단추로 의견을 보내고 1분 안에 채점표 **담당자 의견**에 담기는지 확인
 8. [ ] (선택) 옛 설정 지우기: `slack env remove PROPOSAL_BOT_TOKEN`

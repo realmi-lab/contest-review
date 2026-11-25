@@ -20,7 +20,7 @@ const cliCalls = () => readFileSync(path.join(temp, "calls.log"), "utf8").trim()
 
 process.env.REVIEW_DATA_DIR = temp;
 process.env.REVIEW_SITE_FILE = path.join(temp, "site.json");
-writeFileSync(process.env.REVIEW_SITE_FILE, JSON.stringify({ slack: { reviewWebhook: "https://hooks.slack.com/triggers/T1/1/hook", cli } }));
+writeFileSync(process.env.REVIEW_SITE_FILE, JSON.stringify({ slack: { reviewWebhook: "https://hooks.slack.com/triggers/T1/1/hook", reviewApp: "A1", cli } }));
 const { collectReplies, sendHtml, slackPeople, slackReady } = await import("../src/slack.mjs");
 const { load, newWork, save } = await import("../src/store.mjs");
 
@@ -34,7 +34,7 @@ test("담당자 검색은 앱 저장소의 사람 목록(쪽마다 JSON)을 CLI�
   assert.deepEqual((await slackPeople("보안")).map((p) => p.name), ["이영희"]);
   const calls = cliCalls();
   assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0].slice(0, 7), ["datastore", "query", "{}", "--datastore", "people", "--app", "deployed"]);
+  assert.deepEqual(calls[0].slice(0, 7), ["datastore", "query", "{}", "--datastore", "people", "--app", "A1"]);
 });
 
 test("보내기는 HTML을 평가 단추 앱 웹훅에 실어 보낸다(봇 토큰을 쓰지 않는다)", async () => {

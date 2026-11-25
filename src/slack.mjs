@@ -4,8 +4,9 @@
 //          (slack datastore query --app 앱 ID). 봇 토큰은 필요 없고, CLI가 설치·로그인돼 있어야 한다. 의견은 켜질 때·1분마다 읽는다.
 //   단추·입력 창은 Slack 서버에서 돌아가므로 아이디어정리가 꺼져 있어도 담당자는 의견을 보낼 수 있다.
 // 설정(deploy/site.json의 slack, 부를 때마다 읽는다): reviewWebhook(앱 웹훅 주소)
-//   선택: reviewApp(앱 ID A…, 없으면 이 폴더에서 배포한 앱 'deployed'), cli(slack 명령 경로)
+//   선택: reviewApp(앱 ID A…, 없으면 slack-app/.slack/apps.json에 남은 배포한 앱 ID), cli(slack 명령 경로)
 import { execFile } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -35,8 +36,20 @@ async function send(url, options) {
 // CLI는 slack-app 폴더에서 돌려 배포 기록(.slack/)을 찾게 하고, 설치 위치(~/.slack/bin)와 Deno 인증서 설정을 붙여 준다.
 const exec = promisify(execFile);
 const appDir = fileURLToPath(new URL("../slack-app/", import.meta.url));
+// 앱 ID: site.json의 reviewApp, 없으면 slack deploy가 남긴 배포 기록(.slack/apps.json)의 첫 앱.
+function appId() {
+  if (slack().reviewApp) return slack().reviewApp;
+  try {
+    const apps = JSON.parse(readFileSync(path.join(appDir, ".slack", "apps.json"), "utf8")).apps || {};
+    const id = Object.values(apps).find((a) => a.app_id)?.app_id;
+    if (id) return id;
+  } catch {}
+  err("평가 단추 앱 ID를 찾지 못했습니다. slack-app 폴더에서 slack deploy를 했는지 확인하거나, deploy/site.json의 slack에 reviewApp(slack app list의 App ID, A…)을 넣으세요.");
+}
+
 async function readStore(datastore, query = {}) {
-  const { reviewApp = "deployed", cli = "slack" } = slack();
+  const { cli = "slack" } = slack();
+  const reviewApp = appId();
   const dir = await mkdtemp(path.join(os.tmpdir(), "slack-store-"));
   const file = path.join(dir, "items.jsonl");
   const env = { ...process.env, DENO_TLS_CA_STORE: "system",
