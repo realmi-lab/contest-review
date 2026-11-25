@@ -1,112 +1,271 @@
 # idea-review · Slack 평가 앱
 
-아이디어정리의 **채점표 → 담당자에게 보내기**를 연결하는 앱입니다. 담당자는 Slack DM에서 제안의 요약·원본 캡처가 든 HTML을 읽고 **평가 작성하기**를 눌러 의견을 보냅니다. 운영자는 아이디어정리의 같은 작품에서 담당자별 최신 의견을 확인합니다. [아이디어정리 설치와 사용법](../README.md)
+**아이디어정리의 ‘담당자에게 보내기’를 Slack과 잇는 앱**입니다. 담당자는 Slack DM으로 제안 HTML을 받아 읽고 **평가 작성하기**를 눌러 의견을 보냅니다. 의견은 아이디어정리의 같은 작품 **채점표 → 담당자 의견**에 모입니다. [아이디어정리 README](../README.md)
 
-## 어느 쪽이 무슨 일을 하나요?
+Slack이 앱을 대신 돌려 주므로(Run on Slack) 별도 서버·봇 토큰·포트 열기가 필요 없습니다. 운영 컴퓨터가 꺼져 있어도 담당자는 의견을 보낼 수 있고, 아이디어정리는 다시 켜지면 읽어 옵니다.
 
-| 구성 | 담당하는 일 |
-| --- | --- |
-| 아이디어정리 서버 (운영 컴퓨터, Node.js) | 담당자를 검색하고 작품 HTML을 만들어 평가 요청 웹훅에 보냅니다. Slack CLI를 호출해 담당자 목록과 의견을 읽고 작품에 반영합니다. |
-| idea-review (Slack이 호스팅하는 Deno 앱) | Deno는 이 폴더의 TypeScript를 실행하는 런타임입니다. 배포된 워크플로가 DM·파일을 보내고 의견 입력 창을 열며, Slack 데이터스토어에 의견을 저장합니다. |
-| Slack CLI (운영 컴퓨터) | 설치·로그인·배포·트리거 관리를 하는 명령줄 도구입니다. 평소에도 아이디어정리가 데이터스토어를 읽는 데 사용하므로 **서버를 실행하는 OS 계정**에서 로그인해야 합니다. |
+## 어떻게 이어지나요?
 
-배포 뒤에는 운영 컴퓨터가 꺼져 있어도 Slack에서 이미 받은 DM의 의견을 제출할 수 있습니다. 아이디어정리는 다시 켜지면 최근 의견을 읽습니다. Slack 쪽에서 운영 컴퓨터로 들어오는 포트를 열거나 앱에 별도 봇 토큰을 입력할 필요는 없습니다.
+```mermaid
+flowchart LR
+    A["아이디어정리<br/>담당자에게 보내기"] -->|웹훅| B["idea-review 앱<br/>(Slack에서 실행)"]
+    B --> C["담당자 DM<br/>안내 · 평가 작성하기 · HTML"]
+    C -->|평가 작성하기| D["Slack 저장소<br/>(의견)"]
+    D -->|Slack CLI로 1분마다| E["아이디어정리<br/>담당자 의견"]
+```
 
-## 1. 운영 컴퓨터 준비
+담당자 DM은 이렇게 옵니다(보낸 건끼리 구분선으로 나뉩니다).
 
-워크플로 앱을 배포할 수 있는 Slack 유료 워크스페이스 또는 개발 샌드박스와 앱 설치 권한이 필요합니다. 회사가 앱 승인을 사용하면 관리자의 승인을 받습니다. [Slack 워크플로 앱 시작 안내](https://docs.slack.dev/tools/deno-slack-sdk/guides/getting-started/)
+```text
+--------
+💬 평가 의견을 보내 주세요
+[ 평가 작성하기 ]
+[제목] 한 줄 요약 · 안내
+📎 제목.html
+--------
+```
 
-먼저 Git으로 아이디어정리를 복제합니다. 이미 복제했으면 해당 운영체제에서 필요한 도구만 설치하고 **slack-app 폴더**로 이동합니다. 아래의 배포·트리거 명령도 이 폴더에서 실행합니다.
+| 구성 | 하는 일 |
+|---|---|
+| idea-review 앱 (이 폴더, Deno) | DM·파일을 보내고, 의견 입력 창을 열고, 의견을 Slack 저장소에 둡니다 |
+| Slack CLI (운영 컴퓨터) | 앱 배포·트리거 관리. 아이디어정리가 담당자 목록과 의견을 읽을 때도 씁니다 |
+| 아이디어정리 서버 | 담당자를 검색하고 작품 HTML을 만들어 앱에 보냅니다 |
 
-**macOS** · Homebrew를 쓰는 Mac의 예입니다. 다른 설치 경로도 공식 가이드에 있습니다. [Deno 설치](https://docs.deno.com/runtime/getting_started/installation/) · [Mac용 Slack CLI 설치](https://docs.slack.dev/tools/slack-cli/guides/installing-the-slack-cli-for-mac-and-linux/)
+## 처음 설정하기
+
+처음 한 번은 아래 6단계를 순서대로 합니다. 30분쯤 걸리고, 관리자 승인이 필요하면 승인을 기다리는 시간이 더해집니다.
+
+| 단계 | 하는 일 | 결과 |
+|---|---|---|
+| 1. 권한 확인 | Slack에서 앱을 올릴 수 있는지 확인 | 누가 승인해야 하는지 앎 |
+| 2. 도구 설치 | Deno와 Slack CLI 설치 | `deno`, `slack` 명령 |
+| 3. Slack 로그인 | CLI가 회사 워크스페이스를 쓰도록 허락 | 이 컴퓨터에 로그인 정보 |
+| 4. 배포 | 이 폴더의 앱을 Slack에 올림 | 앱 ID(`A…`) |
+| 5. 트리거 만들기 | 앱을 시작할 입구(웹훅·일정) 만들기 | 웹훅 주소 |
+| 6. 연결·확인 | 아이디어정리에 웹훅 넣고 나에게 보내 보기 | 왕복 확인 |
+
+### 1. 필요한 권한 확인
+
+**Slack 쪽**
+
+| 필요한 것 | 왜 | 없으면 |
+|---|---|---|
+| 유료 워크스페이스(Pro 이상) 또는 Enterprise Grid | Deno 앱(Run on Slack)은 유료 플랜에서만 돕니다 | 배포 단계에서 거절됩니다 |
+| 앱 설치 권한 | 앱을 워크스페이스에 설치합니다 | 관리자에게 ‘앱 승인’을 요청하게 됩니다(아래) |
+| Enterprise Grid면 조직 관리자 승인 | 조직 앱은 어느 워크스페이스에 허용할지 관리자가 정합니다 | 담당자 검색에 일부 사람만 나옵니다 |
+
+회사가 **앱 승인**을 켜 두었으면, 4단계 배포 때 CLI가 승인 요청을 보내고 멈춥니다. 관리자가 Slack 관리 화면에서 승인하면 같은 명령(`slack deploy`)을 다시 실행합니다. 어떤 권한을 승인해 달라는지는 아래 ‘앱이 요청하는 권한’ 표를 그대로 보여 주면 됩니다.
+
+**앱이 요청하는 권한** (`manifest.ts`의 `botScopes`)
+
+| 권한 | 쓰는 곳 |
+|---|---|
+| `chat:write` | 담당자 DM에 안내·구분선·‘의견을 받았습니다’ 보내기 |
+| `im:write` | 앱과 담당자의 DM 열기 |
+| `files:write` | 작품 HTML 파일 올리기 |
+| `users:read` | 담당자 검색용 사람 목록(이름·표시 이름·직함) 읽기 |
+| `datastore:read`, `datastore:write` | 사람 목록·보낸 건·의견을 Slack 저장소에 두고 읽기 |
+| `triggers:write` | 보낼 때마다 그 작품의 [평가 작성하기] 링크 만들기 |
+
+앱이 밖으로 연결하는 곳은 `files.slack.com`(파일 올리기) 하나입니다. 메시지 읽기 권한은 없어서 담당자의 다른 대화는 볼 수 없습니다.
+
+**컴퓨터 쪽** · 프로그램 설치 권한만 있으면 됩니다(Mac은 Homebrew, Windows는 winget). Slack CLI 로그인은 **아이디어정리 서버를 실행하는 같은 OS 계정**에서 해야 합니다. 서버가 그 로그인으로 사람 목록과 의견을 읽기 때문입니다.
+
+### 2. 도구 설치
+
+두 가지를 설치합니다.
+
+- **Deno** · 이 폴더의 TypeScript 앱을 실행·검사하는 프로그램입니다. 배포할 때 CLI가 이걸로 앱을 묶습니다.
+- **Slack CLI** · 로그인·배포·트리거 관리를 하는 명령줄 도구입니다. 설치되면 `slack` 명령이 생깁니다(Mac은 `~/.slack/bin`).
+
+**Mac · 터미널**
 
 ```sh
 brew install deno
-curl -fsSL https://downloads.slack-edge.com/slack-cli/install.sh | bash
-cd ~/git/idea_review/slack-app
 ```
 
-**Windows** · PowerShell 7에서 실행합니다. 회사에서 설치 프로그램을 배포하면 그 경로를 이용할 수 있습니다. [Windows용 Slack CLI 설치](https://docs.slack.dev/tools/slack-cli/guides/installing-the-slack-cli-for-windows/)
+```sh
+curl -fsSL https://downloads.slack-edge.com/slack-cli/install.sh | bash
+```
+
+**Windows · PowerShell 7**
 
 ```powershell
 winget install -e --id DenoLand.Deno
-irm https://downloads.slack-edge.com/slack-cli/install-windows.ps1 | iex
-Set-Location "$HOME\git\idea_review\slack-app"
 ```
 
-설치 후 새 터미널이 필요하면 다시 같은 폴더로 이동합니다. 두 운영체제 모두 다음 명령으로 도구와 로그인을 확인합니다.
+```powershell
+irm https://downloads.slack-edge.com/slack-cli/install-windows.ps1 | iex
+```
+
+설치가 끝나면 **터미널을 새로 열고** 버전이 나오는지 봅니다.
 
 ```sh
 deno --version
 slack version
-slack doctor
+```
+
+`command not found`면 새 창을 열지 않았거나 경로가 안 잡힌 것입니다. Mac은 `~/.slack/bin`이 PATH에 있는지 봅니다(설치 스크립트가 셸 설정에 넣어 줍니다).
+
+> **회사망(Zscaler 등)** · 이후 `slack` 명령이 인증서 오류(`certificate`, `UnknownIssuer`)를 내면 그 터미널에서 먼저 아래를 실행합니다. 회사 인증서를 쓰라는 뜻입니다. 아이디어정리 서버는 CLI를 부를 때 이 설정을 저절로 켭니다.
+>
+> ```sh
+> export DENO_TLS_CA_STORE=system
+> ```
+>
+> PowerShell은 `$env:DENO_TLS_CA_STORE="system"`입니다.
+
+마지막으로 앱 폴더로 이동합니다. 이후 명령은 모두 이 폴더에서 실행합니다.
+
+```sh
+cd ~/git/idea_review/slack-app
+```
+
+Windows는 `Set-Location "$HOME\git\idea_review\slack-app"`입니다.
+
+### 3. Slack 로그인
+
+CLI가 내 계정으로 회사 워크스페이스에 앱을 올릴 수 있게 허락하는 단계입니다.
+
+```sh
 slack login
 ```
 
-터미널이 표시한 `/slackauthticket …` 명령을 대상 워크스페이스의 **본인 DM**에서 실행합니다. 권한을 승인하고 Slack이 표시한 확인 코드를 터미널에 입력한 뒤 `slack auth list`에서 회사 워크스페이스를 확인합니다.
+1. 터미널에 `/slackauthticket ABC…` 같은 한 줄이 나옵니다. 복사합니다.
+2. Slack에서 회사 워크스페이스의 **나에게 보내는 DM**(내 이름 DM)에 그 줄을 붙여 보냅니다.
+3. Slack에 권한 승인 창이 뜹니다. 내용을 보고 **승인**합니다.
+4. Slack이 확인 코드를 보여 줍니다. 터미널에 붙여 넣고 Enter를 누릅니다.
 
-## 2. 새로 배포하거나 기존 운영 앱 연결하기
+잘 됐는지 봅니다.
 
-- **처음 설치하는 워크스페이스**라면 `slack deploy`를 실행해 운영 워크스페이스를 선택합니다. 완료 후 `slack app list`에 표시된 배포 앱 ID(`A…`)를 기록합니다. [Slack 배포 안내](https://docs.slack.dev/tools/deno-slack-sdk/guides/deploying-to-slack/)
-- **기존 회사 앱이 있고 새 컴퓨터에 복제했다면** `slack app link`를 실행해 기존 앱 ID와 워크스페이스 ID로 연결하고 환경은 `deployed`를 고릅니다. 원래 배포자가 다른 경우 앱 협업 권한도 확인합니다. 앱 코드를 업데이트할 때만 이 앱을 선택해 `slack deploy`합니다. [기존 앱 연결](https://docs.slack.dev/tools/slack-cli/reference/commands/slack_app_link/) · [협업자 권한](https://docs.slack.dev/tools/deno-slack-sdk/guides/collaborating-with-teammates/)
-- **개발 중** `slack run`으로 만든 local 앱에는 별도의 앱 ID와 데이터가 있습니다. 아래 웹훅·트리거·설정에는 모두 같은 **deployed 앱**을 선택합니다.
+```sh
+slack auth list
+```
 
-## 3. 트리거 만들기
+회사 워크스페이스 이름이 보이면 됩니다. 로그인 정보는 이 계정의 `~/.slack/`에만 저장되고 Git에는 올라가지 않습니다.
 
-먼저 `slack trigger list`에서 배포 앱의 기존 목록을 확인합니다. 아래 명령은 **없는 트리거에만** 한 번씩 실행합니다. 각 명령이 대상을 물으면 2단계의 배포 앱을 선택하세요.
+### 4. 배포
 
-| 용도 | 생성 명령 | 생성한 뒤 할 일 |
-| --- | --- | --- |
-| 평가 요청 DM · 필수 | `slack trigger create --trigger-def triggers/review_webhook.ts` | 출력된 웹훅 URL을 `reviewWebhook`에 복사합니다. |
-| 담당자 검색 · 필수 | `slack trigger create --trigger-def triggers/people_daily.ts` | 약 1분 뒤 첫 동기화가 예정되고 이후 매일 실행됩니다. URL을 복사할 필요가 없습니다. |
-| 내려받은 HTML 안에서 의견 제출 · 선택 | `slack trigger create --trigger-def triggers/html_review_webhook.ts` | 이 입력 방식도 사용할 때만 URL을 `htmlWebhook`에 복사합니다. |
+이 폴더의 앱을 Slack에 올리는 단계입니다. 처음이면 앱이 새로 만들어지고, 다음부터는 같은 앱이 새 코드로 바뀝니다.
 
-**평가 작성하기** 단추의 워크플로 링크는 앱이 보낼 때마다 해당 작품용으로 만듭니다. 이 링크를 따로 생성할 필요는 없습니다.
+```sh
+slack deploy
+```
 
-## 4. 아이디어정리에 연결하기
+진행하면서 이렇게 묻고 보여 줍니다.
 
-프로젝트 루트의 **`deploy/site.json`**을 엽니다. 파일이 없으면 아래처럼 만들고, 이미 있다면 기존 `network`, `forms` 등은 유지하면서 `slack` 부분만 편집합니다. 따옴표 안의 설명을 실제 값으로 바꿉니다. HTML 의견을 쓰지 않으면 `htmlWebhook`은 빈 문자열로 둡니다.
+1. **어느 워크스페이스에 올릴지** · 회사 워크스페이스를 고릅니다.
+2. **Enterprise Grid면 허용할 워크스페이스** · 담당자 검색에는 허용한 워크스페이스 사람만 나오므로, 담당자가 있는 곳을 모두 고릅니다. 나중에 늘리면 다음 날 사람 목록 맞추기 때 반영됩니다.
+3. **앱 묶기·검사** · Deno가 코드를 검사하고 묶어 올립니다. 오류가 나면 메시지에 파일 이름이 나옵니다.
+4. **설치** · 권한 표(1단계)대로 설치됩니다. 앱 승인을 쓰는 회사면 여기서 ‘승인 요청을 보냈다’고 멈춥니다. 관리자 승인 뒤 `slack deploy`를 다시 실행합니다.
+
+끝나면 앱 ID를 확인해 적어 둡니다. 6단계에서 씁니다.
+
+```sh
+slack app list
+```
+
+`A`로 시작하는 ID가 배포된 앱(`deployed`)입니다. 배포 기록은 이 폴더의 `.slack/apps.json`에 남습니다(Git에는 올라가지 않음).
+
+**이미 회사에 배포된 앱이 있고 새 컴퓨터에서 이어받는다면** `slack deploy` 대신 기존 앱에 연결합니다.
+
+```sh
+slack app link
+```
+
+기존 앱 ID와 워크스페이스를 고르고, 환경은 `deployed`를 고릅니다. 원래 배포한 사람이 따로 있으면 그 사람에게 앱 협업자로 추가해 달라고 합니다. 협업자가 아니면 이후 배포·트리거 명령이 거절됩니다.
+
+### 5. 트리거 만들기
+
+트리거는 앱을 시작하는 입구입니다. 먼저 이미 있는지 봅니다.
+
+```sh
+slack trigger list
+```
+
+목록에 **없는 것만** 한 번씩 만듭니다. 앱을 물으면 4단계의 배포 앱(`deployed`)을 고릅니다.
+
+| 용도 | 만드는 명령 | 만든 뒤 |
+|---|---|---|
+| 평가 요청 DM (필수) | `slack trigger create --trigger-def triggers/review_webhook.ts` | 나온 웹훅 주소를 6단계 `reviewWebhook`에 넣음 |
+| 담당자 목록 맞추기 (필수) | `slack trigger create --trigger-def triggers/people_daily.ts` | 1분 뒤 첫 실행, 이후 매일. 할 일 없음 |
+| HTML 안에서 의견 보내기 (선택) | `slack trigger create --trigger-def triggers/html_review_webhook.ts` | 쓸 때만, 웹훅 주소를 `htmlWebhook`에 넣음 |
+
+**평가 작성하기** 단추 링크는 앱이 보낼 때마다 만들므로 따로 만들 필요가 없습니다.
+
+같은 트리거가 **두 개 이상** 생겼으면 하나만 남기고 지웁니다. 지울 ID(`Ft…`)는 `slack trigger list`에서 확인합니다. 웹훅 트리거를 지웠다면 남긴 쪽 주소가 `deploy/site.json`에 들어 있는지 확인합니다.
+
+```sh
+slack trigger delete --trigger-id Ft…
+```
+
+### 6. 아이디어정리에 연결하고 확인
+
+프로젝트 루트의 `deploy/site.json`을 엽니다. 없으면 [README의 ‘설정 파일 만들기’](../README.md#처음-한-번-설정)대로 예시를 복사합니다. 다른 항목(`network`, `forms`)은 그대로 두고 `slack`만 채웁니다.
 
 ```json
-{
-  "slack": {
-    "reviewWebhook": "<평가 요청 트리거 URL>",
-    "reviewApp": "<배포된 Slack 앱 ID>",
-    "htmlWebhook": ""
-  }
+"slack": {
+  "reviewWebhook": "<평가 요청 웹훅 주소>",
+  "reviewApp": "<앱 ID, A로 시작>",
+  "htmlWebhook": ""
 }
 ```
 
-`reviewApp`을 생략하면 서버는 이 프로젝트의 `.slack/apps.json`에서 첫 번째 배포 앱 ID를 찾습니다. 여러 워크스페이스를 쓰거나 배포 컴퓨터와 운영 컴퓨터가 다르면 명시하세요. 서버에서 `slack` 명령을 찾지 못하면 `slack.cli`에 실행 파일의 절대 경로를 추가합니다. Mac은 `command -v slack`, Windows PowerShell은 `(Get-Command slack.exe).Source`로 확인합니다. Windows 경로를 JSON에 적을 때는 `C:/…/slack.exe`처럼 슬래시를 쓸 수 있습니다.
+- `htmlWebhook`은 HTML 안 의견을 쓸 때만 넣고, 아니면 빈 문자열로 둡니다.
+- `reviewApp`을 비우면 이 폴더의 `.slack/apps.json`에서 앱 ID를 찾습니다. 배포한 컴퓨터와 운영 컴퓨터가 다르면 꼭 넣습니다.
+- 서버가 `slack` 명령을 못 찾으면 `"cli": "<slack 실행 파일 전체 경로>"`를 추가합니다. 경로는 Mac `command -v slack`, Windows `(Get-Command slack.exe).Source`로 봅니다.
 
-아이디어정리는 Slack 설정을 요청할 때 다시 읽습니다. CLI를 설치해 서비스의 실행 경로를 바꿨다면 **아이디어정리 서비스**를 다시 시작합니다. 웹훅 URL이 든 `deploy/site.json`, CLI의 로그인 정보와 로컬 배포 기록은 Git에 올리지 않습니다. [공유용 설정 예시](../deploy/site.example.json)
+설정은 보낼 때마다 다시 읽으므로 서버를 다시 켤 필요가 없습니다. 웹훅 주소는 비밀번호처럼 다루고 채팅·사진에 올리지 않습니다.
 
-## 5. 본인에게 한 건 보내 확인하기
+#### 나에게 한 건 보내 확인
 
-1. **채점표 → 담당자에게 보내기**에서 본인 이름을 검색합니다. 목록이 처음 비어 있으면 예약 트리거의 첫 실행을 기다립니다. 서버는 이름·표시 이름·직함을 검색하고 목록을 10분간 재사용합니다.
-2. 본인을 골라 **보내기**를 누릅니다. Slack의 **idea-review** DM에 작품 HTML 파일과 **평가 작성하기** 단추가 도착하는지 확인합니다.
-3. Slack에서 단추를 눌러 시험 의견을 제출합니다. 앱의 수신 확인 DM과 아이디어정리 **채점표 → 담당자 의견**에 같은 내용이 보이면 왕복 연결이 끝났습니다. 서버는 시작할 때와 이후 1분마다 최근 30일에 보낸 작품의 최근 30일 의견을 읽습니다.
-4. 같은 단추로 의견을 수정해 다시 제출하면 한 작품에서 같은 사람의 최신 의견 한 건이 남습니다. HTML 입력도 켰다면 새로 보낸 파일을 열어 맨 아래에서 시험하고 Slack 확인 DM을 확인합니다.
+1. 아이디어정리에서 작품을 열고 **채점표 → 담당자에게 보내기**에서 내 이름을 검색합니다. 목록이 비어 있으면 5단계의 담당자 목록 맞추기가 처음 돌 때까지(1분) 기다립니다.
+2. 나를 골라 **보내기**를 누르고, Slack **idea-review** DM에 위 모양대로 오는지 봅니다.
+3. **평가 작성하기**를 눌러 시험 의견을 보냅니다. ‘의견을 받았습니다’ DM이 오고, 1분 안에 **채점표 → 담당자 의견**에 같은 내용이 보이면 끝입니다.
+4. 같은 단추를 다시 누르면 보낸 의견이 채워진 채 열리고, 고쳐 보내면 마지막 의견 하나만 남습니다. 휴대폰 Slack에서도 눌러 봅니다.
 
-**답변자 식별** · Slack 단추는 실제로 제출한 Slack 계정으로 기록합니다. HTML 입력은 파일에 든 표를 통해 원래 수신자 이름으로 기록하며, 발송 후 90일까지 제출할 수 있습니다. 다른 사람에게 전달할 자료라면 HTML 의견 입력을 비워 두고 Slack 단추로 받으세요. 90일은 HTML 표의 유효기간이고, 운영 서버의 자동 회수 기간은 30일입니다.
+## 업데이트
 
-## 업데이트와 문제 해결
-
-코드를 받은 뒤 앱 변경이 있으면 `slack deploy`로 기존 운영 앱을 갱신합니다. 트리거 입력이나 스케줄 정의가 바뀌었으면 `slack trigger list`에서 해당 ID를 확인하고 업데이트합니다. 아래의 `Ft…`는 기존 평가 요청 트리거 ID로 바꾸세요.
+아이디어정리에서 `git pull` 한 뒤, Slack 앱 코드가 바뀌었는지 봅니다.
 
 ```sh
-slack trigger update --trigger-id Ft… --trigger-def triggers/review_webhook.ts
+git diff --name-only HEAD@{1} HEAD -- slack-app
 ```
 
-| 증상 | 확인할 곳 |
-| --- | --- |
-| 담당자를 찾지 못함 | `slack auth list`의 계정, `reviewApp`과 `slack trigger list`의 앱이 일치하는지 봅니다. `slack activity --tail`로 ‘사람 목록 맞추기’가 성공했는지 확인합니다. |
-| 보내기를 눌렀지만 DM이 없음 | 웹훅 성공은 요청 접수를 뜻합니다. 배포 앱의 `slack activity --tail`에서 DM·파일 업로드 결과를 확인하세요. HTTP 400이면 평가 요청 트리거 입력과 배포 코드를, 413이면 첨부한 HTML 크기를 확인합니다. |
-| 의견을 제출했는데 채점표가 비어 있음 | 수신 확인 DM, 운영 서버 실행 상태, 최근 30일 발송 여부, 운영 계정의 CLI 로그인과 앱 ID를 차례로 확인합니다. |
-| 인증서·권한 오류 | 운영 계정이 회사 인증서와 프록시를 사용하는지 확인합니다. 회사 CA가 등록된 Mac에서는 `export DENO_TLS_CA_STORE=system`, PowerShell은 `$env:DENO_TLS_CA_STORE="system"`으로 CLI를 실행할 수 있습니다. `missing_scope`이면 최신 manifest로 재배포하고 관리자 승인 상태를 확인합니다. |
+| 나온 목록 | 할 일 (`slack-app` 폴더에서) |
+|---|---|
+| 아무것도 없음 | 할 일 없음 |
+| `slack-app/` 파일 | `slack deploy` |
+| `slack-app/triggers/` 파일도 있음 | `slack deploy` 후, 바뀐 트리거마다 아래 명령 |
 
-## 코드와 데이터 찾기
+```sh
+slack trigger update --trigger-id Ft… --trigger-def triggers/<바뀐 파일>.ts
+```
 
-[manifest.ts](manifest.ts)가 워크플로와 권한을 등록합니다. [workflows/](workflows/)는 평가 요청·Slack 입력 창·HTML 의견·담당자 동기화의 진입점이고, [functions/](functions/)는 실제 DM 전송·입력·저장을 수행합니다. [triggers/](triggers/)는 웹훅 두 개와 일일 일정의 정의, [datastores/](datastores/)는 `people`(담당자), `reviews`(작품별 의견), `tickets`(발송과 작품·수신자의 연결표)의 구조입니다. 아이디어정리 쪽 연결 코드는 [src/slack.mjs](../src/slack.mjs)입니다.
+`Ft…`는 `slack trigger list`에서 그 트리거의 ID입니다. 업데이트는 웹훅 주소가 바뀌지 않으므로 `deploy/site.json`은 그대로 둡니다. 배포 때 권한(`manifest.ts`의 `botScopes`)이 늘었으면 관리자 승인을 다시 요청할 수 있습니다.
 
-요청하는 앱 권한은 `chat:write`·`im:write`(DM), `files:write`(HTML 업로드), `users:read`(담당자 목록), `datastore:read`·`datastore:write`(목록·연결표·의견), `triggers:write`(작품별 답장 링크)입니다. 허용된 외부 파일 업로드 도메인은 `files.slack.com`입니다.
+## 문제가 생기면
+
+| 증상 | 확인할 것 |
+|---|---|
+| 담당자 검색에 아무도 없음 | 담당자 목록 맞추기 트리거가 있는지(`slack trigger list`), 돌았는지(`slack activity --tail`) 봅니다. Enterprise Grid면 담당자가 있는 워크스페이스에 앱을 허용했는지 봅니다 |
+| 보내기는 됐는데 DM이 없음 | `slack activity --tail`에서 DM·파일 올리기 오류를 봅니다 |
+| ‘웹훅 HTTP 400’ | 트리거 정의가 옛것입니다. ‘업데이트’대로 `review_webhook.ts` 트리거를 고칩니다 |
+| ‘웹훅 HTTP 413’ | HTML이 너무 큽니다. 캡처 수를 줄이거나 나눠 보냅니다 |
+| 의견을 보냈는데 채점표가 비어 있음 | ‘의견을 받았습니다’ DM이 왔는지 → 아이디어정리가 켜져 있는지 → 최근 30일 안에 보낸 작품인지 → 서버 계정의 `slack auth list`와 `reviewApp`이 맞는지 차례로 봅니다 |
+| ‘의견 읽기 실패’·인증서 오류 | 서버를 실행하는 계정에서 `slack auth list`가 되는지, 회사 인증서·프록시를 쓰는지 봅니다 |
+| `missing_scope` | 최신 코드로 `slack deploy`하고 관리자 승인 상태를 봅니다 |
+
+**누가 보냈는지** · Slack 단추는 실제로 누른 Slack 계정으로 기록합니다. HTML 안 의견은 받은 사람 이름으로 기록하고 보낸 뒤 90일까지 받습니다. 자료를 다른 사람에게 넘길 수 있다면 HTML 안 의견은 끄고 Slack 단추만 씁니다. 아이디어정리는 최근 30일에 보낸 작품의 의견만 읽어 옵니다.
+
+## 폴더 구성
+
+```text
+manifest.ts    앱 이름 · 워크플로 · 권한 등록
+workflows/     평가 요청 · 입력 창 · HTML 의견 · 담당자 동기화의 입구
+functions/     실제 일: DM·파일 보내기, 입력 창, 의견 저장
+triggers/      웹훅 두 개와 매일 일정
+datastores/    people(담당자) · reviews(의견) · tickets(보낸 건과 작품의 연결)
+```
+
+아이디어정리 쪽 연결 코드는 [src/slack.mjs](../src/slack.mjs)입니다. 요청하는 권한은 `chat:write`·`im:write`(DM), `files:write`(HTML 올리기), `users:read`(담당자 목록), `datastore:read`·`datastore:write`(목록·의견), `triggers:write`(작품마다 평가 작성하기 링크)입니다.

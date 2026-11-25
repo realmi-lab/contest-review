@@ -17,7 +17,7 @@ import {
   atomic, changed, deleteImage, deleteImagesOf, image, intakeFields, lastUsage, list, load, newWork, removeWork, save, summaryList, thumbnail, today,
 } from "../store.mjs";
 import { shownRefs } from "../summary/reading-edition.mjs";
-import { startSummary } from "../summary/run.mjs";
+import { autoSummarize, startSummary } from "../summary/run.mjs";
 import { bounded, err } from "../validate.mjs";
 import { features } from "../../deploy/site.mjs";
 
@@ -207,7 +207,7 @@ export default {
     json({ ok: true });
   },
 
-  // 도식 검토로 지정(캡처 여러 장 한 번에). 다음 요약부터 그 쪽은 그림도 함께 읽는다.
+  // 도식 검토로 지정(캡처 여러 장 한 번에). 그 쪽은 그림도 함께 읽고, 요약은 저절로 다시 만든다.
   "POST /api/visual": ({ b, json }) => {
     const w = current(b);
     const ids = new Set(Array.isArray(b.captures) ? b.captures : []);
@@ -216,6 +216,7 @@ export default {
     for (const c of targets) c.visual = true;
     changed(w);
     save(w);
+    autoSummarize(w.id).catch(() => {}); // 그림도 읽게 바뀌었으니 요약을 저절로 다시 만든다(15초 뒤)
     json({ ok: true, count: targets.length });
   },
 

@@ -91,7 +91,7 @@ const actions = {
   snap: snapScreen,
   "mark-visual": async () => {
     const ids = suggestedVisual().map((c) => c.id);
-    if (!ids.length || !confirm(`도식 검토 추천 ${ids.length}쪽을 도식 검토로 지정할까요?\n다음 요약부터 이 쪽들은 이미지도 AI에 보내 읽습니다. 지금의 요약·점검·확정 채점표는 다시 만들어야 합니다.`)) return;
+    if (!ids.length || !confirm(`도식 검토 추천 ${ids.length}쪽을 도식 검토로 지정할까요?\n이 쪽들은 이미지도 AI에 보내 읽고, AI 요약을 새로 만듭니다.`)) return;
     const { count } = await api("visual", { ...workRef(), captures: ids });
     notify(`${count}쪽을 도식 검토로 지정했습니다. AI 요약을 다시 만들면 반영됩니다.`);
     await sync(true);
