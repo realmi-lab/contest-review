@@ -141,10 +141,12 @@ try {
     });
     assert.ok(w.captures.length && w.captures.every((c) => c.status !== "queued"));
   });
-  await step("요약 설정·공모 연동 설정·운영 맥 점검 대화상자를 열고 닫는다", async () => {
+  await step("설정(톱니바퀴)에서 요약 설정·공모 연동 설정·운영 맥 점검 대화상자를 열고 닫는다", async () => {
     for (const action of ["summary-settings", "forms-settings", "self-check"]) {
-      await click(`.sidebar [data-action="${action}"]`);
-      await until(action, isOpen);
+      await click('.sidebar [data-action="settings"]');
+      await until("설정", async () => !!(await page.$(`#dialog [data-action="${action}"]`)));
+      await click(`#dialog [data-action="${action}"]`);
+      await until(action, async () => (await isOpen()) && !(await page.$("#logic-on")));
       if (action === "self-check") await until("점검 시작 버튼", async () => !!(await page.$('[data-action="self-check-run"]')));
       await click("#close");
       await wait(300);
@@ -177,6 +179,28 @@ try {
     await until("바뀐 제목", async () => /이름을 고친 우산/.test(await page.$eval("#main", (e) => e.textContent)));
     const { works } = await state();
     assert.ok(works.some((w) => w.name === "이름을 고친 우산"));
+  });
+  await step("설정에서 AI 논리점검을 끄면 작품 단계·목록 탭·내보내기에서 빠지고, 다시 켜면 돌아온다", async () => {
+    const steps = () => page.$$eval(".steptabs .stepitem b", (b) => b.map((x) => x.textContent));
+    const shared = async () => (await page.evaluate((id) => fetch("/api/share/" + id).then((r) => r.text()), (await state()).works[0].id)).includes(">AI 논리점검</label>");
+    const toggle = async (on) => {
+      await click('.sidebar [data-action="settings"]');
+      await until("설정", async () => !!(await page.$("#logic-on")));
+      if ((await page.$eval("#logic-on", (b) => b.checked)) !== on) await click("#logic-on");
+      await until("저장", async () => (await state()).features.logic === on);
+      await click("#close");
+      await wait(300);
+    };
+    assert.ok((await steps()).includes("AI 논리점검"));
+    await toggle(false);
+    assert.deepEqual(await steps(), ["캡처 자료", "AI 요약", "채점표"]);
+    assert.equal(await shared(), false);
+    await click("#home");
+    await until("목록", async () => !!(await page.$(".stagetab")));
+    assert.deepEqual(await page.$$eval(".stagetab", (tabs) => tabs.map((t) => t.firstChild.textContent)), ["전체", "AI 요약", "채점표"]);
+    await toggle(true);
+    assert.deepEqual(await page.$$eval(".stagetab", (tabs) => tabs.map((t) => t.firstChild.textContent)), ["전체", "AI 요약", "AI 논리점검", "채점표"]);
+    assert.equal(await shared(), true);
   });
   await step("브라우저 오류가 없다", () => assert.deepEqual(errors, []));
 } finally {

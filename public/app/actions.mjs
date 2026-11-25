@@ -5,8 +5,8 @@ import { workRef } from "./forms.mjs";
 import { filteredWorks, intakeInputs, openCreate } from "./list.mjs";
 import { currentEvidence, select, sync } from "./navigation.mjs";
 import { render } from "./render.mjs";
-import { formsPick, openFormsSettings, openSelfCheck, openSummarySettings, showSelfCheck } from "./settings.mjs";
-import { aiLabel, cloudScope, state, submittingSummaries } from "./state.mjs";
+import { formsPick, openFormsSettings, openSelfCheck, openSettings, openSummarySettings, showSelfCheck } from "./settings.mjs";
+import { aiLabel, cloudScope, logicOn, state, submittingSummaries } from "./state.mjs";
 import { markSimilar, summaryUnavailable } from "./summary.mjs";
 import { $, api, button, closeDialog, dialog, notify } from "./ui.mjs";
 import { closeViewer, openCaptureGallery, showRef, showUncertain, zoomCaptureDetail } from "./viewer.mjs";
@@ -21,7 +21,7 @@ async function startJob(route, nextTab) {
     const settings = await api("summary-settings");
     if (state.selected !== target.id || state.work?.rev !== target.rev) return;
     if (!settings.configured) return openSummarySettings();
-    const scope = route === "summarize" ? "요약에 이어 AI 논리점검까지 실행합니다.\n" : "";
+    const scope = route === "summarize" && logicOn() ? "요약에 이어 AI 논리점검까지 실행합니다.\n" : "";
     if (!confirm(`${state.work.name}\n${scope}${cloudScope()}\n${aiLabel()}로 실행할까요?`)) return;
   }
   await api(route, target);
@@ -112,6 +112,7 @@ const actions = {
     notify(`${count}쪽을 도식 검토로 지정했습니다. AI 요약을 다시 만들면 반영됩니다.`);
     await sync(true);
   },
+  settings: openSettings, // 왼쪽 아래 톱니바퀴
   "forms-settings": openFormsSettings,
   "self-check": openSelfCheck,
   "self-check-run": async () => {

@@ -1,7 +1,7 @@
 // 설정 API: 접속 코드, AI 요약 설정·사용량, MS Forms 공모 연동, 운영 맥 점검
 import { stat } from "node:fs/promises";
 import path from "node:path";
-import { readSite, writeSite } from "../../deploy/site.mjs";
+import { features, readSite, writeSite } from "../../deploy/site.mjs";
 import { publicHost } from "../../deploy/web-server.mjs";
 import {
   ai, aiSettings, haiku, haikuEffortNote, haikuLabel, matches, saveConnection, savedKey, saveKey, ticket, usageReport, verifyKey,
@@ -84,6 +84,13 @@ export default {
     const place = (p) => p && { path: p, label: placeLabel(roots, p) };
     json({ workbook: place(config?.formsWorkbook), attachments: place(config?.attachmentsDir),
       check: config && await checkSources(config), error: intake.error });
+  },
+
+  // 켜고 끄는 기능 저장(설정 톱니바퀴): logic = AI 논리점검. deploy/site.json의 features에 적는다.
+  "POST /api/features": ({ b, json }) => {
+    const site = readSite();
+    writeSite({ ...site, features: { ...site.features, logic: b.logic !== false } });
+    json(features());
   },
 
   // 공모 연동 설정 저장: 응답 엑셀·첨부 폴더를 deploy/site.json의 forms에 적는다. 열 매칭 등 나머지 값은 그대로(처음이면 회사 Forms 기본값).

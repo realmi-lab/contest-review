@@ -2,7 +2,7 @@
 import { transition } from "./interactions.mjs";
 import { filteredWorks, overviewView } from "./list.mjs";
 import { rememberFields, syncUrl } from "./navigation.mjs";
-import { STEP_TABS, state } from "./state.mjs";
+import { shownSteps, state } from "./state.mjs";
 import { showSimilar } from "./summary.mjs";
 import { $ } from "./ui.mjs";
 import { markActiveRef, peek, refreshViewer } from "./viewer.mjs";
@@ -60,7 +60,7 @@ function movement() {
     return order.indexOf(id) > order.indexOf(state.shownWork) ? "turn-next" : "turn-prev";
   }
   if (state.tab === shownTab) return "";
-  const steps = Object.keys(STEP_TABS);
+  const steps = shownSteps();
   return steps.indexOf(state.tab) > steps.indexOf(shownTab) ? "next" : "prev";
 }
 

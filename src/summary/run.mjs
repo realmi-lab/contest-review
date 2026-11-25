@@ -6,11 +6,13 @@ import { ideaOpinion } from "../check/idea-opinion.mjs";
 import { busy, schedule } from "../jobs.mjs";
 import { image, load, recordUsage, runsSince, save } from "../store.mjs";
 import { err } from "../validate.mjs";
+import { features } from "../../deploy/site.mjs";
 import { checkLogic } from "../check/logic.mjs";
 import { summarize } from "./reading.mjs";
 
 // 진행률(%): 진행 상황 글의 앞부분으로 단계를 찾고, 'a / b'가 있으면 그 단계 안에서 나눈다. 뒤로 가지 않는다.
-// [단계 이름의 앞부분, 시작 %, 끝 %] · 요약 → 사실·논리 점검 순서. 점검만 할 때는 점검 구간을 0~100%로 늘린다.
+// [단계 이름의 앞부분, 시작 %, 끝 %] · 요약 → 사실·논리 점검 순서. 점검만 할 때는 점검 구간을, 논리점검을 끈 요약은
+// 요약 구간을 0~100%로 늘린다(from~to).
 const STAGES = [
   ["그래프 값 읽는 중", 0, 8],
   ["도식 검토 쪽만", 8, 35], ["같은 원문의 요점", 8, 35], ["요점 추출", 8, 35],
@@ -20,7 +22,7 @@ const STAGES = [
   ["원문과 논리 점검", 74, 88], ["앞뒤 원문과 오류 후보", 88, 95], ["AI가 본 이 아이디어", 95, 99],
 ];
 const LOGIC_FROM = 74;
-export function withPercent(progress, from = 0) {
+export function withPercent(progress, from = 0, to = 100) {
   let shown = 0;
   return (text) => {
     const stage = STAGES.find(([name]) => text.startsWith(name));
@@ -28,7 +30,7 @@ export function withPercent(progress, from = 0) {
       const [, start, end] = stage;
       const [, a, b] = text.match(/(\d+) \/ (\d+)/) || [];
       const at = start + (b ? ((end - start) * Math.max(0, a - 1)) / b : 0);
-      shown = Math.max(shown, Math.round(((at - from) / (100 - from)) * 100));
+      shown = Math.max(shown, Math.min(100, Math.round(((at - from) / (to - from)) * 100)));
     }
     progress(text, Math.min(99, shown));
   };
@@ -39,6 +41,8 @@ export function withPercent(progress, from = 0) {
 export function startSummary(w, check, key) {
   const reading = w.cloudReading;
   if (!w.captures.length || w.captures.some((c) => c.status === "queued")) err("캡처의 문자 인식이 완료되어야 합니다.");
+  const logic = features().logic; // 끄면 요약만 하고 사실·논리 점검은 하지 않는다(설정 톱니바퀴)
+  if (check && !logic) err("AI 논리점검이 꺼져 있습니다. 설정에서 켜세요.");
   if (check && (!reading || reading.rev !== w.rev)) err("현재 자료로 먼저 내용을 요약하세요.");
   if (busy(w.id)) err("현재 작품의 작업을 완료한 뒤 실행하세요.", 409);
   const label = haikuLabel + " · " + (check ? "사실·논리 점검 준비" : "요약 준비");
@@ -47,7 +51,7 @@ export function startSummary(w, check, key) {
     w.id,
     label,
     async (report) => {
-      const progress = withPercent(report, check ? LOGIC_FROM : 0);
+      const progress = withPercent(report, check ? LOGIC_FROM : 0, logic ? 100 : LOGIC_FROM);
       progress(label); // 0%
       if (load(w.id).rev !== w.rev) throw Error("대기 중 자료가 변경되었습니다. 새 자료로 실행하세요.");
       // 한 단계를 실행하고 사용량을 응답마다 기록한다(중간에 실패해도 쓴 만큼 남는다).
@@ -81,8 +85,9 @@ export function startSummary(w, check, key) {
           latest.cloudLogic = null;
         });
       }
+      if (!logic) return;
       // 점검 끝에 'AI가 본 이 아이디어'(idea-opinion.mjs)를 쓴다. 실패해도 점검 결과는 남긴다.
-      const logic = await step("logic", async () => {
+      const checked = await step("logic", async () => {
         const result = await checkLogic(current, progress);
         progress("AI가 본 이 아이디어 쓰기");
         try {
@@ -94,7 +99,7 @@ export function startSummary(w, check, key) {
       }, current.id);
       store((latest) => {
         if (latest.cloudReading?.id !== current.id) throw Error("작업 중 자료가 변경되었습니다. 새 자료로 실행하세요.");
-        latest.cloudLogic = logic;
+        latest.cloudLogic = checked;
       });
     },
     "ai",

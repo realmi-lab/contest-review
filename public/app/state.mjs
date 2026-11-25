@@ -9,6 +9,9 @@ export const STEP_TABS = {
   점검: "AI 논리점검",
   결과: "채점표",
 };
+// 설정 톱니바퀴에서 AI 논리점검을 끄면 '점검' 단계를 화면에서 모두 뺀다(서버 /api/state의 features).
+export const logicOn = () => state.app?.features?.logic !== false;
+export const shownSteps = () => Object.keys(STEP_TABS).filter((key) => key !== "점검" || logicOn());
 export const LINK_TABS = { report: "결과", summary: "요약", logic: "점검" }; // ?tab=
 export const POLL_BUSY_MS = 1500; // 진행 중인 작업이 있을 때
 export const POLL_IDLE_MS = 4000;

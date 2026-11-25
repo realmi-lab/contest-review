@@ -216,6 +216,9 @@
   background: var(--green);
 }
 .model-settings-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   align-self: flex-start;
   background: transparent;
   color: var(--side-text);

@@ -16,6 +16,10 @@ export function readSite() {
   }
 }
 
+// 켜고 끄는 기능(웹앱의 설정 톱니바퀴에서 바꾼다): logic = AI 논리점검. 적지 않았으면 켠다.
+// 끄면 요약 뒤 논리점검을 하지 않고, 작품 단계·목록 탭·내보내기에서 논리점검이 모두 빠진다.
+export const features = () => ({ logic: readSite().features?.logic !== false });
+
 // 웹앱의 '공모 연동 설정'이 forms를 바꿀 때 쓴다. 반쯤 쓴 파일이 남지 않게 임시 파일에 쓰고 바꿔 넣는다.
 export function writeSite(site) {
   const temp = new URL(file.href + ".tmp");

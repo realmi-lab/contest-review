@@ -19,6 +19,7 @@ import {
 import { shownRefs } from "../summary/reading-edition.mjs";
 import { startSummary } from "../summary/run.mjs";
 import { bounded, err } from "../validate.mjs";
+import { features } from "../../deploy/site.mjs";
 
 // 본문의 id로 작품을 읽고, 화면이 본 자료 번호(rev)가 지금과 같은지 확인한다(그사이 바뀌었으면 거절).
 function current(b) {
@@ -49,6 +50,7 @@ export default {
       intake: intake.view,
       ai: { provider: ai.provider, label: haikuLabel },
       slack: slackReady(), // Slack 보내기를 쓸 수 있는가(평가 단추 앱 설정이 있는가)
+      features: features(), // 켜고 끄는 기능(AI 논리점검)
     }),
 
   // 전체 채점 결과 (엑셀에서 여는 CSV)
@@ -109,7 +111,7 @@ export default {
       title: w.name,
       filename: `${w.name.slice(0, 60)}_AI요약_${today()}.html`,
       html: await shareHtml(w),
-      comment: `*[${w.name}]*${gist ? "\n" + gist : ""}\n아이디어 리뷰에서 보낸 AI 요약·논리점검입니다. 첨부한 HTML 파일을 내려받아 브라우저로 여세요.`,
+      comment: `*[${w.name}]*${gist ? "\n" + gist : ""}\n아이디어 리뷰에서 보낸 AI 요약${features().logic ? "·논리점검" : ""}입니다. 첨부한 HTML 파일을 내려받아 브라우저로 여세요.`,
     });
     const latest = load(w.id);
     latest.slackSent = [...(latest.slackSent || []), { user, name: bounded(b.name, 80), at: new Date().toISOString(), ...sent }];

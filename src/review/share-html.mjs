@@ -1,4 +1,4 @@
-// 내보내기(Slack으로도 보내는) HTML 한 파일: 탭 세 개(AI 요약 · AI 논리점검 · 캡처 자료)로 나눠 보여 준다.
+// 내보내기(Slack으로도 보내는) HTML 한 파일: 탭(AI 요약 · AI 논리점검 · 캡처 자료, 논리점검은 설정에서 끄면 뺀다)으로 나눠 보여 준다.
 // 탭은 스크립트 없이 라디오 단추와 CSS로만 바꾼다(스크립트를 막은 곳에서도 열린다).
 // 세부 요약 줄 끝의 쪽 칩(1쪽·2쪽)을 누르면 그 쪽 캡처가 떠 인용 줄이 오렌지 상자로 보인다(작품 화면의 원문 패널처럼,
 // 맨 아래 작은 스크립트. 스크립트를 막으면 칩만 보인다).
@@ -11,6 +11,7 @@ import { boxPercent, evidenceBoxes } from "../../public/lib/boxes.mjs";
 import { esc, join, noPeriod, sentences, seoulMinute } from "../../public/lib/html.mjs";
 import { publicDir } from "../config.mjs";
 import { image } from "../store.mjs";
+import { features } from "../../deploy/site.mjs";
 
 // 쪽 칩을 누르면 그 쪽 캡처(캡처 자료 탭의 그림)를 띄우고 인용 줄에 오렌지 상자를 그린다. 바깥·닫기·Esc로 닫는다.
 const VIEWER_SCRIPT = `
@@ -93,6 +94,12 @@ export async function shareHtml(w) {
   const reading = w.cloudReading?.rev === w.rev ? w.cloudReading : null;
   const opinion = reading && w.cloudLogic?.reading === reading.id ? w.cloudLogic.opinion : null;
   const meta = [w.receivedOn, w.intakeTeam, w.submitterName, w.category].filter(Boolean).map(esc).join(" · ");
+  // 탭: AI 요약 · AI 논리점검(설정에서 끄면 뺀다) · 캡처 자료
+  const panes = [
+    ["AI 요약", summaryPart(reading, w.captures)],
+    ...(features().logic ? [["AI 논리점검", logicPart(opinion)]] : []),
+    [`캡처 자료 · ${w.captures.length}쪽`, await pictures(w.captures)],
+  ];
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(w.name)}</title><style>
 @font-face { font-family: "Bithumb Gothic"; src: url(data:font/woff2;base64,${await font}) format("woff2"); font-weight: 700; }
@@ -100,7 +107,7 @@ export async function shareHtml(w) {
 body { margin: 0; background: #e9eaec; color: var(--text); font: 16px/1.7 "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
 main { max-width: 920px; margin: 32px auto; padding: 40px 48px; border-radius: 16px; background: #fff; }
 /* 탭: 눈에 잘 띄게 큰 단추 세 개로 나란히 두고, 고른 탭은 오렌지. 내려 읽어도 위에 붙어 있어 언제든 바꿀 수 있다 */
-.tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 24px 0 8px; padding: 10px 0; border-bottom: 2px solid var(--text); background: #fff; }
+.tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; margin: 24px 0 8px; padding: 10px 0; border-bottom: 2px solid var(--text); background: #fff; }
 .tabs label { padding: 14px 12px; border: 2px solid var(--line); border-radius: 12px; background: var(--fill); color: var(--text-2); font-family: "Bithumb Gothic", sans-serif; font-size: 18px; text-align: center; cursor: pointer; }
 .tabs label:hover { border-color: var(--orange); color: var(--orange); }
 .pane, input[name="tab"] { display: none; }
@@ -140,11 +147,9 @@ footer { margin-top: 32px; color: var(--text-3); font-size: 13px; }
 .viewer-label { margin: 8px 0 0; color: var(--text-3); font-size: 13px; }
 </style></head><body><main>
 <h1>${esc(w.name)}</h1>${meta ? `<p class="meta">${meta}</p>` : ""}
-<input type="radio" name="tab" id="tab-1" checked><input type="radio" name="tab" id="tab-2"><input type="radio" name="tab" id="tab-3">
-<nav class="tabs"><label for="tab-1">AI 요약</label><label for="tab-2">AI 논리점검</label><label for="tab-3">캡처 자료 · ${w.captures.length}쪽</label></nav>
-<div class="pane p1">${summaryPart(reading, w.captures)}</div>
-<div class="pane p2">${logicPart(opinion)}</div>
-<div class="pane p3">${await pictures(w.captures)}</div>
+${join(panes, (_, i) => `<input type="radio" name="tab" id="tab-${i + 1}"${i ? "" : " checked"}>`)}
+<nav class="tabs">${join(panes, ([label], i) => `<label for="tab-${i + 1}">${label}</label>`)}</nav>
+${join(panes, ([, html], i) => `<div class="pane p${i + 1}">${html}</div>`)}
 <div id="viewer" class="viewer" hidden><div class="viewer-box"><button type="button" class="viewer-close" aria-label="닫기">닫기</button>
   <div class="viewer-stage"><img alt=""><span class="viewer-marks"></span></div><p class="viewer-label"></p></div></div>
 <footer>아이디어정리에서 내보냄 · ${seoulMinute(new Date().toISOString())}</footer>

@@ -1,7 +1,7 @@
 // 목록 화면: 진행 현황, 작품 목록·검색·정렬, 직접 접수, 아이디어 공모(MS Forms) 연동 현황
 import { esc, join, sentences, seoulMinute } from "../lib/html.mjs";
 import { select, splitName } from "./navigation.mjs";
-import { state } from "./state.mjs";
+import { logicOn, state } from "./state.mjs";
 import { summaryActions } from "./summary.mjs";
 import { $, button, count, dialog, emptyState, field, icon, input, noPeriod } from "./ui.mjs";
 
@@ -28,7 +28,7 @@ const STAGES = {
 export function workStatus(x) {
   const key = x.opinions
     ? "final"
-    : x.hasLogic
+    : x.hasLogic && logicOn()
       ? "checked"
       : x.hasReading
         ? "read"
@@ -47,15 +47,16 @@ export const queueLabels = { run: "처리 중", wait: "대기" };
 
 // 목록의 진행 상태: 캡처 → 요약 → 점검 → 채점 네 칸 눈금과 글자. 확정은 도장.
 // 진행 상태 알약: 단계마다 색이 다르고, 고리가 시계처럼 12시부터 캡처 → 요약 → 점검 → 채점 네 칸(한 칸 = 90°)만큼 찬다.
-// 다 끝나면(심사 확정) 고리 안에 체크 표시.
+// 다 끝나면(의견 받음) 고리 안에 체크 표시. AI 논리점검을 끄면 캡처 → 요약 → 채점 세 칸(한 칸 = 120°)이다.
 const STAGE_STEPS = { new: 0, capt: 1, read: 2, checked: 3, final: 4 };
 const RING = 2 * Math.PI * 8; // 고리 둘레(반지름 8)
 function stageMark(status) {
-  const done = STAGE_STEPS[status.key];
+  const total = logicOn() ? 4 : 3;
+  const done = status.key === "final" ? total : STAGE_STEPS[status.key];
   const ring = `<svg class="status-ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="track" cx="10" cy="10" r="8"/>` +
-    (done ? `<circle class="arc" cx="10" cy="10" r="8" stroke-dasharray="${((RING * done) / 4).toFixed(2)} ${RING.toFixed(2)}"/>` : "") +
-    (done === 4 ? `<path class="tick" d="m6.6 10.3 2.3 2.3 4.6-4.7"/>` : "") + `</svg>`;
-  return `<span class="status status-${status.key}" title="${done} / 4단계">${ring}${esc(status.label)}</span>`;
+    (done ? `<circle class="arc" cx="10" cy="10" r="8" stroke-dasharray="${((RING * done) / total).toFixed(2)} ${RING.toFixed(2)}"/>` : "") +
+    (done === total ? `<path class="tick" d="m6.6 10.3 2.3 2.3 4.6-4.7"/>` : "") + `</svg>`;
+  return `<span class="status status-${status.key}" title="${done} / ${total}단계">${ring}${esc(status.label)}</span>`;
 }
 
 // 같은 머리말("공개 추가검증 · …")이 2개 이상인 작품끼리 표의 한 묶음(tbody)으로 모은다.
@@ -172,7 +173,7 @@ export function overviewView() {
     ${formsPanel()}
     <section class="card workboard">
       <div class="listbar">
-        <div class="stagetabs" role="group" aria-label="표에 보여 줄 단계">${join(Object.entries(VIEWS), viewTab)}</div>
+        <div class="stagetabs" role="group" aria-label="표에 보여 줄 단계">${join(Object.entries(VIEWS).filter(([key]) => key !== "check" || logicOn()), viewTab)}</div>
         <span class="spacer"></span>
         <input id="search" type="search" placeholder="작품명 검색" value="${esc(state.listQuery.text)}" aria-label="작품 검색">
         <select id="sort" aria-label="정렬">
@@ -205,6 +206,7 @@ const VIEWS = {
 export function workListHtml() {
   const works = filteredWorks();
   if (!works.length) return emptyState("조건에 맞는 작품이 없습니다", "검색어를 지워 보세요.");
+  if (state.listQuery.view === "check" && !logicOn()) state.listQuery.view = "all"; // 논리점검을 끄면 그 탭이 없다
   const view = VIEWS[state.listQuery.view];
   return `<table class="works-table view-${state.listQuery.view}" aria-label="작품별 ${view.label}">
     <thead><tr>${columnHeaders(["진행 상태", ...intakeHeadings, "작품명", ...view.heads])}</tr></thead>
@@ -248,7 +250,7 @@ function howTo() {
     <ol class="howto">
       <li><b>캡처 자료</b>제출 문서의 화면을 이미지로 올리고 빠짐없이 들어왔는지 확인합니다.</li>
       <li><b>AI 요약</b>AI가 핵심 내용을 정리하고 원문 근거를 연결합니다.</li>
-      <li><b>AI 논리점검</b>요약에 이어 AI가 수치·조건 불일치와 논리 비약을 찾습니다.</li>
+      ${logicOn() ? "<li><b>AI 논리점검</b>요약에 이어 AI가 수치·조건 불일치와 논리 비약을 찾습니다.</li>" : ""}
       <li><b>채점표</b>담당자에게 Slack으로 보내고 받은 의견을 모읍니다. 내보내기와 메모도 여기 있습니다.</li>
     </ol>`;
 }

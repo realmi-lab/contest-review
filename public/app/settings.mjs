@@ -1,6 +1,7 @@
-// 설정 대화상자: 요약(AI) 설정과 사용량, 공모 연동 설정
+// 설정 대화상자: 왼쪽 아래 톱니바퀴(설정) → 기능 켜고 끄기(AI 논리점검)와 요약 설정·공모 연동 설정·운영 맥 점검
 import { esc, join } from "../lib/html.mjs";
-import { aiLabel, cloudScope, state, summaryModel } from "./state.mjs";
+import { sync } from "./navigation.mjs";
+import { aiLabel, cloudScope, logicOn, state, summaryModel } from "./state.mjs";
 import { usd } from "./summary.mjs";
 import { $, api, button, dialog, field, input } from "./ui.mjs";
 
@@ -24,6 +25,23 @@ function usageCheck({ days, reported, reportError, recordingSince }) {
     ${days.length ? `<table><thead><tr><th>날짜</th><th>실행</th><th>앱 기록 토큰</th><th>앱 추정 비용</th>
       ${reported ? "<th>Anthropic 집계 토큰</th><th>집계 기준 비용</th><th>토큰 차이</th>" : ""}</tr></thead><tbody>${rows}</tbody></table>` : '<p class="small muted">아직 기록된 실행이 없습니다.</p>'}
     <p class="small muted">${recordingSince ? `실행 기록은 ${esc(recordingSince.slice(0, 16).replace("T", " "))} UTC부터 남기기 시작했습니다. ` : "실행 기록은 지금부터 남습니다. "}${source}</p></section>`;
+}
+
+// 톱니바퀴: 끄면 그 기능이 화면(작품 단계·목록 탭·내보내기)과 요약 실행에서 아예 빠진다.
+export function openSettings() {
+  dialog("설정", `<div class="stack settings-menu">
+    <section><h3>기능</h3>
+      <label class="switch-row"><input id="logic-on" type="checkbox"${logicOn() ? " checked" : ""}>
+        <span><b>AI 논리점검</b><small class="muted">끄면 요약 뒤 논리점검을 하지 않고, 작품 단계·목록 탭·내보내기에서 모두 빠집니다. 이미 만든 점검 결과는 지우지 않아 다시 켜면 보입니다.</small></span></label>
+    </section>
+    <section><h3>설정</h3>
+      <div class="actions">${button("summary-settings", "요약 설정")}${button("forms-settings", "공모 연동 설정")}${button("self-check", "운영 맥 점검")}</div>
+    </section>
+  </div>`);
+}
+export async function toggleLogic(box) {
+  await api("features", { logic: box.checked });
+  await sync(true);
 }
 
 export async function openSummarySettings() {

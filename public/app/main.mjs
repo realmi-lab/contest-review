@@ -6,9 +6,10 @@ import { tiltPages } from "./interactions.mjs";
 import { workListHtml } from "./list.mjs";
 import { poll, saveSelection, sync, viewUrl } from "./navigation.mjs";
 import { render } from "./render.mjs";
-import { POLL_BUSY_MS, STEP_TABS, aiLabel, state } from "./state.mjs";
+import { POLL_BUSY_MS, aiLabel, shownSteps, state } from "./state.mjs";
 import { $, api, closeDialog, notify, stopCapture } from "./ui.mjs";
 import { closeViewer } from "./viewer.mjs";
+import { toggleLogic } from "./settings.mjs";
 import { findPeople } from "./slack.mjs";
 
 async function onChange(e) {
@@ -18,6 +19,7 @@ async function onChange(e) {
     return render();
   }
   if (e.target.id === "complete") return setComplete(e.target.checked);
+  if (e.target.id === "logic-on") return toggleLogic(e.target); // 설정 톱니바퀴의 AI 논리점검
 }
 
 // 파일은 화면 어디에 놓아도 받는다. 브라우저가 이미지를 열어 버리는 것도 막는다.
@@ -65,8 +67,8 @@ function onKey(e) {
   const el = document.activeElement;
   const typing = el.matches("input, textarea, select") || $("dialog").open;
   if (typing || e.metaKey || e.ctrlKey || e.altKey || !state.work) return;
-  const steps = Object.keys(STEP_TABS);
-  if (e.key >= "1" && e.key <= "4") return switchTab(steps[Number(e.key) - 1]);
+  const steps = shownSteps();
+  if (e.key >= "1" && e.key <= String(steps.length)) return switchTab(steps[Number(e.key) - 1]);
   if (e.key === "j") return safe(stepWork)(1);
   if (e.key === "k") return safe(stepWork)(-1);
 }

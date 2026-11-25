@@ -5,7 +5,7 @@ import { filteredWorks, formsNote, intakeHeadings, intakeValues, queueLabels, qu
 import { logicPane } from "./logic.mjs";
 import { currentLogic, currentReading, splitName } from "./navigation.mjs";
 import { reportPane } from "./sheet.mjs";
-import { STEP_TABS, state } from "./state.mjs";
+import { STEP_TABS, logicOn, shownSteps, state } from "./state.mjs";
 import { readingPane, summaryUnavailable } from "./summary.mjs";
 import { $, button, count, icon } from "./ui.mjs";
 
@@ -62,7 +62,7 @@ function stepMarker(done, fallback = "") {
 // 심사 단계 버튼들. 왼쪽 메뉴(선택한 작품 아래)와 오른쪽 작품 화면 위 탭이 같은 버튼을 쓴다.
 function stepItems() {
   const states = stepStates();
-  return join(Object.entries(STEP_TABS), ([key, label], i) =>
+  return join(shownSteps().map((key) => [key, STEP_TABS[key]]), ([key, label], i) =>
     `<button type="button" class="stepitem ${state.tab === key ? "active" : ""} ${states[key].done ? "done" : ""}" data-tab="${key}" ${state.tab === key ? 'aria-current="step"' : ""}>` +
     stepMarker(states[key].done, i + 1) +
     `<span class="steptext"><b>${label}</b><small>${esc(states[key].note)}</small></span></button>`);
@@ -115,6 +115,7 @@ export function coverageText() {
 }
 
 export function workView() {
+  if (state.tab === "점검" && !logicOn()) state.tab = "요약"; // 논리점검을 끈 뒤 남은 주소(?tab=logic)
   const [action, label] = nextAction();
   const [prefix, title] = splitName(state.work.name);
   const list = filteredWorks();
@@ -152,7 +153,7 @@ export function workView() {
         ${formsNote(state.work.source)}
       </div>
       <div class="detail-actions">
-        ${state.tab === "결과" && state.work.captures.length ? `<a class="button big" href="/api/share/${esc(state.work.id)}" target="_blank" rel="noopener" title="핵심·세부 요약·AI 논리점검·원본 캡처를 HTML 한 파일로 엽니다">내보내기</a>` : ""}
+        ${state.tab === "결과" && state.work.captures.length ? `<a class="button big" href="/api/share/${esc(state.work.id)}" target="_blank" rel="noopener" title="AI 요약·AI 논리점검·캡처 자료를 HTML 한 파일로 엽니다">내보내기</a>` : ""}
         ${action ? `<button id="run" type="button" class="primary big" data-action="${action}">${label}</button>` : ""}
       </div>
     </header>
