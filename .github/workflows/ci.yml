@@ -63,11 +63,16 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Start-Process -FilePath cmd.exe -ArgumentList '/c', 'start.bat' -NoNewWindow -RedirectStandardOutput start.log
+          # 마지막 설치가 중간에 끊기거나 git pull로 잠금 파일이 바뀐 경우도 같은 실행 경로로 확인한다.
+          New-Item -ItemType Directory -Force node_modules | Out-Null
+          $oldLock = New-Item -ItemType File -Force node_modules/.package-lock.json
+          $oldLock.LastWriteTimeUtc = [datetime]::UtcNow.AddDays(-1)
+          $launcher = Start-Process -FilePath cmd.exe -ArgumentList '/d', '/c', 'start.bat' -NoNewWindow -RedirectStandardOutput start.log -RedirectStandardError start-error.log -PassThru
           $up = $false
-          for ($i = 0; $i -lt 150 -and -not $up; $i++) {
+          for ($i = 0; $i -lt 150 -and -not $up -and -not $launcher.HasExited; $i++) {
             try { $up = (Invoke-WebRequest -UseBasicParsing http://localhost:18765/api/state).StatusCode -eq 200 } catch { Start-Sleep -Seconds 2 }
           }
           Get-Content start.log
+          Get-Content start-error.log
           Stop-Process -Name node -Force -ErrorAction SilentlyContinue
           if (-not $up) { exit 1 }

@@ -1,2 +1,5 @@
+# CLI가 만드는 워크스페이스별 배포 기록과 캐시. SDK 실행에 필요한 hooks.json은 공유한다.
+apps.json
 apps.dev.json
+credentials.json
 cache/

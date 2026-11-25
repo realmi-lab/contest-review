@@ -1,6 +1,7 @@
 // 아이디어정리 서버: 화면 파일과 API를 내려 주고, 공모 연동·글자 인식·AI 요약 작업을 돌린다.
 //   localhost 실행: http://localhost:18765 (./start.sh, start.bat)
 //   웹 모드: deploy/site.json의 network 주소에서 https (deploy/start-web.py)
+import { spawn } from "node:child_process";
 import http from "node:http";
 import { listenAddress, webServer } from "../deploy/web-server.mjs";
 import { requeueOcr } from "./captures.mjs";
@@ -45,4 +46,13 @@ server.on("error", (e) => {
   console.error(`${address}:${port}를 이미 다른 프로그램이 쓰고 있습니다. 먼저 띄운 서버를 끈 뒤 다시 실행하세요.`);
   process.exit(1);
 });
-server.listen(port, address, () => console.log("아이디어정리 %s://%s:%d", webMode ? "https" : "http", address, port));
+server.listen(port, address, () => {
+  const boundPort = server.address().port;
+  console.log("아이디어정리 %s://%s:%d", webMode ? "https" : "http", address, boundPort);
+  if (process.platform === "win32" && !webMode && process.argv.includes("--open-browser")) {
+    const url = `http://localhost:${boundPort}`;
+    const browser = spawn("rundll32.exe", ["url.dll,FileProtocolHandler", url], { detached: true, stdio: "ignore", windowsHide: true });
+    browser.on("error", () => console.error(`브라우저에서 ${url} 을 여세요.`));
+    browser.unref();
+  }
+});

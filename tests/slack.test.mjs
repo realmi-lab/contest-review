@@ -1,20 +1,27 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { promisify } from "node:util";
 
 // 실제 데이터 폴더·설정을 건드리지 않게 임시 폴더를 쓴다. Slack CLI 대신 가짜 slack 명령을 쓴다:
 // 받은 인자를 calls.log에 적고, --datastore 이름의 내용(store-<이름>.jsonl)을 --to-file에 쓴다.
 const temp = mkdtempSync(path.join(os.tmpdir(), "slack-test-"));
-const cli = path.join(temp, "slack");
-writeFileSync(cli, `#!/usr/bin/env node
+const cli = path.join(temp, "fake-slack.cjs");
+writeFileSync(cli, `
 const fs = require("node:fs"), path = require("node:path"), a = process.argv.slice(2), dir = ${JSON.stringify(temp)};
 fs.appendFileSync(path.join(dir, "calls.log"), JSON.stringify(a) + "\\n");
 const store = path.join(dir, "store-" + a[a.indexOf("--datastore") + 1] + ".jsonl");
 if (fs.existsSync(store)) fs.copyFileSync(store, a[a.indexOf("--to-file") + 1]);
 `);
-chmodSync(cli, 0o755);
+// Windows도 같은 인자·파일 입출력을 시험하도록 가짜 CLI를 현재 Node 실행 파일로 시작한다.
+const exec = promisify(execFile);
+const runTestCli = (command, args, options) => {
+  assert.equal(command, cli);
+  return exec(process.execPath, [command, ...args], options);
+};
 const setStore = (name, items) => writeFileSync(path.join(temp, `store-${name}.jsonl`), items.map((x) => JSON.stringify(x)).join("\n"));
 const cliCalls = () => readFileSync(path.join(temp, "calls.log"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
 
@@ -30,8 +37,8 @@ test("담당자 검색은 앱 저장소의 사람 목록(쪽마다 JSON)을 CLI�
     { id: "1", list: JSON.stringify([{ id: "U2", name: "이영희", nick: "", title: "보안팀" }]) },
     { id: "0", list: JSON.stringify([{ id: "U1", name: "김철수", nick: "철수", title: "" }]) },
   ]);
-  assert.deepEqual((await slackPeople("")).map((p) => p.id), ["U1", "U2"]);
-  assert.deepEqual((await slackPeople("보안")).map((p) => p.name), ["이영희"]);
+  assert.deepEqual((await slackPeople("", runTestCli)).map((p) => p.id), ["U1", "U2"]);
+  assert.deepEqual((await slackPeople("보안", runTestCli)).map((p) => p.name), ["이영희"]);
   const calls = cliCalls();
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].slice(0, 7), ["datastore", "query", "{}", "--datastore", "people", "--app", "A1"]);
@@ -54,12 +61,12 @@ test("받은 의견은 앱 저장소에서 읽어 최근에 보낸 작품에만 
     { id: "r2", work_id: second.id, user_id: "U2", text: "보낸 적 없는 작품", at },
     { id: "r1", work_id: first.id, user_id: "U1", text: "첫째 좋아요", at },
   ]);
-  await collectReplies();
-  await collectReplies();
+  await collectReplies(runTestCli);
+  await collectReplies(runTestCli);
   assert.deepEqual(load(first.id).slackReplies.map((r) => [r.name, r.text]), [["김철수", "첫째 좋아요"]]);
   assert.equal(load(second.id).slackReplies, undefined);
   setStore("reviews", [{ id: "r1", work_id: first.id, user_id: "U1", text: "고쳤어요", at: new Date().toISOString() }]); // [답변 수정하기]
-  await collectReplies();
+  await collectReplies(runTestCli);
   assert.deepEqual(load(first.id).slackReplies.map((r) => r.text), ["고쳤어요"]);
   const query = JSON.parse(cliCalls().at(-1)[2]);
   assert.equal(query.expression, "#at > :since"); // 최근 30일 것만 읽는다

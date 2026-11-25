@@ -1,17 +1,29 @@
+# 설치 결과·운영체제 파일
 node_modules/
+__pycache__/
 .DS_Store
-*.sqlite*
+Thumbs.db
+Desktop.ini
+
+# 컴퓨터별 설정·키·인증서. 공유하는 설정 예시는 deploy/site.example.json이다.
 .env
+.env.*
+!.env.example
+anthropic.key
+anthropic.key.*
+ai.json
+backend.key
+backend.crt
+/deploy/site.json
+/deploy/site.json.tmp
+/deploy/web-access.json
+/deploy/*.local.command
 
-# 망마다 다른 설정과 접속 정보는 서버에만 둔다(예시: deploy/site.example.json)
-deploy/site.json
-deploy/site.json.tmp
-deploy/web-access.json
-# 이 컴퓨터에서만 쓰는 도구(이름이 .local.command로 끝남)는 저장소에 올리지 않는다
-deploy/*.local.command
-
-# 로컬 시험용 가짜 OneDrive(scripts/forms-sample.mjs)와 예전 화면 백업
+# 작품·캡처 DB(SQLite 임시 파일 포함), 로그·시험 결과·백업
+*.sqlite*
+*.log
+ContestReviewDesk/
+ContestReviewWeb/
 qa-onedrive/
 backup/
-__pycache__/
 test-output/

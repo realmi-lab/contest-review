@@ -49,7 +49,7 @@ function appId() {
   err("평가 단추 앱 ID를 찾지 못했습니다. slack-app 폴더에서 slack deploy를 했는지 확인하거나, deploy/site.json의 slack에 reviewApp(slack app list의 App ID, A…)을 넣으세요.");
 }
 
-async function readStore(datastore, query = {}) {
+async function readStore(datastore, query, runCli = exec) {
   const { cli = "slack" } = slack();
   const reviewApp = appId();
   const dir = await mkdtemp(path.join(os.tmpdir(), "slack-store-"));
@@ -57,7 +57,7 @@ async function readStore(datastore, query = {}) {
   const env = { ...process.env, DENO_TLS_CA_STORE: "system",
     PATH: [path.join(os.homedir(), ".slack", "bin"), path.join(os.homedir(), ".deno", "bin"), process.env.PATH].join(path.delimiter) };
   try {
-    await exec(cli, ["datastore", "query", JSON.stringify(query), "--datastore", datastore, "--app", reviewApp, "--to-file", file], { cwd: appDir, env, timeout: 60_000 });
+    await runCli(cli, ["datastore", "query", JSON.stringify(query), "--datastore", datastore, "--app", reviewApp, "--to-file", file], { cwd: appDir, env, timeout: 60_000 });
     const text = await readFile(file, "utf8").catch(() => ""); // 항목이 없으면 파일이 없을 수 있다
     return text.split("\n").filter((line) => line.trim()).map((line) => JSON.parse(line));
   } catch (e) {
@@ -72,9 +72,9 @@ async function readStore(datastore, query = {}) {
 
 // 사람 목록은 10분 동안 기억한다(검색 글자를 칠 때마다 CLI를 부르지 않게). 저장소에는 쪽마다 JSON 목록이 들어 있다.
 let people = { at: 0, list: [] };
-export async function slackPeople(query) {
+export async function slackPeople(query, runCli) {
   if (Date.now() - people.at > 600_000) {
-    const pages = (await readStore("people")).sort((a, b) => Number(a.id) - Number(b.id));
+    const pages = (await readStore("people", {}, runCli)).sort((a, b) => Number(a.id) - Number(b.id));
     if (!pages.length) err("Slack 사람 목록이 아직 없습니다. 평가 단추 앱의 '사람 목록 맞추기'를 만들었는지 확인하세요(slack-app/README.md).");
     people = { at: Date.now(), list: pages.flatMap((p) => JSON.parse(p.list)) };
   }
@@ -110,12 +110,12 @@ function addReply(w, { id, user_id: user, text, at }) {
 
 // 최근 30일에 보낸 작품이 있을 때만, 그동안 받은 의견을 읽어 그 작품에 담는다.
 const REPLY_DAYS = 30;
-export async function collectReplies() {
+export async function collectReplies(runCli) {
   if (!slackReady()) return;
   const since = new Date(Date.now() - REPLY_DAYS * 86_400_000).toISOString();
   const sentIds = new Set(list().filter((w) => (w.slackSent || []).some((s) => s.at > since)).map((w) => w.id));
   if (!sentIds.size) return;
-  const items = await readStore("reviews", { expression: "#at > :since", expression_attributes: { "#at": "at" }, expression_values: { ":since": since } });
+  const items = await readStore("reviews", { expression: "#at > :since", expression_attributes: { "#at": "at" }, expression_values: { ":since": since } }, runCli);
   for (const r of items) if (sentIds.has(r.work_id)) addReply(load(r.work_id), r);
 }
 
