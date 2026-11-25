@@ -246,6 +246,43 @@ _작성 2026-11-25 09:20 (한국 시간)_
    slack datastore query --datastore people '{}'
    ```
 
+## HTML 안에서 의견 받기 (선택)
+
+_작성 2026-11-25 10:55 (한국 시간)_
+
+보내는 HTML 파일 맨 아래에 **평가 의견 보내기** 칸을 넣습니다. 받은 사람이 파일을 열어 의견을 적고 [의견 보내기]를 누르면
+이 앱의 두 번째 웹훅('아이디어정리 HTML 의견')으로 가서 reviews 저장소에 담기고, 보낸 사람의 idea-review DM에 '의견을 받았습니다'가 옵니다.
+아이디어정리는 [평가 답장하기]로 받은 의견과 똑같이 채점표에 담습니다. 같은 사람이 다시 보내면 앞의 의견을 바꿉니다.
+
+`slack-app` 폴더에서:
+
+```sh
+git pull
+```
+```sh
+slack deploy
+```
+```sh
+slack trigger create --trigger-def triggers/html_review_webhook.ts
+```
+
+배포한 앱을 고르고, 나온 주소를 아이디어정리 `deploy/site.json`의 `slack`에 넣은 뒤 `./start.sh`로 다시 켭니다:
+
+```json
+"slack": {
+  "reviewWebhook": "https://hooks.slack.com/triggers/…",
+  "htmlWebhook": "https://hooks.slack.com/triggers/…(HTML 의견)"
+}
+```
+
+시험: 채점표에서 나에게 보내기 → 받은 HTML을 브라우저로 열어 맨 아래 칸에 의견을 적고 [의견 보내기] →
+idea-review DM에 '의견을 받았습니다'가 오고 1분 안에 채점표 **담당자 의견**에 담기는지 확인합니다.
+알림이 오지 않으면 `slack activity --tail`을 켜 두고 다시 보내 보세요(내려받은 파일에서 보내는 요청을 Slack이 받지 않거나,
+회사 PC가 바깥으로 보내는 요청을 막으면 오지 않습니다). 그때는 [평가 답장하기] 단추를 쓰면 됩니다.
+
+주의: HTML 안에는 받는 사람과 이 웹훅 주소가 들어갑니다. 파일이 다른 사람에게 전달되면 그 사람도 받는 사람 이름으로 의견을 보낼 수 있고,
+누가 실제로 썼는지는 [평가 답장하기]처럼 확인되지 않습니다. 끄려면 site.json에서 `htmlWebhook`을 지우면 됩니다(칸이 빠집니다).
+
 ---
 
-마지막 수정: 2026-11-25 09:31 (한국 시간)
+마지막 수정: 2026-11-25 10:55 (한국 시간)

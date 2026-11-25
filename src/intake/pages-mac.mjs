@@ -1,7 +1,8 @@
 // 맥에서 첨부 문서를 쪽 그림으로 바꾼다(osascript: AppleScript·JXA).
 //   PDF: PDFKit으로 쪽마다 PNG. 보호(MIP) PDF는 Microsoft Edge로 열어 '다른 이름으로 저장'한 사본을 읽고,
 //        안 되면 Edge(없으면 Adobe Acrobat Reader) 창을 쪽마다 화면 캡처
-//   Word·PowerPoint·Excel: Office 앱이 회사 계정으로 열어(MIP 보호 문서 포함) 쪽마다 화면 캡처(Word는 쪽만 잘라 낸다)
+//   Word·PowerPoint·Excel: Office 앱이 회사 계정으로 열어(MIP 보호 문서 포함) 쪽마다 화면 캡처(Word는 쪽만 잘라 낸다).
+//        Word는 먼저 PDF로 저장해 PDFKit으로 읽고(리본 없이 쪽 전체), 보호 문서라 막히면 화면 캡처로 간다.
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
@@ -190,6 +191,32 @@ end run`, path.basename(file), path.join(dir, "slides")], "PowerPoint 슬라이�
     const names = (await readdir(dir, { recursive: true })).filter((n) => /\.png$/i.test(n))
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     return await Promise.all(names.slice(0, 60).map((n) => readFile(path.join(dir, n))));
+  } catch {
+    return [];
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+// Word 문서를 PDF로 저장해 PDFKit으로 쪽마다 읽는다(화면을 쓰지 않아 리본·눈금자 없이 쪽 전체가 나온다).
+// Office 앱은 샌드박스라 Office 공용 폴더(Group Containers)에 저장한다. 보호(MIP) 문서는 저장이 막히거나
+// PDF가 암호화(겉 PDF)되어 빈 목록을 돌려주고, 그때는 창 캡처로 간다. 저장한 PDF는 읽자마자 지운다.
+async function wordPdfPages(file, only) {
+  const dir = path.join(os.homedir(), "Library", "Group Containers", "UBF8T346G9.Office", "contest-review", randomUUID());
+  await mkdir(dir, { recursive: true });
+  const pdf = path.join(dir, path.basename(file, path.extname(file)) + ".pdf");
+  try {
+    await osa(["-e", `on run argv
+  set n to item 1 of argv
+  set target to (POSIX file (item 2 of argv)) as text
+  tell application "Microsoft Word"
+    save as document n file name target file format format PDF
+    -- 버전에 따라 저장한 PDF 이름으로 바뀌면 그 문서를 닫는다(원본 이름의 문서는 finish가 닫는다)
+    if (name of every document) does not contain n then close document (item 3 of argv) saving no
+  end tell
+end run`, path.basename(file), pdf, path.basename(pdf)], "Word에서 PDF로 저장");
+    if (await wrapped(pdf)) return [];
+    return await pdfKitPages(pdf, only);
   } catch {
     return [];
   } finally {
@@ -423,6 +450,13 @@ async function officeCaptures(kind, file, only) {
   const step = STEPS[kind];
   if (!(await installed(step.app))) throw new Error(`이 맥에 ${step.app} 앱이 없습니다. 회사 뷰어로 열어 캡처해 올려 주세요.`);
   await openInApp(step, file);
+  if (kind === "word") {
+    const pages = await wordPdfPages(file, only); // 저장이 막힌 보호 문서는 창 캡처
+    if (pages.length) {
+      await finish(step, file);
+      return pages;
+    }
+  }
   if (kind === "powerpoint") {
     const slides = await slideImages(file); // 내보내기가 막힌 보호 문서는 슬라이드 쇼로 캡처
     if (slides.length) {

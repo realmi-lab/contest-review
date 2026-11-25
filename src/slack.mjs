@@ -4,7 +4,8 @@
 //          (slack datastore query --app 앱 ID). 봇 토큰은 필요 없고, CLI가 설치·로그인돼 있어야 한다. 의견은 켜질 때·1분마다 읽는다.
 //   단추·입력 창은 Slack 서버에서 돌아가므로 아이디어정리가 꺼져 있어도 담당자는 의견을 보낼 수 있다.
 // 설정(deploy/site.json의 slack, 부를 때마다 읽는다): reviewWebhook(앱 웹훅 주소)
-//   선택: reviewApp(앱 ID A…, 없으면 slack-app/.slack/apps.json에 남은 배포한 앱 ID), cli(slack 명령 경로)
+//   선택: reviewApp(앱 ID A…, 없으면 slack-app/.slack/apps.json에 남은 배포한 앱 ID), cli(slack 명령 경로),
+//         htmlWebhook(HTML 의견 받기 웹훅 주소: 있으면 보내는 HTML 안에 [의견 보내기] 칸을 넣는다)
 import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -79,6 +80,9 @@ export async function slackPeople(query) {
   const q = String(query || "").trim().toLowerCase();
   return people.list.filter((p) => !q || [p.name, p.nick, p.title].some((v) => v.toLowerCase().includes(q))).slice(0, 20);
 }
+
+// 보내는 HTML 안의 [의견 보내기]가 쓸 곳과 받는 사람(share-html.mjs). HTML 의견 받기 웹훅이 없으면 칸을 넣지 않는다.
+export const htmlReply = (user) => (slack().htmlWebhook ? { url: slack().htmlWebhook, user } : null);
 
 // 평가 단추 앱의 웹훅에 HTML과 안내 글(comment)을 실어 보낸다. 파일 올리기·단추 DM은 그 앱이 한다.
 export async function sendHtml(user, { workId, title, filename, html, comment }) {

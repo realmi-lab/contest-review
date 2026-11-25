@@ -44,6 +44,7 @@
     ]
   },
   "slack": {
-    "reviewWebhook": ""
+    "reviewWebhook": "",
+    "htmlWebhook": ""
   }
 }

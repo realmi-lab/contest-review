@@ -10,7 +10,7 @@ import { intake, originalFile, updateResponse } from "../intake/sync.mjs";
 import { busy, schedule, tasks } from "../jobs.mjs";
 import { defaults, finalSheet, rubric, scoreRows, sheet, toCsv } from "../review/review.mjs";
 import { shareCsp, shareHtml } from "../review/share-html.mjs";
-import { sendHtml, slackPeople, slackReady } from "../slack.mjs";
+import { htmlReply, sendHtml, slackPeople, slackReady } from "../slack.mjs";
 import { similarWorks } from "../review/similar.mjs";
 import { sampleImage } from "../sample.mjs";
 import {
@@ -110,7 +110,7 @@ export default {
       workId: w.id,
       title: w.name,
       filename: `${w.name.slice(0, 60)}_AI요약_${today()}.html`,
-      html: await shareHtml(w),
+      html: await shareHtml(w, { reply: htmlReply(user) }), // 받는 사람이 HTML 안에서 의견을 써 보낼 수 있게
       comment: `*[${w.name}]*${gist ? "\n" + gist : ""}\n아이디어 리뷰에서 보낸 AI 요약${features().logic ? "·논리점검" : ""}입니다. 첨부한 HTML 파일을 내려받아 브라우저로 여세요.`,
     });
     const latest = load(w.id);

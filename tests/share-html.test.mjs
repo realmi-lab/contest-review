@@ -26,4 +26,8 @@ test("내보내기 HTML은 AI 요약 · AI 논리점검 · 캡처 자료 순서�
   // 2쪽 칩: 띄울 그림(cap-c1)과 인용 줄 상자(왼쪽 10%, 위 10%, 너비 50%, 높이 20%, 기울기 0)
   assert.match(html, /<button type="button" class="ref" data-cap="cap-c1" data-boxes="\[\[10,10,50,20,0\]\]">2쪽<\/button>/);
   assert.equal(html.match(/class="ref"/g).length, 1); // 핵심 요약 줄에는 칩을 붙이지 않는다
+  assert.doesNotMatch(html, /id="reply"/); // 앱의 내보내기에는 의견 칸이 없다
+  // Slack으로 보낼 때는 받는 사람과 HTML 의견 받기 웹훅을 담은 [의견 보내기] 칸을 넣는다
+  const sent = await shareHtml(w, { reply: { url: "https://hooks.slack.com/triggers/T1/2/html", user: "U1" } });
+  assert.match(sent, /<section id="reply" class="reply" data-url="https:\/\/hooks.slack.com\/triggers\/T1\/2\/html" data-work="[^"]+" data-user="U1" data-title="공유 우산">/);
 });

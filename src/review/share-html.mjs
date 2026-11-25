@@ -2,6 +2,8 @@
 // 탭은 스크립트 없이 라디오 단추와 CSS로만 바꾼다(스크립트를 막은 곳에서도 열린다).
 // 세부 요약 줄 끝의 쪽 칩(1쪽·2쪽)을 누르면 그 쪽 캡처가 떠 인용 줄이 오렌지 상자로 보인다(작품 화면의 원문 패널처럼,
 // 맨 아래 작은 스크립트. 스크립트를 막으면 칩만 보인다).
+// Slack으로 보낼 때(reply)는 탭 아래에 [의견 보내기] 칸을 넣는다: 평가 단추 앱의 'HTML 의견 받기' 웹훅으로 보내고,
+// 받으면 그 앱이 Slack DM으로 알려 준다(내려받은 파일이라 웹훅의 응답은 읽을 수 없다).
 // 글꼴(빗썸 고딕)과 캡처 그림을 모두 파일 안에 넣어 인터넷 없이 브라우저에서 같은 모양으로 열린다. 보낸 순간의 내용이 그대로 남는다.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -14,6 +16,7 @@ import { image } from "../store.mjs";
 import { features } from "../../deploy/site.mjs";
 
 // 쪽 칩을 누르면 그 쪽 캡처(캡처 자료 탭의 그림)를 띄우고 인용 줄에 오렌지 상자를 그린다. 바깥·닫기·Esc로 닫는다.
+// [의견 보내기]는 칸의 data-*(웹훅 주소·작품·받는 사람·제목)로 보낸다. 스크립트는 늘 같아 앱의 보안 정책 해시가 맞는다.
 const VIEWER_SCRIPT = `
 const viewer = document.getElementById("viewer");
 document.addEventListener("click", (e) => {
@@ -29,6 +32,19 @@ document.addEventListener("click", (e) => {
   } else if (e.target === viewer || e.target.closest(".viewer-close")) viewer.hidden = true;
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") viewer.hidden = true; });
+const reply = document.getElementById("reply");
+reply?.querySelector(".reply-send").addEventListener("click", async () => {
+  const text = reply.querySelector("textarea").value.trim(), note = reply.querySelector(".reply-note");
+  if (!text) return void (note.textContent = "의견을 적어 주세요");
+  const { url, work, user, title } = reply.dataset;
+  note.textContent = "보내는 중…";
+  try {
+    await fetch(url, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ work_id: work, user_id: user, title, text }) });
+    note.textContent = "보냈습니다. 잠시 뒤 Slack의 idea-review에서 '의견을 받았습니다' 알림이 오면 접수된 것입니다. 오지 않으면 Slack의 [평가 답장하기] 단추로 보내 주세요.";
+  } catch {
+    note.textContent = "보내지 못했습니다(이 PC에서 바깥으로 보내는 것이 막혔을 수 있습니다). Slack의 [평가 답장하기] 단추로 보내 주세요.";
+  }
+});
 `;
 // 앱에서 내보내기를 열 때(새 탭) 쓰는 보안 정책: 파일 안의 글꼴·그림(data:)과 위 스크립트(해시)만 허락한다.
 // 내려받아 연 파일에는 이 정책이 없어도 같은 스크립트가 돈다.
@@ -90,7 +106,8 @@ function logicPart(o) {
     <p class="muted">AI 의견입니다. 점수와 채택 판단은 하지 않습니다</p></section>`;
 }
 
-export async function shareHtml(w) {
+// reply: { url: HTML 의견 받기 웹훅, user: 받는 사람 } — Slack으로 보낼 때만(htmlReply)
+export async function shareHtml(w, { reply } = {}) {
   const reading = w.cloudReading?.rev === w.rev ? w.cloudReading : null;
   const opinion = reading && w.cloudLogic?.reading === reading.id ? w.cloudLogic.opinion : null;
   const meta = [w.receivedOn, w.intakeTeam, w.submitterName, w.category].filter(Boolean).map(esc).join(" · ");
@@ -145,11 +162,20 @@ footer { margin-top: 32px; color: var(--text-3); font-size: 13px; }
 .viewer-stage { position: relative; clear: both; } .viewer-stage img { display: block; width: 100%; }
 .viewer-marks i { position: absolute; border: 2px solid var(--orange); border-radius: 3px; background: rgba(255, 108, 0, 0.15); }
 .viewer-label { margin: 8px 0 0; color: var(--text-3); font-size: 13px; }
+.reply { margin-top: 32px; padding: 4px 24px 16px; border: 2px solid var(--orange); border-radius: 12px; }
+.reply h2 { margin-top: 16px; border-bottom-color: var(--line); }
+.reply textarea { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.reply-send { padding: 10px 20px; border: 0; border-radius: 10px; background: var(--orange); color: #fff; font: inherit; font-family: "Bithumb Gothic", sans-serif; cursor: pointer; }
+.reply-note { color: var(--text-2); font-size: 14px; }
 </style></head><body><main>
 <h1>${esc(w.name)}</h1>${meta ? `<p class="meta">${meta}</p>` : ""}
 ${join(panes, (_, i) => `<input type="radio" name="tab" id="tab-${i + 1}"${i ? "" : " checked"}>`)}
 <nav class="tabs">${join(panes, ([label], i) => `<label for="tab-${i + 1}">${label}</label>`)}</nav>
 ${join(panes, ([, html], i) => `<div class="pane p${i + 1}">${html}</div>`)}
+${reply ? `<section id="reply" class="reply" data-url="${esc(reply.url)}" data-work="${esc(w.id)}" data-user="${esc(reply.user)}" data-title="${esc(w.name)}">
+  <h2>평가 의견 보내기</h2><p class="muted">여기에 적어 보내면 아이디어 리뷰 채점표에 담깁니다. 다시 보내면 앞의 의견을 바꿉니다.</p>
+  <textarea rows="5" maxlength="4000" placeholder="이 작품에 대한 의견을 자유롭게 적어 주세요"></textarea>
+  <p><button type="button" class="reply-send">의견 보내기</button> <span class="reply-note" role="status"></span></p></section>` : ""}
 <div id="viewer" class="viewer" hidden><div class="viewer-box"><button type="button" class="viewer-close" aria-label="닫기">닫기</button>
   <div class="viewer-stage"><img alt=""><span class="viewer-marks"></span></div><p class="viewer-label"></p></div></div>
 <footer>아이디어정리에서 내보냄 · ${seoulMinute(new Date().toISOString())}</footer>
