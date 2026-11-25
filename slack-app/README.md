@@ -277,16 +277,13 @@ slack trigger list
 slack trigger update --trigger-id Ft여기에 --trigger-def triggers/review_webhook.ts
 ```
 
-HTML 의견 웹훅은 처음이면 만들고, 이미 만들었으면 그 ID로 새로 고칩니다(입력이 표·의견 두 개로 바뀜):
+HTML 의견 웹훅을 만듭니다(배포한 앱 고르기):
 
 ```sh
 slack trigger create --trigger-def triggers/html_review_webhook.ts
 ```
-```sh
-slack trigger update --trigger-id Ft여기에 --trigger-def triggers/html_review_webhook.ts
-```
 
-처음 만들었으면 나온 주소를 아이디어정리 `deploy/site.json`의 `slack`에 넣은 뒤 `./start.sh`로 다시 켭니다:
+나온 주소를 아이디어정리 `deploy/site.json`의 `slack`에 넣은 뒤 `./start.sh`로 다시 켭니다:
 
 ```json
 "slack": {
@@ -306,4 +303,4 @@ idea-review DM에 '의견을 받았습니다'가 오고 1분 안에 채점표 **
 
 ---
 
-마지막 수정: 2026-11-25 11:15 (한국 시간)
+마지막 수정: 2026-11-25 11:17 (한국 시간)
