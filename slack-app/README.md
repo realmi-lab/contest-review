@@ -135,3 +135,28 @@ slack trigger update --trigger-id Ft여기에 --trigger-def triggers/review_webh
 ## 고친 뒤 다시 올리기
 
 `slack deploy` 한 번이면 됩니다(웹훅 주소는 그대로).
+
+## 토큰·웹훅 주소가 사진이나 채팅에 보였으면
+
+- **봇 토큰(botToken, xoxb-)**: 이제 쓰지 않으므로 `deploy/site.json`에서 `"botToken"` 줄을 지웁니다. 보였던 토큰은 idea_proposal 앱 설정 → OAuth & Permissions에서 Revoke(폐기)합니다(그 앱을 다른 데서 쓰면 Revoke 뒤 Reinstall로 새 토큰을 받습니다).
+- **웹훅 주소(reviewWebhook)**: 주소만 있으면 누구나 이 앱이 DM을 보내게 할 수 있으므로 새로 만듭니다. `slack-app` 폴더에서:
+
+  ```sh
+  slack trigger list
+  ```
+  ```sh
+  slack trigger delete --trigger-id Ft여기에
+  ```
+  ```sh
+  slack trigger create --trigger-def triggers/review_webhook.ts
+  ```
+
+  배포한 앱을 고르고, 새로 나온 주소를 `deploy/site.json`에 넣습니다(새로 만들면 새 정의로 만들어지므로 `trigger update`는 필요 없습니다):
+
+  ```json
+  "slack": {
+    "reviewWebhook": "https://hooks.slack.com/triggers/…새 주소…"
+  }
+  ```
+
+  저장한 뒤 아이디어정리를 `./start.sh`로 다시 켭니다. 토큰·주소는 사진을 찍을 때 가립니다.
