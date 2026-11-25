@@ -91,7 +91,7 @@ test("다시 쓴 결과 줄이 너무 길면 버리지 않고 편집 전 요점�
   assert.deepEqual(edition.brief.map((p) => p.text), [first]);
 });
 
-test("핵심 요약은 제목·한 줄 요약·배경·내용·효과로, 세부 요약은 문제·목표·방법·결과·시사점으로 새로 쓰고, 검증에서 떨어진 물음만 한 번 다시 쓴다", async () => {
+test("핵심 요약은 제목·한 줄 요약·배경·내용·효과로, 세부 요약은 문제·목표·방법·결과·시사점으로 새로 쓰고, 검증에서 떨어지거나 짧아진 물음만 한 번 다시 쓴다", async () => {
   const background = point("대상과 배경", "대출 비교 앱 이용자가 늘어 데이터가 많아졌다.", "S1.1");
   const goal = point("제안 내용", "홈 화면에 들어온 고객 중 대출을 신청할 고객을 예측한다.", "S2.1");
   const method = point("이용·운영 방식", "범주형 변수가 많아 CatBoost 분류 모델을 사용했다.", "S3.1");
@@ -106,14 +106,17 @@ test("핵심 요약은 제목·한 줄 요약·배경·내용·효과로, 세부
     if (keys[0] === "P1") rules.push(prompt.split("\n")[0]);
     // 인용 검토: 문장마다 묻는다. "범주형 변수 다수." 문장만 떨어뜨린다
     if (keys[0].startsWith("P")) return Object.fromEntries(JSON.parse(prompt.split("\n").at(-1)).map(([i, text]) => ["P" + i, !text.includes("범주형 변수 다수")]));
-    if (keys[0] === "effect") { // 다시 쓰기: 떨어진 물음만 묻고, 확정된 답과 떨어진 초안을 함께 보낸다
-      assert.deepEqual(keys, ["effect", "problem", "goal", "method", "result", "meaning"]);
+    if (keys[0] === "content") { // 다시 쓰기: 떨어진 물음과 대조에서 문장이 빠져 짧아진 핵심 요약 답만 묻고, 확정된 답과 초안을 함께 보낸다
+      assert.deepEqual(keys, ["content", "effect", "problem", "goal", "method", "result", "meaning"]);
       const again = JSON.parse(prompt.split("\n").at(-2).replace(/^[^{]*/u, ""));
-      assert.deepEqual(Object.keys(again.확정), ["title", "gist", "background", "content"]);
+      assert.deepEqual(Object.keys(again.확정), ["title", "gist", "background"]);
+      assert.equal(again.탈락.content.이유, "일부 문장 빠짐");
+      assert.ok(again.탈락.content.빠진_문장.includes("범주형 변수 다수.")); // 빠진 문장을 알려 준다
       assert.match(again.탈락.result.답, /0\.912/);
       assert.deepEqual([again.탈락.effect.이유, again.탈락.result.이유, again.탈락.meaning.이유], ["답 없음", "수치 대조: 0.912", "답 없음"]); // 맞지 않은 숫자를 알려 준다
       // 번호를 잘못 달아도(1번에는 0.398이 없다) 그 숫자가 적힌 항목을 근거에 더한다
-      return { effect: none, problem: none, goal: none, method: none, result: { text: "시험 데이터 f1-score 0.398 확인.", ids: [1] }, meaning: none };
+      return { content: { text: "홈 화면에 들어온 고객 중 대출을 신청할 고객을 예측. 범주형 변수가 많아 CatBoost 분류 모델 사용.", ids: [2, 3] },
+        effect: none, problem: none, goal: none, method: none, result: { text: "시험 데이터 f1-score 0.398 확인.", ids: [1] }, meaning: none };
     }
     if (keys[0] !== "title") return schema.properties.text ? { text: "" } : Object.fromEntries(keys.map((k) => [k, true]));
     assert.match(prompt, /개조식/); // 명사형으로 끝내는 개조식으로 쓰게 한다
@@ -135,8 +138,8 @@ test("핵심 요약은 제목·한 줄 요약·배경·내용·효과로, 세부
   const edition = await composeEdition(r, () => {}, run);
   assert.deepEqual(edition.brief.map((x) => [x.topic, x.refs.join()]), [["제목", "S2.1,S3.1"], ["한 줄 요약", "S2.1"], ["배경", "S1.1"], ["내용", "S2.1,S3.1"]]);
   assert.ok(!("basis" in edition.brief[0])); // 검토용 문장은 저장하지 않는다
-  // 200자를 넘는 답은 한도 안의 앞 문장만 남기고, 문장마다 대조해 떨어진 문장은 빼고 나머지로 줄을 채운다
-  assert.equal(edition.brief[3].text, "홈 화면에 들어온 고객 중 대출을 신청할 고객을 CatBoost 분류 모델로 예측.");
+  // 200자를 넘는 답은 한도 안의 앞 문장만 남기고, 문장마다 대조해 떨어진 문장은 뺀다. 그래서 짧아진 답은 한 번 다시 써서 더 길게 통과하면 바꾼다
+  assert.equal(edition.brief[3].text, "홈 화면에 들어온 고객 중 대출을 신청할 고객을 예측. 범주형 변수가 많아 CatBoost 분류 모델 사용.");
   // 세부 요약에는 새로 쓴 줄만 싣는다. 0.912를 쓴 답은 다시 써서 통과한 문장으로, 수치(0.398)가 적힌 근거가 앞에 온다
   assert.deepEqual(edition.detail.map((x) => [x.topic, x.text, x.refs.join()]), [["무엇을 얻었나", "시험 데이터 f1-score 0.398 확인.", "S4.1,S1.1"]]);
   // 끝내 못 쓴 줄은 다른 줄로 메우지 않고 이름과 이유를 남긴다

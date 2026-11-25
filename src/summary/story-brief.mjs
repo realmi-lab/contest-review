@@ -22,9 +22,9 @@ const writer =
 const SLOTS = [
   { key: "title", label: "제목", view: "brief", ask: "문서가 제안하거나 다루는 것을 한 줄 제목으로. '(수단)을 통한 (목적) 제안'처럼 무엇으로 무엇을 이루려는지가 함께 드러나는 명사구로 쓰고 '~ 제안', '~ 도입 제안', '~ 분석'처럼 끝낸다" },
   { key: "gist", label: "한 줄 요약", view: "brief", ask: "문서 전체를 한 문장으로. 분석 과제면 무엇을 대상으로 어떤 문제를 어떤 방법으로 풀어 무엇을 얻었는지, 서비스·제도 제안이면 누구의 어떤 불편을 어떤 서비스로 풀려는지. 경쟁 서비스·유사 사례 이야기는 배경에 쓰고 여기에는 쓰지 않는다. 세부 집계 수치는 넣지 않는다" },
-  { key: "background", label: "배경", view: "brief", report: true, ask: "왜 이 일이 필요한지: 사업이나 현장에서 지금 무엇이 문제이거나 부족한지와 그래서 생긴 기회를 한눈에. 다른 회사·서비스·유사 사례와 비교한 빈틈(경쟁 서비스에 없거나 약한 것)이나 지금 해야 하는 이유가 항목에 있으면 그것을 앞세운다" },
+  { key: "background", label: "배경", view: "brief", report: true, ask: "왜 이 일이 필요한지: 사업이나 현장에서 지금 무엇이 문제이거나 부족한지와 그래서 생긴 기회를 한눈에. 다른 회사·서비스·유사 사례와 비교한 빈틈(경쟁 서비스에 없거나 약한 것)이나 지금 해야 하는 이유가 항목에 있으면 항목에 적힌 그대로('A는 ~가 제한적') 한 문장으로 넣고, 세부 요약에 더 자세히 쓰더라도 배경에서 빼지 않는다. 그래서 생기는 기회·차별점은 항목에 있을 때만 쓴다" },
   { key: "content", label: "내용", view: "brief", report: true, limit: 260, ask: "무엇을 어떻게 하자는지(분석 과제면 무엇을 어떻게 했는지)를 한눈에. 서비스·제도·캠페인 제안이면 무엇을 만드는지(핵심 개념)를 먼저 한 문장으로 쓰고, 추진 방식(단계별 도입·시범 운영·먼저 출시할 범위)이 항목에 있으면 넣고, 누가 무엇을 하는지와 핵심 기능은 낱낱이 늘어놓지 말고 묶어서 쓴다. 분석 과제면 무엇을 알아내려고(예측·분류·추정하는 대상) 어떤 자료를 어떤 기법으로 분석하는지. 개발 언어·프레임워크·서버 구성 같은 구현 기술은 쓰지 않는다" },
-  { key: "effect", label: "효과", view: "brief", report: true, ask: "그래서 무엇이 좋아지는지: 제출자가 든 효과를 한눈에. 이용자 쪽 효과와 회사 쪽 효과(이용자 유지, 새 수익 모델 등)를 제출자가 든 만큼 함께 쓰고, 효과마다 무엇이 쌓이거나 생겨서 좋아지는지를 붙인다. 앞으로 기대하는 효과는 '~제고', '~기여', '~확보', '~기대'처럼 앞으로의 일로 쓰는 것으로 충분하고, 효과가 예상일 뿐이라거나 측정 결과가 없다고 따로 적지 않는다. 이미 이룬 것처럼 쓰지 않으며, 스스로 평가하거나 추천하지 않는다" },
+  { key: "effect", label: "효과", view: "brief", report: true, ask: "그래서 무엇이 좋아지는지: 제출자가 든 효과를 한눈에. 이용자 쪽 효과와 회사 쪽 효과(이용자 유지, 새 수익 모델 등)를 제출자가 든 만큼 함께 쓰되 '회사 쪽으로는'처럼 쪽 이름을 붙이지 않고, 효과마다 무엇이 쌓이거나 생겨서 좋아지는지를 붙인다. 앞으로 기대하는 효과는 '~제고', '~기여', '~확보', '~기대'처럼 앞으로의 일로 쓰는 것으로 충분하고, 효과가 예상일 뿐이라거나 측정 결과가 없다고 따로 적지 않는다. 이미 이룬 것처럼 쓰지 않으며, 스스로 평가하거나 추천하지 않는다" },
   { key: "problem", label: "무엇이 문제인가", view: "detail", report: true, ask: "왜 이 일이 필요한지, 사업이나 현장에서 지금 무엇이 문제이거나 부족한지를 대상·규모·사례 같은 구체적인 사실로. 자료를 정리하면서 겪은 어려움은 method에 쓰고, 근거가 있는지에 대한 판단은 쓰지 않는다" },
   { key: "goal", label: "무엇을 하려는가", view: "detail", report: true, ask: "그래서 무엇을 만들거나 알아내려 하는지" },
   { key: "method", label: "어떻게 푸는가", view: "detail", report: true, ask: "분석 과제면 어떤 자료로 어떤 순서와 기법으로 푸는지(기법 이름만 쓰지 말고 그 기법으로 무엇을 구하는지 함께). 서비스 제안이면 이용자·담당자·관리자처럼 역할마다 누가 무엇을 하는지 이용 흐름과 핵심 기능을 먼저 쓰고, 제출자가 강조한 보안·개인정보 같은 운영 조건이 있으면 넣으며, 구현 기술은 짧게 덧붙인다" },
@@ -74,7 +74,7 @@ async function draft(title, points, run, slots, again) {
     `아래 항목은 원문 근거가 확인된 사실을 분류별로, 쪽 순서로 늘어놓은 것이다. 전체를 읽고 줄거리를 잡은 다음, 항목에 있는 내용만 써서 답한다. title은 40자 이내의 제목 한 줄이고 마침표를 찍지 않는다. gist는 한 문장 110자 이내다. background·effect는 답마다 두 문장 안팎, 답 하나가 90~150자가 되게 쓰고, content는 세 문장 안팎 160~240자로 핵심 개념·추진 방식·핵심 기능(분석 과제면 자료·기법·구하는 값)을 쓴다. 한 답이 content는 250자, 나머지는 160자를 넘지 않게 가장 중요한 것만 고르되(덜 중요한 세부 기능부터 버리고, 단계별 도입·먼저 출시할 범위 같은 추진 계획은 남긴다), 60자도 안 되게 줄여 구체적인 대상·기능·조건을 빠뜨리지도 않는다. ${DETAIL}는 답마다 한두 문장 150자 안팎이다. 모두 개조식이다: 문장을 '~필요', '~요구', '~지급', '~제공', '~확보', '~제고'처럼 명사형으로 끝내고 마침표를 찍으며, '~한다', '~합니다'로 끝내지 않는다.`,
     `${BRIEF}는 이어 읽으면 왜 필요하고(배경) 무엇을 어떻게 하며(내용) 그래서 무엇이 좋아지는지(효과)가 하나의 설명이 되게 쓰고, 답끼리 같은 내용을 되풀이하지 않는다. ${BRIEF}는 제안 내용을 그대로 옮겨 쓰는 자리라 '제안자 판단', '(제안자 정리)', '제안자의 예상'처럼 누가 한 말인지 덧붙이는 꼬리표와, 아직 검증·측정되지 않았다는 평은 쓰지 않는다(그런 평은 meaning에만 쓴다). ${DETAIL}는 같은 문서를 문제 → 목표 → 방법 → 결과 → 시사점 순서로 다시 풀어 쓰되, ${BRIEF}의 문장을 그대로 옮기지 말고 그보다 구체적인 대상·절차·수치·조건으로 쓴다. content는 대상·기능·횟수·금액·기간 같은 구체적인 조건을 항목에 적힌 그대로 살려, 읽는 사람이 무엇을 만들거나 하려는지 그릴 수 있게 쓴다. 쉬운 말로 쓰고, 뜻 없는 꾸밈말('혁신적인', '획기적인')과 앞 문장을 풀어 말하기만 하는 군더더기는 쓰지 않는다. 영문 변수·파일 이름은 항목에 뜻이 나와 있으면 그 뜻으로 바꿔 쓴다.`,
     "항목에 없는 사실·수치·효과를 더하지 않는다. 계획이나 기대를 이미 이룬 것처럼 쓰지 않는다. '원문은', '~라고 적혀 있다'처럼 문서를 가리키는 말을 쓰지 않는다. ids에는 그 답의 모든 구절을 뒷받침하는 항목 번호를 빠짐없이, 많아도 8개까지 적는다. 번호를 댈 수 없는 구절은 쓰지 않는다. 답할 내용이 항목에 없으면 text를 비운다.",
-    ...(again ? ["앞서 쓴 답 가운데 일부가 검증에서 떨어졌거나 비어 있어 그 물음만 다시 쓴다. 탈락 이유가 '수치 대조'면 답에 쓴 숫자(이유 뒤에 적은 값)가 항목에 그대로 적혀 있지 않았고, '인용 검토'면 항목이 뒷받침하지 않는 구절이 있었으며, '길이·번호'면 첫 문장이 너무 길었거나(핵심 요약 170자·내용 260자, 세부 요약 200자) 항목 번호가 없었다는 뜻이다. 이번에는 항목의 표현과 수치를 그대로 살리고(계산·반올림·단위 변환 금지), 항목 두세 개로 확실히 뒷받침되는 내용만 짧게 쓴다. '확정'에 있는 내용은 되풀이하지 않는다. " + JSON.stringify(again)] : []),
+    ...(again ? ["앞서 쓴 답 가운데 일부가 검증에서 떨어졌거나 비어 있어 그 물음만 다시 쓴다. 탈락 이유가 '수치 대조'면 답에 쓴 숫자(이유 뒤에 적은 값)가 항목에 그대로 적혀 있지 않았고, '인용 검토'면 항목이 뒷받침하지 않는 구절이 있었으며, '길이·번호'면 첫 문장이 너무 길었거나(핵심 요약 170자·내용 260자, 세부 요약 200자) 항목 번호가 없었다는 뜻이다. 이번에는 항목의 표현과 수치를 그대로 살리고(계산·반올림·단위 변환 금지), 항목 두세 개로 확실히 뒷받침되는 내용만 짧게 쓴다. 단, 이유가 '일부 문장 빠짐'이면 줄이지 말고 '빠진 문장'의 내용을 항목에 적힌 표현 그대로 되살려 원래 길이로 쓴다. '확정'에 있는 내용은 되풀이하지 않는다. " + JSON.stringify(again)] : []),
     JSON.stringify({ 문서: title || "", 항목: items }),
   ].join("\n"), {
     type: "object", additionalProperties: false, required: slots.map((s) => s.key),
@@ -100,31 +100,41 @@ async function draft(title, points, run, slots, again) {
 
 // 쓴 답을 accept로 검증해 탈락 이유(why)를 붙인다. 통과한 답은 why가 빈 문자열이고,
 // 대조를 통과한 문장만 남긴 글(text)로 바뀐다.
+// lost에는 대조에서 빠진 문장이 남는다.
 async function verified(answers, accept) {
   const written = answers.filter((s) => s.point);
   const results = await accept(written);
   return answers.map((s) => {
     if (!s.point) return s;
     const { why, text } = results[written.indexOf(s)];
-    return why ? { ...s, why } : { ...s, why, point: { ...s.point, text } };
+    const lost = why ? [] : sentencesOf(s.point.text).filter((sentence) => !text.includes(sentence));
+    return why ? { ...s, why } : { ...s, why, lost, point: { ...s.point, text } };
   });
 }
+
+// 대조에서 문장이 빠져 핵심 요약 답이 바란 길이보다 짧아졌는가(실측: 배경이 유사 사례 문장을 잃고 한 줄만 남음).
+const MIN_LENGTH = { background: 90, content: 160, effect: 90 };
+const thin = (s) => !s.why && s.lost?.length > 0 && s.point.text.length < (MIN_LENGTH[s.key] || 0);
 
 // 물음마다 [{ key, label, view, report, point, why, text }]로 돌려준다. 끝내 쓰지 못한 물음은 point가 null이고
 // why에 이유가, text에 마지막으로 떨어진 초안이 있다.
 // accept(답 목록)는 답마다 { why: 탈락 이유(통과면 ""), text: 통과한 글 }을 돌려주는 함수다(composeEdition이 근거 대조·인용 검토로 넘긴다).
-// 떨어지거나 빈 물음은 이유를 알려 주고 한 번만 다시 쓴다. 떨어진 줄을 다른 요점의 첫 문장으로 메우면
+// 떨어지거나 빈 물음, 대조에서 문장이 빠져 너무 짧아진 핵심 요약 답은 이유를 알려 주고 한 번만 다시 쓴다. 떨어진 줄을 다른 요점의 첫 문장으로 메우면
 // 물음과 맞지 않는 줄이 나왔다(실측: '무엇을 얻었나'에 "중분류 unique 개수는 57…").
 export async function storyBrief(title, points, run, accept) {
   let answers = await verified(await draft(title, points, run, SLOTS), accept);
-  const failed = answers.filter((s) => s.why);
-  if (failed.length) {
+  const redo = answers.filter((s) => s.why || thin(s));
+  if (redo.length) {
     const again = {
-      확정: Object.fromEntries(answers.filter((s) => !s.why).map((s) => [s.key, s.point.text])),
-      탈락: Object.fromEntries(failed.map((s) => [s.key, { 답: s.text, 이유: s.why }])),
+      확정: Object.fromEntries(answers.filter((s) => !redo.includes(s)).map((s) => [s.key, s.point.text])),
+      탈락: Object.fromEntries(redo.map((s) => [s.key, s.why ? { 답: s.text, 이유: s.why } : { 답: s.text, 이유: "일부 문장 빠짐", 빠진_문장: s.lost }])),
     };
-    const retried = await verified(await draft(title, points, run, SLOTS.filter(({ key }) => failed.some((s) => s.key === key)), again), accept);
-    answers = answers.map((s) => retried.find((t) => t.key === s.key) || s);
+    const retried = await verified(await draft(title, points, run, SLOTS.filter(({ key }) => redo.includes(answers.find((s) => s.key === key))), again), accept);
+    // 떨어졌던 답은 다시 쓴 답으로 바꾸고, 짧아졌던 답은 다시 쓴 답이 통과해 더 길 때만 바꾼다.
+    answers = answers.map((s) => {
+      const t = retried.find((x) => x.key === s.key);
+      return !t ? s : s.why || (!t.why && t.point.text.length > s.point.text.length) ? t : s;
+    });
   }
   return answers.map(({ key, label, view, report, point, why, text }) => ({ key, label, view, report, point: why ? null : point, why, text }));
 }
