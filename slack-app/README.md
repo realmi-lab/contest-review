@@ -201,6 +201,39 @@ slack trigger delete --trigger-id Ft여기에
 slack trigger create --trigger-def triggers/people_daily.ts
 ```
 
+### 사람 목록 트리거가 여러 개 생겼으면
+
+_작성 2026-11-25 09:20 (한국 시간)_
+
+`slack trigger list`에 '아이디어정리 사람 목록 맞추기'가 여러 개 보이면 모두 지우고 하나만 새로 만듭니다(여러 개면 같은 일을 여러 번 합니다). '아이디어정리 평가 요청'(웹훅)은 지우지 않습니다.
+
+1. 목록에서 '사람 목록 맞추기'의 ID(`Ft…`)를 하나씩 복사해 지웁니다(개수만큼 반복):
+
+   ```sh
+   slack trigger list
+   ```
+   ```sh
+   slack trigger delete --trigger-id Ft여기에
+   ```
+
+2. 새 코드로 올리고 하나만 만듭니다(배포한 앱 고르기):
+
+   ```sh
+   git pull
+   ```
+   ```sh
+   slack deploy
+   ```
+   ```sh
+   slack trigger create --trigger-def triggers/people_daily.ts
+   ```
+
+3. 1분 뒤 목록이 들어왔는지 봅니다:
+
+   ```sh
+   slack datastore query --datastore people '{}'
+   ```
+
 ---
 
-마지막 수정: 2026-11-25 09:18 (한국 시간)
+마지막 수정: 2026-11-25 09:20 (한국 시간)
