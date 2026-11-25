@@ -23,7 +23,7 @@
 ```sh
 brew install deno
 curl -fsSL https://downloads.slack-edge.com/slack-cli/install.sh | bash
-cd ~/git/contest-review/slack-app
+cd ~/git/idea_review/slack-app
 ```
 
 **Windows** · PowerShell 7에서 실행합니다. 회사에서 설치 프로그램을 배포하면 그 경로를 이용할 수 있습니다. [Windows용 Slack CLI 설치](https://docs.slack.dev/tools/slack-cli/guides/installing-the-slack-cli-for-windows/)
@@ -31,7 +31,7 @@ cd ~/git/contest-review/slack-app
 ```powershell
 winget install -e --id DenoLand.Deno
 irm https://downloads.slack-edge.com/slack-cli/install-windows.ps1 | iex
-Set-Location "$HOME\git\contest-review\slack-app"
+Set-Location "$HOME\git\idea_review\slack-app"
 ```
 
 설치 후 새 터미널이 필요하면 다시 같은 폴더로 이동합니다. 두 운영체제 모두 다음 명령으로 도구와 로그인을 확인합니다.

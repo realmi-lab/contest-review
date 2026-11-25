@@ -40,7 +40,7 @@ export default {
   // 목록 화면: 작품 목록·작업 대기열·빌드 번호·AI 비용·공모 연동 현황
   "GET /api/state": async ({ json }) =>
     json({
-      app: "contest-review-desk",
+      app: "idea_review",
       build,
       works: summaryList(),
       tasks: [...tasks.values()],

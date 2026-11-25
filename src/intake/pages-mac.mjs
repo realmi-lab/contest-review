@@ -180,7 +180,7 @@ async function shot(dir, i, windowId, crop) {
 // PowerPoint 슬라이드를 PNG로 내보낸다(화면을 쓰지 않음). Office 앱은 샌드박스라 Office 공용 폴더(Group Containers)에만
 // 바로 쓸 수 있다. 내보내기가 막힌 보호 문서면 빈 목록을 돌려준다.
 async function slideImages(file) {
-  const dir = path.join(os.homedir(), "Library", "Group Containers", "UBF8T346G9.Office", "contest-review", randomUUID());
+  const dir = path.join(os.homedir(), "Library", "Group Containers", "UBF8T346G9.Office", "idea_review", randomUUID());
   await mkdir(dir, { recursive: true });
   try {
     await osa(["-e", `on run argv
@@ -202,7 +202,7 @@ end run`, path.basename(file), path.join(dir, "slides")], "PowerPoint 슬라이�
 // Office 앱은 샌드박스라 Office 공용 폴더(Group Containers)에 저장한다. 보호(MIP) 문서는 저장이 막히거나
 // PDF가 암호화(겉 PDF)되어 빈 목록을 돌려주고, 그때는 창 캡처로 간다. 저장한 PDF는 읽자마자 지운다.
 async function wordPdfPages(file, only) {
-  const dir = path.join(os.homedir(), "Library", "Group Containers", "UBF8T346G9.Office", "contest-review", randomUUID());
+  const dir = path.join(os.homedir(), "Library", "Group Containers", "UBF8T346G9.Office", "idea_review", randomUUID());
   await mkdir(dir, { recursive: true });
   const pdf = path.join(dir, path.basename(file, path.extname(file)) + ".pdf");
   try {

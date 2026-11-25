@@ -60,7 +60,7 @@ echo "아이디어정리를 실행합니다: http://localhost:18765 (끄려면 C
 # 맥: 시스템·로그인 키체인의 인증서(회사가 넣은 보안 장비 인증서 포함)를 꺼내 Node가 더 믿을 인증서로 준다.
 # --use-system-ca만으로 안 되는 회사 맥(UNABLE_TO_GET_ISSUER_CERT_LOCALLY)을 위해서다. 켤 때마다 새로 꺼낸다.
 if [ "$(uname)" = Darwin ]; then
-  CA="$HOME/.contest-review-ca.pem"
+  CA="$HOME/.idea_review-ca.pem"
   security find-certificate -a -p /Library/Keychains/System.keychain "$HOME/Library/Keychains/login.keychain-db" >"$CA" 2>/dev/null &&
     [ -s "$CA" ] && export NODE_EXTRA_CA_CERTS="$CA"
 fi

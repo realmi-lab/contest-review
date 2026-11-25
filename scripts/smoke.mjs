@@ -83,7 +83,7 @@ try {
   });
   await step("상태에 빌드 번호와 AI 비용이 있다", async () => {
     const state = await get("/api/state").then((r) => r.json());
-    assert.equal(state.app, "contest-review-desk");
+    assert.equal(state.app, "idea_review");
     assert.match(state.build, /^(빌드|버전) /);
   });
   let id, capture;

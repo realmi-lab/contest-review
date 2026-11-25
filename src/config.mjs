@@ -13,6 +13,7 @@ export const publicDir = path.join(root, "public"); // 화면 파일
 export const webMode = process.env.REVIEW_WEB_MODE === "1" || process.env.REVIEW_NAS_MODE === "1";
 
 // 데이터 폴더: REVIEW_DATA_DIR로 바꿀 수 있다. 웹 모드는 ContestReviewWeb, 그 밖은 ContestReviewDesk
+// (프로젝트 이름은 idea_review로 바꿨지만 폴더 이름은 그대로 둔다: 바꾸면 저장된 작품·키·Edge 로그인을 못 찾는다)
 export const directory = process.env.REVIEW_DATA_DIR || appDir(webMode ? "ContestReviewWeb" : "ContestReviewDesk");
 
 export const port = Number(process.env.REVIEW_PORT || 18765);

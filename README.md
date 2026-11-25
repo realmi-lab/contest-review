@@ -1,6 +1,6 @@
 # 아이디어정리
 
-[![자동 점검](https://github.com/realmi-lab/contest-review/actions/workflows/ci.yml/badge.svg)](https://github.com/realmi-lab/contest-review/actions/workflows/ci.yml)
+[![자동 점검](https://github.com/realmi-lab/idea_review/actions/workflows/ci.yml/badge.svg)](https://github.com/realmi-lab/idea_review/actions/workflows/ci.yml)
 
 사내 공모에 접수된 제안을 읽고 검토하는 앱입니다. PDF·Word·PowerPoint·Excel·이미지를 받아 쪽별 캡처와 인식 문자를 저장합니다. AI는 제안을 핵심·세부 요약으로 정리하고, 담당자는 근거가 된 쪽을 열어 본 뒤 의견을 남깁니다. 제안은 직접 등록하거나 Microsoft Forms에서 가져올 수 있습니다.
 
@@ -23,19 +23,19 @@ Git과 **Node.js 22.21 이상**을 사용합니다. 첫 실행은 npm 패키지�
 
 ```sh
 mkdir -p ~/git
-git clone https://github.com/realmi-lab/contest-review.git ~/git/contest-review
-cd ~/git/contest-review
+git clone https://github.com/realmi-lab/idea_review.git ~/git/idea_review
+cd ~/git/idea_review
 ./start.sh
 ```
 
-회사 Mac에 이미 복제했다면 `cd ~/git/contest-review` 후 `git pull --ff-only`로 업데이트합니다. 개인용 실행은 `./start.sh`로 시작합니다. 스크립트가 필요할 때 nvm으로 Node를 준비합니다. **이미 사내 웹 서비스로 운영 중인 Mac**은 아래 ‘사내 웹 주소로 운영하기’ 절차로 재시작하세요. 같은 폴더에서 `./start.sh`를 실행하면 기존 웹 서비스를 내리고 localhost 모드로 전환합니다.
+회사 Mac에 이미 복제했다면 `cd ~/git/idea_review` 후 `git pull --ff-only`로 업데이트합니다. 개인용 실행은 `./start.sh`로 시작합니다. 스크립트가 필요할 때 nvm으로 Node를 준비합니다. **이미 사내 웹 서비스로 운영 중인 Mac**은 아래 ‘사내 웹 주소로 운영하기’ 절차로 재시작하세요. 같은 폴더에서 `./start.sh`를 실행하면 기존 웹 서비스를 내리고 localhost 모드로 전환합니다.
 
 **Windows · PowerShell**
 
 ```powershell
 New-Item -ItemType Directory -Force "$HOME\git" | Out-Null
-git clone https://github.com/realmi-lab/contest-review.git "$HOME\git\contest-review"
-Set-Location "$HOME\git\contest-review"
+git clone https://github.com/realmi-lab/idea_review.git "$HOME\git\idea_review"
+Set-Location "$HOME\git\idea_review"
 .\start.bat
 ```
 
@@ -88,6 +88,6 @@ npm run smoke
 npm run ui-check
 ```
 
-`npm test`는 단위 테스트, `npm run smoke`는 임시 서버에서 접수·OCR·Forms 흐름, `npm run ui-check`는 Chrome과 모의 AI 응답으로 화면을 확인합니다. Chrome 위치가 다르면 `CHROME_PATH`를 지정합니다. Windows CI는 실제 `cmd.exe`에서 `start.bat`을 실행하고 `/api/state` 응답을 확인합니다. 회사 계정의 Office·MIP 권한과 Slack 실전송은 운영 환경에서 확인할 항목입니다. [자동 점검 내역](https://github.com/realmi-lab/contest-review/actions/workflows/ci.yml)
+`npm test`는 단위 테스트, `npm run smoke`는 임시 서버에서 접수·OCR·Forms 흐름, `npm run ui-check`는 Chrome과 모의 AI 응답으로 화면을 확인합니다. Chrome 위치가 다르면 `CHROME_PATH`를 지정합니다. Windows CI는 실제 `cmd.exe`에서 `start.bat`을 실행하고 `/api/state` 응답을 확인합니다. 회사 계정의 Office·MIP 권한과 Slack 실전송은 운영 환경에서 확인할 항목입니다. [자동 점검 내역](https://github.com/realmi-lab/idea_review/actions/workflows/ci.yml)
 
 소스는 `public/`(화면), `src/`(서버·접수·OCR·AI), `vendor/`(OCR 엔진·모델), `slack-app/`(Slack 워크플로), `deploy/`(운영 설정·실행 도구), `scripts/`·`tests/`(검증)에 있습니다. 실제 설정·키·작품 DB·로그는 Git에서 제외합니다. [상세 운영 가이드](docs/GUIDE.md) · [라이선스](LICENSE) · [오픈소스 고지](THIRD_PARTY_NOTICES.md)
