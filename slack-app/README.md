@@ -180,3 +180,17 @@ slack trigger update --trigger-id Ft여기에 --trigger-def triggers/review_webh
 3. **그래도 비어 있으면**: `slack activity`에서 '사람 목록 맞추기'의 오류를 확인합니다.
 
 목록이 채워지면 아이디어정리는 다시 켤 필요 없이 다시 검색하면 됩니다.
+
+### '사람 목록을 읽지 못했습니다: missing_argument'가 나면
+
+회사처럼 조직(Enterprise Grid)에 설치된 앱은 워크스페이스를 정해 읽어야 합니다(지금 코드는 그렇게 읽습니다). `git pull` → `slack deploy`로 새 코드를 올린 뒤, 바로 다시 돌리려면 사람 목록 트리거를 지우고 새로 만듭니다(만든 1분 뒤 돕니다):
+
+```sh
+slack trigger list
+```
+```sh
+slack trigger delete --trigger-id Ft여기에
+```
+```sh
+slack trigger create --trigger-def triggers/people_daily.ts
+```
