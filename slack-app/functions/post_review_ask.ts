@@ -30,7 +30,7 @@ export const PostReviewAsk = DefineFunction({
 // Slack이 펼친 워크플로 카드([워크플로 보기] 단추)로 누르게 한다(unfurl_links). 긴 주소가 보이지 않게 글자 없는 링크(폭 없는 공백)로 걸고,
 // 카드만 남긴다. 카드는 메시지 아래에 붙어, 구분선은 다음 메시지로 보낸다.
 const ask = (link: string) =>
-  `💬 *평가 의견을 보내 주세요*\n위 HTML 파일을 열어 보고 아래 카드의 *워크플로 보기* 단추를 눌러 의견을 적어 보내 주시면 감사하겠습니다. 다시 누르면 보낸 의견을 고칠 수 있습니다.<${link}|\u200b>`;
+  `💬 *평가 의견을 보내 주세요*\n위 HTML 파일을 보고 아래 *워크플로 보기*를 누르면 작성 창이 열립니다(다시 누르면 고칠 수 있습니다).<${link}|\u200b>`;
 
 // 파일 올리기 3단계: 올릴 주소 받기 → 올리기 → 채널에 안내 글과 함께 붙이기
 async function uploadHtml(client: any, channel: string, filename: string, html: string, comment: string) {
@@ -59,7 +59,7 @@ export default SlackFunction(PostReviewAsk, async ({ inputs, client }) => {
   // 이 건만의 워크플로 링크: 누르면 입력 창(누른 사람·이 표)
   const link = await client.workflows.triggers.create<typeof ReplyFormWorkflow.definition>({
     type: TriggerTypes.Shortcut,
-    name: "평가 답장하기",
+    name: "평가 작성하기", // 카드 제목
     workflow: `#/workflows/${ReplyFormWorkflow.definition.callback_id}`,
     inputs: { ticket: { value: inputs.ticket }, interactivity: { value: TriggerContextData.Shortcut.interactivity } },
   });
