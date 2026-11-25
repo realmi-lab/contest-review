@@ -4,6 +4,8 @@
 // 맨 아래 작은 스크립트. 스크립트를 막으면 칩만 보인다).
 // Slack으로 보낼 때(reply)는 탭 아래에 [의견 보내기] 칸을 넣는다: 평가 단추 앱의 'HTML 의견 받기' 웹훅으로 보내고,
 // 받으면 그 앱이 Slack DM으로 알려 준다(내려받은 파일이라 웹훅의 응답은 읽을 수 없다).
+// 휴대폰(아이폰)에서 열면 화면 폭에 맞춘 모양으로 바뀐다(아래 @media): 탭은 위에 붙는 큰 단추, 줄 제목은 내용 위,
+// 노치·홈 막대 여백(safe-area), 입력 칸 16px(확대 방지). 휴대폰은 Slack 미리보기로 열려 보내기가 막히므로 의견 칸 대신 단추 안내를 둔다.
 // 글꼴(빗썸 고딕)과 캡처 그림을 모두 파일 안에 넣어 인터넷 없이 브라우저에서 같은 모양으로 열린다. 보낸 순간의 내용이 그대로 남는다.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -50,7 +52,8 @@ reply?.querySelector(".reply-send").addEventListener("click", async () => {
 // 내려받아 연 파일에는 이 정책이 없어도 같은 스크립트가 돈다.
 export const shareCsp = `default-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'; script-src 'sha256-${createHash("sha256").update(VIEWER_SCRIPT).digest("base64")}'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
 
-const bare = (text) => sentences(text).map(noPeriod).join(" "); // 요약 줄은 끝 마침표 없이(화면과 같게)
+// 요약 줄: 한 문장에 한 줄, 끝 마침표 없이(작품 화면과 같게)
+const lines = (text) => sentences(text).map((s) => esc(noPeriod(s))).join("<br>");
 const font = readFile(path.join(publicDir, "fonts", "BithumbGothic-Basic.woff2")).then((b) => b.toString("base64"));
 
 // 캡처를 너비 1200px JPEG로 줄여 넣는다(PNG 그대로면 파일이 몇 배 커진다).
@@ -63,7 +66,7 @@ async function pictures(captures) {
   return out.join("");
 }
 
-const rows = (points, chips = () => "") => `<ul class="rows">${join(points, (p) => `<li><b>${esc(p.topic)}</b><span>${esc(bare(p.text))} ${chips(p)}</span></li>`)}</ul>`;
+const rows = (points, chips = () => "") => `<ul class="rows">${join(points, (p) => `<li><b>${esc(p.topic)}</b><span>${lines(p.text)} ${chips(p)}</span></li>`)}</ul>`;
 
 // 세부 요약 줄 끝의 쪽 칩. 쪽마다 하나이고, 그 줄의 근거 가운데 그 쪽에 있는 인용 줄 상자(그림 대비 %)를 함께 싣는다.
 function cites(p, captures, evidence) {
@@ -89,7 +92,7 @@ function summaryPart(r, captures) {
   const brief = r.edition?.brief || [], detail = r.edition?.detail || [];
   const top = brief.find((p) => p.topic === "한 줄 요약") || brief.find((p) => p.topic === "제목");
   const missing = r.edition?.missing || [];
-  return `<section><h2>핵심 요약</h2>${top ? `<p class="lead">${esc(bare(top.text))}</p>` : ""}
+  return `<section><h2>핵심 요약</h2>${top ? `<p class="lead">${lines(top.text)}</p>` : ""}
     ${rows(brief.filter((p) => p.topic !== "제목" && p.topic !== "한 줄 요약"))}</section>
     ${detail.length ? `<section class="detail"><h2>세부 요약</h2>${rows(detail, (p) => cites(p, captures, r.evidence))}</section>` : ""}
     ${missing.length ? `<p class="muted">비워 둔 항목 · ${esc(missing.map((m) => m.topic).join(" · "))} — 원문에서 직접 확인하세요</p>` : ""}`;
@@ -117,10 +120,11 @@ export async function shareHtml(w, { reply } = {}) {
     ...(features().logic ? [["AI 논리점검", logicPart(opinion)]] : []),
     [`캡처 자료 · ${w.captures.length}쪽`, await pictures(w.captures)],
   ];
-  return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="format-detection" content="telephone=no">
 <title>${esc(w.name)}</title><style>
 @font-face { font-family: "Bithumb Gothic"; src: url(data:font/woff2;base64,${await font}) format("woff2"); font-weight: 700; }
 :root { --orange: #ff6c00; --fill: #f3f4f6; --line: #e2e4e8; --text: #1a1c1f; --text-2: #3c3f44; --text-3: #63666b; }
+html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: #e9eaec; color: var(--text); font: 16px/1.7 "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
 main { max-width: 920px; margin: 32px auto; padding: 40px 48px; border-radius: 16px; background: #fff; }
 /* 탭: 눈에 잘 띄게 큰 단추 세 개로 나란히 두고, 고른 탭은 오렌지. 내려 읽어도 위에 붙어 있어 언제든 바꿀 수 있다 */
@@ -167,13 +171,43 @@ footer { margin-top: 32px; color: var(--text-3); font-size: 13px; }
 .reply textarea { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
 .reply-send { padding: 10px 20px; border: 0; border-radius: 10px; background: var(--orange); color: #fff; font: inherit; font-family: "Bithumb Gothic", sans-serif; cursor: pointer; }
 .reply-note { color: var(--text-2); font-size: 14px; }
+.reply-mobile { display: none; }
+
+/* ── 휴대폰(아이폰): 화면 폭에 맞춘다 ── */
+@media (max-width: 640px) {
+  body { background: #fff; font-size: 16px; line-height: 1.65; }
+  main { margin: 0; padding: 16px max(16px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); border-radius: 0; }
+  h1 { font-size: 22px; } h2 { margin: 22px 0 10px; font-size: 18px; }
+  .tabs { gap: 6px; margin: 14px -16px 8px; padding: calc(8px + env(safe-area-inset-top)) 16px 8px; border-bottom-width: 1px; background: rgba(255, 255, 255, 0.94); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+  .tabs label { padding: 11px 4px; border-radius: 10px; font-size: 15px; line-height: 1.3; }
+  .lead { font-size: 18px; }
+  .rows li { grid-template-columns: 1fr; gap: 2px; padding: 12px 0; }
+  .rows b { color: var(--text-3); font-size: 14px; }
+  .detail { margin: 20px -16px 0; padding: 4px 16px 10px; border-radius: 0; }
+  .pair { grid-template-columns: 1fr; gap: 10px; }
+  .legal em { display: block; min-width: 0; margin: 6px 0 0; }
+  figure { margin: 14px -16px; } figure img { border-width: 1px 0; border-radius: 0; } figcaption { padding: 0 16px; }
+  .ref { padding: 2px 9px; font-size: 13px; }
+  /* 띄운 캡처: 어두운 화면 가운데에 쪽 그림(두 손가락으로 확대) */
+  .viewer { display: flex; align-items: center; padding: calc(12px + env(safe-area-inset-top)) 0 calc(12px + env(safe-area-inset-bottom)); background: #0b0b0c; }
+  .viewer-box { width: 100%; padding: 0; border-radius: 0; background: transparent; }
+  .viewer-close { margin: 0 12px 10px 0; padding: 8px 18px; font-size: 16px; }
+  .viewer-label { padding: 0 12px; color: #ccc; }
+  .reply { margin: 24px -16px 0; padding: 4px 16px 16px; border-width: 2px 0; border-radius: 0; }
+}
+/* 손가락으로 쓰는 좁은 화면(휴대폰): Slack 미리보기로 열려 보내기가 막히므로 의견 칸 대신 Slack 단추를 안내한다 */
+@media (max-width: 640px) and (pointer: coarse) {
+  .reply textarea, .reply .reply-send, .reply .reply-note, .reply-desktop { display: none; }
+  .reply-mobile { display: block; }
+}
 </style></head><body><main>
 <h1>${esc(w.name)}</h1>${meta ? `<p class="meta">${meta}</p>` : ""}
 ${join(panes, (_, i) => `<input type="radio" name="tab" id="tab-${i + 1}"${i ? "" : " checked"}>`)}
 <nav class="tabs">${join(panes, ([label], i) => `<label for="tab-${i + 1}">${label}</label>`)}</nav>
 ${join(panes, ([, html], i) => `<div class="pane p${i + 1}">${html}</div>`)}
 ${reply ? `<section id="reply" class="reply" data-url="${esc(reply.url)}" data-ticket="${esc(reply.ticket)}">
-  <h2>평가 의견 보내기</h2><p class="muted">여기에 적어 보내면 아이디어 리뷰 채점표에 담깁니다. 다시 보내면 앞의 의견을 바꿉니다. Slack 안 미리보기에서는 보낼 수 없어, 파일을 내려받아 브라우저로 열어 주세요.</p>
+  <h2>평가 의견 보내기</h2><p class="muted reply-desktop">여기에 적어 보내면 아이디어 리뷰 채점표에 담깁니다. 다시 보내면 앞의 의견을 바꿉니다. Slack 안 미리보기에서는 보낼 수 없어, 파일을 내려받아 브라우저로 열어 주세요.</p>
+  <p class="reply-mobile">휴대폰에서는 Slack으로 돌아가 이 파일 위 메시지의 <b>[평가 답장하기]</b> 단추로 의견을 보내 주세요.</p>
   <textarea rows="5" maxlength="4000" placeholder="이 작품에 대한 의견을 자유롭게 적어 주세요"></textarea>
   <p><button type="button" class="reply-send">의견 보내기</button> <span class="reply-note" role="status"></span></p></section>` : ""}
 <div id="viewer" class="viewer" hidden><div class="viewer-box"><button type="button" class="viewer-close" aria-label="닫기">닫기</button>
