@@ -96,7 +96,11 @@ const actions = {
     await setComplete(true);
   },
   "open-summary": () => switchTab("요약"),
-  "next-work": () => stepWork(1),
+  "reread-captures": async () => {
+    if (!confirm(`캡처 ${state.work.captures.length}장을 원본 문서에서 다시 읽어 옵니다(원본이 없는 화면 캡처는 글자만 다시 읽습니다).\n지금의 요약·점검은 다시 만들어야 합니다.`)) return;
+    await api("reread-captures", workRef());
+    await sync(true);
+  },
   "check-logic": () => startJob("check-logic", "점검"),
   "remake-summary": () => runSummaryCommand(state.work.id), // AI 요약 탭 머리의 'AI 재요약'
   screen: openScreen,

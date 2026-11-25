@@ -10,19 +10,18 @@ import { readingPane, summaryUnavailable } from "./summary.mjs";
 import { $, button, count, icon } from "./ui.mjs";
 
 // 진행 단계. 끝나지 않은 첫 단계가 '다음 할 일'이다.
-// 받은 의견 수: 담당자 의견(Slack 답장) + 검토 의견
-const opinions = () => (state.work.slackReplies?.length || 0) + (state.work.reviewNote ? 1 : 0);
-// 다음에 할 일 (오른쪽 위 버튼 하나)
+// 받은 의견 수: 담당자 의견(Slack 답장). 채점표의 메모는 세지 않는다.
+const opinions = () => state.work.slackReplies?.length || 0;
+// 오른쪽 위 버튼 하나: 탭마다 그 단계를 다시 하는 버튼(캡처 자료 → 다시 읽어오기, AI 요약 → AI 재요약, AI 논리점검 → AI 재점검).
+// 채점표 탭은 이 버튼 없이 내보내기만 둔다.
 function nextAction() {
   if (!state.work.captures.length) return autoCaptured() ? [] : ["upload", "캡처 올리기"]; // Forms 첨부는 서버가 캡처한다
   if (!state.work.complete) return ["confirm-complete", "빠짐없음 확인"];
-  // 채점표 화면에서는 채점이 할 일이다.
-  if (state.tab === "결과") return ["next-work", "다음 작품"];
-  if (state.tab === "요약" && currentReading()) return ["remake-summary", "AI 재요약"];
-  if (state.tab === "점검" && currentLogic()) return ["check-logic", "AI 재점검"];
-  if (!currentReading()) return state.tab === "요약" ? [] : ["open-summary", "AI 요약으로"];
-  if (!currentLogic()) return ["check-logic", "AI 논리점검 실행"];
-  return opinions() ? ["next-work", "다음 작품"] : []; // 채점표는 단계 탭에서 연다
+  if (state.tab === "자료") return ["reread-captures", "다시 읽어오기"];
+  if (state.tab === "결과") return [];
+  if (state.tab === "요약") return currentReading() ? ["remake-summary", "AI 재요약"] : [];
+  if (currentLogic()) return ["check-logic", "AI 재점검"];
+  return currentReading() ? ["check-logic", "AI 논리점검 실행"] : ["open-summary", "AI 요약으로"];
 }
 
 // 단계별 완료 여부와 한 줄 설명 (왼쪽 메뉴의 단계 목록)
@@ -153,7 +152,7 @@ export function workView() {
         ${formsNote(state.work.source)}
       </div>
       <div class="detail-actions">
-        ${state.work.captures.length ? `<a class="button big" href="/api/share/${esc(state.work.id)}" target="_blank" rel="noopener" title="핵심·세부 요약·AI 논리점검·원본 캡처를 HTML 한 파일로 엽니다">내보내기</a>` : ""}
+        ${state.tab === "결과" && state.work.captures.length ? `<a class="button big" href="/api/share/${esc(state.work.id)}" target="_blank" rel="noopener" title="핵심·세부 요약·AI 논리점검·원본 캡처를 HTML 한 파일로 엽니다">내보내기</a>` : ""}
         ${action ? `<button id="run" type="button" class="primary big" data-action="${action}">${label}</button>` : ""}
       </div>
     </header>

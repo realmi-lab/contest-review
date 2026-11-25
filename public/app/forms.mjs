@@ -42,7 +42,7 @@ const forms = {
   "review-note": async (form) => {
     await api("review-note", { id: state.work.id, note: form.elements.note.value });
     state.unsavedForm = false;
-    notify("검토 의견을 저장했습니다.");
+    notify("메모를 저장했습니다.");
     await sync(true);
   },
 };

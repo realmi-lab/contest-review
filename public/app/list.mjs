@@ -190,7 +190,7 @@ export function overviewView() {
 const summaryCell = (x, brief) => `<td class="cell-wide">${x.hasReading
   ? `${x.title ? `<b class="rowsummary-title">${esc(x.title)}</b>` : ""}${brief && x.title ? "" : `<span class="rowsummary">${esc(x.gist ? sentences(x.gist).map(noPeriod).join(" ") : "요약을 열어 확인하세요")}</span>`}`
   : `<span class="muted">${x.count ? "요약 전" : "캡처 전"}</span>${summaryActions(x)}`}</td>`;
-const opinionCell = (x) => `<td class="cell-wide">${x.opinion ? `${x.reviewers > 1 ? `<b class="rowsummary-title">담당자 ${x.reviewers}명 의견</b>` : ""}<span class="rowsummary">${esc(x.opinion)}</span>` : '<span class="muted">의견 전</span>'}</td>`; // 가장 최근 담당자 의견(없으면 검토 의견)
+const opinionCell = (x) => `<td class="cell-wide">${x.opinion ? `${x.reviewers > 1 ? `<b class="rowsummary-title">담당자 ${x.reviewers}명 의견</b>` : ""}<span class="rowsummary">${esc(x.opinion)}</span>` : '<span class="muted">의견 전</span>'}</td>`; // 가장 최근 담당자 의견
 const VIEWS = {
   all: { label: "전체", done: () => true, heads: ["핵심 요약", "의견"],
     cells: (x) => summaryCell(x, true) + opinionCell(x) },
@@ -198,7 +198,7 @@ const VIEWS = {
   check: { label: "AI 논리점검", done: (x) => x.hasLogic, heads: ["AI 한마디 평"],
     cells: (x) => `<td class="cell-wide">${x.hasLogic ? `<span class="rowsummary">${esc(x.take || "점검 결과를 열어 확인하세요.")}</span>`
       : `<span class="muted">${x.hasReading ? "점검 전" : "요약 전"}</span>`}</td>` },
-  sheet: { label: "채점표", done: (x) => x.opinions > 0, heads: ["담당자·검토 의견"], cells: opinionCell },
+  sheet: { label: "채점표", done: (x) => x.opinions > 0, heads: ["담당자 의견"], cells: opinionCell },
 };
 
 // 같은 머리말끼리 묶은 작품 목록 (한 줄에 한 작품)
@@ -249,7 +249,7 @@ function howTo() {
       <li><b>캡처 자료</b>제출 문서의 화면을 이미지로 올리고 빠짐없이 들어왔는지 확인합니다.</li>
       <li><b>AI 요약</b>AI가 핵심 내용을 정리하고 원문 근거를 연결합니다.</li>
       <li><b>AI 논리점검</b>요약에 이어 AI가 수치·조건 불일치와 논리 비약을 찾습니다.</li>
-      <li><b>채점표</b>담당자에게 Slack으로 보내고, 받은 의견과 검토 의견을 남깁니다.</li>
+      <li><b>채점표</b>담당자에게 Slack으로 보내고 받은 의견을 모읍니다. 내보내기와 메모도 여기 있습니다.</li>
     </ol>`;
 }
 

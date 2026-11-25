@@ -27,6 +27,14 @@ function current(b) {
   return w;
 }
 
+// 캡처 한 장의 글자를 다시 읽는다(인식 대기열에 다시 넣는다).
+function rereadText(w, c) {
+  c.status = "queued";
+  changed(w);
+  save(w);
+  enqueueOcr(w.id, c.id);
+}
+
 export default {
   // 목록 화면: 작품 목록·작업 대기열·빌드 번호·AI 비용·공모 연동 현황
   "GET /api/state": async ({ json }) =>
@@ -78,7 +86,7 @@ export default {
     res.end(await shareHtml(w));
   },
 
-  // 채점표 탭의 검토 의견(점수 없이 자유롭게 쓰는 메모). 자료 판(rev)과 상관없이 저장한다.
+  // 채점표 탭의 메모(심사자가 자유롭게 적어 두는 한 칸, 의견 수에는 세지 않는다). 자료 판(rev)과 상관없이 저장한다.
   "POST /api/review-note": ({ b, json }) => {
     const w = load(b.id);
     w.reviewNote = bounded(b.note, 4000).trim();
@@ -225,10 +233,7 @@ export default {
     if (!c) err("캡처가 없습니다.");
     if (b.action === "retry") {
       if (c.status === "queued") err("이미 인식 중입니다.");
-      c.status = "queued";
-      changed(w);
-      save(w);
-      enqueueOcr(w.id, c.id);
+      rereadText(w, c);
     } else if (b.action === "recapture") {
       if (busy(w.id)) err("현재 작품의 작업을 완료한 뒤 실행하세요.", 409);
       const file = await originalFile(w, c);
@@ -246,6 +251,31 @@ export default {
         deleteImage(c.id);
       });
     } else err("알 수 없는 캡처 동작입니다.");
+    json({ ok: true });
+  },
+
+  // 캡처 다시 읽어오기(캡처 자료 탭 머리 버튼): 원본 문서가 있으면 문서마다 다시 쪽 그림으로 받아 같은 쪽 캡처를 바꾸고
+  // (원본에서 늘어난 쪽은 더한다), 원본이 없는 화면 캡처는 글자만 다시 읽는다. 바꾼 쪽은 글자도 다시 읽는다(replaceImage).
+  "POST /api/reread-captures": ({ b, json }) => {
+    const w = current(b);
+    if (!w.captures.length) err("다시 읽어올 캡처가 없습니다.");
+    if (busy(w.id)) err("진행 중인 작업이 끝난 뒤 실행하세요.", 409);
+    const docs = [...new Set(w.captures.map((c) => c.document))];
+    schedule("reread-" + w.id, w.id, "캡처 다시 읽어오는 중", async (progress) => {
+      for (const [n, name] of docs.entries()) {
+        progress(`캡처 다시 읽어오는 중 · ${name}`, Math.round((n / docs.length) * 100));
+        const fresh = load(w.id), mine = fresh.captures.filter((c) => c.document === name);
+        const file = mine.some((c) => c.page) ? await originalFile(fresh, mine[0]) : "";
+        if (!file) {
+          for (const c of mine) if (c.status !== "queued") rereadText(fresh, c);
+          continue;
+        }
+        const pages = await attachmentPages(file, 0, { secured: !!fresh.source?.files?.includes(name) }); // Forms 첨부(보호 문서)
+        for (const c of mine) if (pages[c.page - 1]) await replaceImage(w.id, c.id, pages[c.page - 1]);
+        for (const [i, bytes] of pages.entries())
+          if (!mine.some((c) => c.page === i + 1)) await addImage(w.id, { document: name, page: i + 1, total: pages.length }, bytes);
+      }
+    });
     json({ ok: true });
   },
 
