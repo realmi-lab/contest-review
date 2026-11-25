@@ -182,7 +182,9 @@ try {
     const r = await get("/api/share/" + id);
     assert.equal(r.status, 200);
     const html = await r.text();
-    assert.match(html, /<label for="tab-1">캡처 자료 · \d+쪽<\/label><label for="tab-2">AI 요약<\/label><label for="tab-3">AI 논리점검<\/label>/);
+    assert.match(html, /<label for="tab-1">AI 요약<\/label><label for="tab-2">AI 논리점검<\/label><label for="tab-3">캡처 자료 · \d+쪽<\/label>/);
+    assert.match(html, /<figure id="cap-[^"]+"><img/); // 쪽 칩이 띄울 그림
+    assert.match(html, /id="viewer"/);
     assert.match(html, /data:image\/jpeg;base64,/);
     assert.match(html, /data:font\/woff2;base64,/);
   });

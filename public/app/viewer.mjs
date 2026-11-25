@@ -1,4 +1,5 @@
 // 오른쪽 원문 패널: 근거 칩을 누르면 그 캡처와 인용 위치를 보여 준다.
+import { boxPercent, evidenceBoxes } from "../lib/boxes.mjs";
 import { explainOcr } from "../lib/expanded-reading.mjs";
 import { esc, join } from "../lib/html.mjs";
 import { evidencePeek } from "./interactions.mjs";
@@ -9,19 +10,8 @@ import { $, closeDialog, dialog, icon } from "./ui.mjs";
 
 // OCR 좌표(기울기 보정 전)를 화면 비율 좌표로 바꿔 상자를 그린다.
 function outlineBox(c, b) {
-  const angle = c.ocrInfo?.deskewAngle || 0;
-  const theta = (angle * Math.PI) / 180;
-  const cx = (c.ocrWidth - 1) / 2;
-  const cy = (c.ocrHeight - 1) / 2;
-  const dx = b.x + b.w / 2 - cx;
-  const dy = b.y + b.h / 2 - cy;
-  const x = cx + dx * Math.cos(theta) + dy * Math.sin(theta) - b.w / 2;
-  const y = cy - dx * Math.sin(theta) + dy * Math.cos(theta) - b.h / 2;
-  const pct = (value, size) => (value / size) * 100 + "%";
-  return (
-    `<i class="box" style="left:${pct(x, c.ocrWidth)};top:${pct(y, c.ocrHeight)};` +
-    `width:${pct(b.w, c.ocrWidth)};height:${pct(b.h, c.ocrHeight)};transform:rotate(${-angle}deg)"></i>`
-  );
+  const { left, top, width, height, angle } = boxPercent(c, b);
+  return `<i class="box" style="left:${left}%;top:${top}%;width:${width}%;height:${height}%;transform:rotate(${-angle}deg)"></i>`;
 }
 
 function ocrNotes(c) {
@@ -76,12 +66,7 @@ export function refreshViewer() {
 }
 
 function captureOutlines(c, ev) {
-  return (ev?.indexes || [])
-    .map((i) => c.lines[i]?.box)
-    .concat(ev?.boxes || [])
-    .filter(Boolean)
-    .map((b) => outlineBox(c, b))
-    .join("");
+  return evidenceBoxes(c, ev).map((b) => outlineBox(c, b)).join("");
 }
 function drawViewer(c) {
   const ev = state.viewer.evidence;

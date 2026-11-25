@@ -110,6 +110,23 @@ try {
     await until("메모 저장", async () => (await page.evaluate((id) => fetch("/api/work/" + id).then((r) => r.json()), id)).reviewNote === "화면 점검 메모");
     assert.equal((await state()).works.some((w) => w.opinions > 0), false);
   });
+  await step("내보내기 HTML: AI 요약 탭이 먼저 열리고, 쪽 칩을 누르면 그 쪽 캡처가 떠 인용 줄이 표시된다", async () => {
+    const shared = await browser.newPage();
+    shared.on("pageerror", (e) => errors.push(e.message));
+    await shared.goto(`${base}/api/share/${(await state()).works[0].id}`, { waitUntil: "load" });
+    assert.ok(await shared.$eval(".p1", (e) => getComputedStyle(e).display === "block" && /핵심 요약/.test(e.textContent)));
+    // 가짜 AI 요약에는 세부 요약 줄이 없어, 첫 캡처를 가리키는 칩을 하나 붙여 띄우기를 본다(칩 만들기는 tests/share-html.test.mjs)
+    await shared.$eval(".p1", (p) => {
+      const chip = Object.assign(document.createElement("button"), { className: "ref", textContent: "1쪽" });
+      Object.assign(chip.dataset, { cap: document.querySelector("figure").id, boxes: "[[10,10,50,20,0]]" });
+      p.append(chip);
+      chip.click();
+    });
+    assert.ok(await shared.$eval("#viewer", (v) => !v.hidden && v.querySelector("img").src.startsWith("data:image/jpeg") && v.querySelectorAll(".viewer-marks i").length === 1));
+    await shared.keyboard.press("Escape");
+    assert.ok(await shared.$eval("#viewer", (v) => v.hidden));
+    await shared.close();
+  });
   await step("다시 읽어오기: 원본이 없는 캡처는 글자를 다시 읽는다", async () => {
     const status = await page.evaluate(async () => {
       const { works } = await fetch("/api/state").then((r) => r.json());

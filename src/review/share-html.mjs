@@ -1,13 +1,37 @@
-// 내보내기(Slack으로도 보내는) HTML 한 파일: 작품 화면처럼 탭 세 개(캡처 자료 · AI 요약 · AI 논리점검)로 나눠 보여 준다.
+// 내보내기(Slack으로도 보내는) HTML 한 파일: 탭 세 개(AI 요약 · AI 논리점검 · 캡처 자료)로 나눠 보여 준다.
 // 탭은 스크립트 없이 라디오 단추와 CSS로만 바꾼다(스크립트를 막은 곳에서도 열린다).
-// 글꼴(빗썸 고딕)과 캡처 그림을 모두 파일 안에 넣어 인터넷 없이 브라우저에서 같은 모양으로 열린다.
-// 원문 근거 쪽 번호는 파일 안에서 누를 수 없어 넣지 않는다. 보낸 순간의 내용이 그대로 남는다.
+// 세부 요약 줄 끝의 쪽 칩(1쪽·2쪽)을 누르면 그 쪽 캡처가 떠 인용 줄이 오렌지 상자로 보인다(작품 화면의 원문 패널처럼,
+// 맨 아래 작은 스크립트. 스크립트를 막으면 칩만 보인다).
+// 글꼴(빗썸 고딕)과 캡처 그림을 모두 파일 안에 넣어 인터넷 없이 브라우저에서 같은 모양으로 열린다. 보낸 순간의 내용이 그대로 남는다.
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
+import { boxPercent, evidenceBoxes } from "../../public/lib/boxes.mjs";
 import { esc, join, noPeriod, sentences, seoulMinute } from "../../public/lib/html.mjs";
 import { publicDir } from "../config.mjs";
 import { image } from "../store.mjs";
+
+// 쪽 칩을 누르면 그 쪽 캡처(캡처 자료 탭의 그림)를 띄우고 인용 줄에 오렌지 상자를 그린다. 바깥·닫기·Esc로 닫는다.
+const VIEWER_SCRIPT = `
+const viewer = document.getElementById("viewer");
+document.addEventListener("click", (e) => {
+  const chip = e.target.closest(".ref");
+  if (chip) {
+    const figure = document.getElementById(chip.dataset.cap);
+    viewer.querySelector("img").src = figure.querySelector("img").src;
+    viewer.querySelector(".viewer-label").textContent = figure.querySelector("figcaption").textContent;
+    viewer.querySelector(".viewer-marks").innerHTML = JSON.parse(chip.dataset.boxes).map(([l, t, w, h, a]) =>
+      '<i style="left:' + l + '%;top:' + t + '%;width:' + w + '%;height:' + h + '%;transform:rotate(' + -a + 'deg)"></i>').join("");
+    viewer.hidden = false;
+    viewer.querySelector(".viewer-marks i")?.scrollIntoView({ block: "center" });
+  } else if (e.target === viewer || e.target.closest(".viewer-close")) viewer.hidden = true;
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") viewer.hidden = true; });
+`;
+// 앱에서 내보내기를 열 때(새 탭) 쓰는 보안 정책: 파일 안의 글꼴·그림(data:)과 위 스크립트(해시)만 허락한다.
+// 내려받아 연 파일에는 이 정책이 없어도 같은 스크립트가 돈다.
+export const shareCsp = `default-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'; script-src 'sha256-${createHash("sha256").update(VIEWER_SCRIPT).digest("base64")}'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
 
 const bare = (text) => sentences(text).map(noPeriod).join(" "); // 요약 줄은 끝 마침표 없이(화면과 같게)
 const font = readFile(path.join(publicDir, "fonts", "BithumbGothic-Basic.woff2")).then((b) => b.toString("base64"));
@@ -17,22 +41,40 @@ async function pictures(captures) {
   const out = [];
   for (const c of captures) {
     const jpeg = await sharp(image(c.id)).resize({ width: 1200, withoutEnlargement: true }).jpeg({ quality: 72 }).toBuffer();
-    out.push(`<figure><img src="data:image/jpeg;base64,${jpeg.toString("base64")}" alt="${esc(c.label)}"><figcaption>${esc(c.label)}</figcaption></figure>`);
+    out.push(`<figure id="cap-${esc(c.id)}"><img src="data:image/jpeg;base64,${jpeg.toString("base64")}" alt="${esc(c.label)}"><figcaption>${esc(c.label)}</figcaption></figure>`);
   }
   return out.join("");
 }
 
-const rows = (points) => `<ul class="rows">${join(points, (p) => `<li><b>${esc(p.topic)}</b><span>${esc(bare(p.text))}</span></li>`)}</ul>`;
+const rows = (points, chips = () => "") => `<ul class="rows">${join(points, (p) => `<li><b>${esc(p.topic)}</b><span>${esc(bare(p.text))} ${chips(p)}</span></li>`)}</ul>`;
+
+// 세부 요약 줄 끝의 쪽 칩. 쪽마다 하나이고, 그 줄의 근거 가운데 그 쪽에 있는 인용 줄 상자(그림 대비 %)를 함께 싣는다.
+function cites(p, captures, evidence) {
+  const pages = new Map(); // 쪽 표시 → { cap: 캡처 id, boxes: [[왼쪽, 위, 너비, 높이, 기울기], …] }
+  for (const id of p.refs || []) {
+    const ev = evidence?.[id], c = captures.find((x) => x.id === ev?.capture);
+    if (!c) continue;
+    const label = c.page ? c.page + "쪽" : c.label;
+    if (!pages.has(label)) pages.set(label, { cap: c.id, boxes: [] });
+    if (c.ocrWidth) pages.get(label).boxes.push(...evidenceBoxes(c, ev).map((b) => {
+      const { left, top, width, height, angle } = boxPercent(c, b);
+      return [left, top, width, height, angle].map((v) => +v.toFixed(2));
+    }));
+  }
+  const order = ([label]) => parseInt(label) || 0; // 쪽 순서대로
+  return join([...pages].sort((a, b) => order(a) - order(b)), ([label, { cap, boxes }]) =>
+    `<button type="button" class="ref" data-cap="cap-${esc(cap)}" data-boxes="${esc(JSON.stringify(boxes))}">${esc(label)}</button>`);
+}
 const items = (list, tag = "ul") => `<${tag}>${join(list, (x) => `<li>${esc(typeof x === "string" ? x : x.text)}</li>`)}</${tag}>`;
 
-function summaryPart(r) {
+function summaryPart(r, captures) {
   if (!r) return '<p class="muted">요약이 없습니다.</p>';
   const brief = r.edition?.brief || [], detail = r.edition?.detail || [];
   const top = brief.find((p) => p.topic === "한 줄 요약") || brief.find((p) => p.topic === "제목");
   const missing = r.edition?.missing || [];
   return `<section><h2>핵심 요약</h2>${top ? `<p class="lead">${esc(bare(top.text))}</p>` : ""}
     ${rows(brief.filter((p) => p.topic !== "제목" && p.topic !== "한 줄 요약"))}</section>
-    ${detail.length ? `<section class="detail"><h2>세부 요약</h2>${rows(detail)}</section>` : ""}
+    ${detail.length ? `<section class="detail"><h2>세부 요약</h2>${rows(detail, (p) => cites(p, captures, r.evidence))}</section>` : ""}
     ${missing.length ? `<p class="muted">비워 둔 항목 · ${esc(missing.map((m) => m.topic).join(" · "))} — 원문에서 직접 확인하세요</p>` : ""}`;
 }
 
@@ -86,13 +128,24 @@ h3 { margin: 0 0 8px; font-size: 16px; }
 figure { margin: 20px 0; } figure img { display: block; width: 100%; border: 1px solid var(--line); border-radius: 8px; }
 figcaption { margin-top: 4px; color: var(--text-3); font-size: 13px; }
 footer { margin-top: 32px; color: var(--text-3); font-size: 13px; }
+.ref { margin-left: 4px; padding: 0 7px; border: 1px solid var(--orange); border-radius: 999px; background: #fff; color: var(--orange); font: inherit; font-size: 12px; line-height: 1.6; cursor: pointer; vertical-align: 1px; }
+.ref:hover { background: var(--orange); color: #fff; }
+.viewer { position: fixed; inset: 0; z-index: 10; overflow: auto; padding: 32px 16px; background: rgba(0, 0, 0, 0.6); }
+.viewer[hidden] { display: none; }
+.viewer-box { position: relative; max-width: 1000px; margin: 0 auto; padding: 16px; border-radius: 12px; background: #fff; }
+.viewer-close { float: right; margin-bottom: 8px; padding: 4px 12px; border: 0; border-radius: 8px; background: var(--fill); font: inherit; cursor: pointer; }
+.viewer-stage { position: relative; clear: both; } .viewer-stage img { display: block; width: 100%; }
+.viewer-marks i { position: absolute; border: 2px solid var(--orange); border-radius: 3px; background: rgba(255, 108, 0, 0.15); }
+.viewer-label { margin: 8px 0 0; color: var(--text-3); font-size: 13px; }
 </style></head><body><main>
 <h1>${esc(w.name)}</h1>${meta ? `<p class="meta">${meta}</p>` : ""}
 <input type="radio" name="tab" id="tab-1" checked><input type="radio" name="tab" id="tab-2"><input type="radio" name="tab" id="tab-3">
-<nav class="tabs"><label for="tab-1">캡처 자료 · ${w.captures.length}쪽</label><label for="tab-2">AI 요약</label><label for="tab-3">AI 논리점검</label></nav>
-<div class="pane p1">${await pictures(w.captures)}</div>
-<div class="pane p2">${summaryPart(reading)}</div>
-<div class="pane p3">${logicPart(opinion)}</div>
+<nav class="tabs"><label for="tab-1">AI 요약</label><label for="tab-2">AI 논리점검</label><label for="tab-3">캡처 자료 · ${w.captures.length}쪽</label></nav>
+<div class="pane p1">${summaryPart(reading, w.captures)}</div>
+<div class="pane p2">${logicPart(opinion)}</div>
+<div class="pane p3">${await pictures(w.captures)}</div>
+<div id="viewer" class="viewer" hidden><div class="viewer-box"><button type="button" class="viewer-close" aria-label="닫기">닫기</button>
+  <div class="viewer-stage"><img alt=""><span class="viewer-marks"></span></div><p class="viewer-label"></p></div></div>
 <footer>아이디어정리에서 내보냄 · ${seoulMinute(new Date().toISOString())}</footer>
-</main></body></html>`;
+</main><script>${VIEWER_SCRIPT}</script></body></html>`;
 }

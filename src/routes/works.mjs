@@ -9,7 +9,7 @@ import { attachmentPages, pageKind } from "../intake/attachment-pages.mjs";
 import { intake, originalFile, updateResponse } from "../intake/sync.mjs";
 import { busy, schedule, tasks } from "../jobs.mjs";
 import { defaults, finalSheet, rubric, scoreRows, sheet, toCsv } from "../review/review.mjs";
-import { shareHtml } from "../review/share-html.mjs";
+import { shareCsp, shareHtml } from "../review/share-html.mjs";
 import { sendHtml, slackPeople, slackReady } from "../slack.mjs";
 import { similarWorks } from "../review/similar.mjs";
 import { sampleImage } from "../sample.mjs";
@@ -82,6 +82,7 @@ export default {
   "GET /api/share/:id": async ({ id, res }) => {
     const w = load(id);
     res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Content-Security-Policy", shareCsp); // 파일 안의 글꼴·그림과 쪽 칩 스크립트만
     res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(`${w.name.slice(0, 60)}_AI요약_${today()}.html`)}`);
     res.end(await shareHtml(w));
   },
