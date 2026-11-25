@@ -138,6 +138,8 @@ slack trigger update --trigger-id Ft여기에 --trigger-def triggers/review_webh
 
 ## 토큰·웹훅 주소가 사진이나 채팅에 보였으면
 
+_작성 2026-11-25 09:10 (한국 시간)_
+
 - **봇 토큰(botToken, xoxb-)**: 이제 쓰지 않으므로 `deploy/site.json`에서 `"botToken"` 줄을 지웁니다. 보였던 토큰은 idea_proposal 앱 설정 → OAuth & Permissions에서 Revoke(폐기)합니다(그 앱을 다른 데서 쓰면 Revoke 뒤 Reinstall로 새 토큰을 받습니다).
 - **웹훅 주소(reviewWebhook)**: 주소만 있으면 누구나 이 앱이 DM을 보내게 할 수 있으므로 새로 만듭니다. `slack-app` 폴더에서:
 
@@ -163,6 +165,8 @@ slack trigger update --trigger-id Ft여기에 --trigger-def triggers/review_webh
 
 ## 검색에서 'Slack 사람 목록이 아직 없습니다'가 나오면
 
+_작성 2026-11-25 09:13 (한국 시간)_
+
 저장소 읽기는 되고, 사람 목록(people)이 비어 있는 경우입니다. `slack-app` 폴더에서:
 
 1. **사람 목록 트리거가 있는지**: `slack trigger list`에 '아이디어정리 사람 목록 맞추기'가 보이는지 확인합니다. 없으면 만듭니다(배포한 앱 고르기):
@@ -183,6 +187,8 @@ slack trigger update --trigger-id Ft여기에 --trigger-def triggers/review_webh
 
 ### '사람 목록을 읽지 못했습니다: missing_argument'가 나면
 
+_작성 2026-11-25 09:17 (한국 시간)_
+
 회사처럼 조직(Enterprise Grid)에 설치된 앱은 워크스페이스를 정해 읽어야 합니다(지금 코드는 그렇게 읽습니다). `git pull` → `slack deploy`로 새 코드를 올린 뒤, 바로 다시 돌리려면 사람 목록 트리거를 지우고 새로 만듭니다(만든 1분 뒤 돕니다):
 
 ```sh
@@ -194,3 +200,7 @@ slack trigger delete --trigger-id Ft여기에
 ```sh
 slack trigger create --trigger-def triggers/people_daily.ts
 ```
+
+---
+
+마지막 수정: 2026-11-25 09:18 (한국 시간)
