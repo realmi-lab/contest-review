@@ -204,7 +204,8 @@ export async function composeEdition(r, progress, run = chat, options = {}) {
 
 // 앞 문장을 받아 이어지는 문장인가(이를·이에·이후·또 …)
 const leansOnPrevious = (text) =>
-  danglingStart(text) || /^(?:이후|이어|이때|또|그 뒤)/u.test(text.trim()) || /이를|이에|이것|그것/u.test(text.slice(0, 20));
+  danglingStart(text) || /^(?:이후|이어|이때|또|그 뒤)/u.test(text.trim()) || /이를|이에|이것|그것/u.test(text.slice(0, 20)) ||
+  /^(?:두|세|네|이|그|위|앞의?|이런|이러한)\s?(?:효과|기능|방안|내용|가지|것)/u.test(text.trim()); // 실측: '두 효과 모두 …'만 남음
 
 // 지운 것만 있는 고쳐 쓰기인가: 고친 문장의 낱말이 모두 원래 문장에 있다(끝의 조사 하나는 바뀌어도 된다).
 function deletionOnly(edited, original) {
