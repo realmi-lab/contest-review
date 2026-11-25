@@ -26,11 +26,16 @@ export const PostReviewAsk = DefineFunction({
 });
 
 // 제목은 넣지 않는다(파일과 함께 가는 글에 있다). Slack 굵게(*…*)는 바로 뒤에 조사가 붙으면 별표가 그대로 보여 안내 글에는 쓰지 않는다.
-// 워크플로 링크는 글자 링크로 걸면 휴대폰에서 브라우저로 열려 '브라우저에서는 쓸 수 없다'가 뜬다. 링크를 그대로 두고
-// Slack이 펼친 워크플로 카드([워크플로 보기] 단추)로 누르게 한다(unfurl_links). 긴 주소가 보이지 않게 글자 없는 링크(폭 없는 공백)로 걸고,
-// 카드만 남긴다. 카드는 메시지 아래에 붙어, 구분선은 다음 메시지로 보낸다.
-const ask = (link: string) =>
-  `💬 *평가 의견을 보내 주세요*\n위 HTML 파일을 보고 아래 *워크플로 보기*를 누르면 작성 창이 열립니다(다시 누르면 고칠 수 있습니다).<${link}|\u200b>`;
+// [평가 작성하기]는 Slack의 워크플로 단추(workflow_button): 우리가 글자를 정하는 단추지만 누르면 이 건의 워크플로 링크를
+// Slack이 직접 시작해, 열어 둔 작업이 필요 없어 휴대폰에서도 눌린다(예전 앱 단추는 휴대폰에서 막히는 Slack 쪽 문제가 있었다).
+// 이 단추를 못 쓰는 경우(메시지 거절)에는 링크를 Slack이 펼친 워크플로 카드([워크플로 보기])로 보낸다.
+const ASK = "💬 *평가 의견을 보내 주세요*\n위 HTML 파일을 보고 아래 *평가 작성하기*를 누르면 작성 창이 열립니다(다시 누르면 고칠 수 있습니다).";
+const askCard = (link: string) =>
+  `💬 *평가 의견을 보내 주세요*\n위 HTML 파일을 보고 아래 카드의 *워크플로 보기*를 누르면 작성 창이 열립니다(다시 누르면 고칠 수 있습니다).<${link}|\u200b>`;
+const workflowButton = (link: string) => ({
+  type: "actions",
+  elements: [{ type: "workflow_button", action_id: "reply_workflow", style: "primary", text: { type: "plain_text", text: "평가 작성하기" }, workflow: { trigger: { url: link } } }],
+});
 
 // 파일 올리기 3단계: 올릴 주소 받기 → 올리기 → 채널에 안내 글과 함께 붙이기
 async function uploadHtml(client: any, channel: string, filename: string, html: string, comment: string) {
@@ -66,11 +71,13 @@ export default SlackFunction(PostReviewAsk, async ({ inputs, client }) => {
   if (!link.ok || !link.trigger?.shortcut_url) return { error: `평가 답장 링크를 만들지 못했습니다: ${link.error}` };
   const failed = await uploadHtml(client, dm.channel.id, inputs.filename, inputs.html, inputs.comment); // HTML 먼저
   if (failed) return { error: `HTML 파일을 보내지 못했습니다: ${failed}` };
-  const posted = await client.chat.postMessage({
+  const url = link.trigger.shortcut_url;
+  let posted = await client.chat.postMessage({
     channel: dm.channel.id,
-    text: ask(link.trigger.shortcut_url),
-    unfurl_links: true, // 워크플로 링크를 카드로 펼친다
+    text: "평가 의견을 보내 주세요",
+    blocks: [{ type: "section", text: { type: "mrkdwn", text: ASK } }, workflowButton(url)],
   });
+  if (!posted.ok) posted = await client.chat.postMessage({ channel: dm.channel.id, text: askCard(url), unfurl_links: true }); // 카드로
   if (!posted.ok) return { error: `안내 메시지를 보내지 못했습니다: ${posted.error}` };
   await client.chat.postMessage({ channel: dm.channel.id, text: "--------" }); // 맨 아래 구분선(카드 다음)
   return { outputs: {} };
