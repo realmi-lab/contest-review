@@ -69,12 +69,15 @@ try {
     await until("빌드 번호", async () => /빌드|버전/.test(await page.$eval("#build", (e) => e.textContent)));
     await until("접수 칸", async () => !!(await page.$("#create")));
   });
-  await step("예제 작품을 만들면 캡처 자료 탭이 열리고 글자 인식이 끝난다", async () => {
+  await step("예제 작품을 만들면 글자 인식 뒤 AI 요약·점검이 저절로 돌고 AI 요약 탭으로 옮긴다", async () => {
     await click('[data-action="sample"]');
     await until("캡처 그림", async () => !!(await page.$(".capture-tile")));
-    await until("글자 인식", async () => (await state()).tasks.length === 0, 180);
+    await until("자동 요약 → AI 요약 탭", async () => !!(await page.$('.steptabs .stepitem.active[data-tab="요약"]')), 240);
+    await until("요약·점검", async () => (await state()).works.some((w) => w.hasLogic) && (await state()).tasks.length === 0, 120);
   });
   await step("캡처를 크게 보고 Esc로 닫는다", async () => {
+    await click('.steptabs [data-tab="자료"]');
+    await until("캡처 자료", async () => !!(await page.$(".capture-tile")));
     await click(".capture-tile");
     await until("크게 보기", isOpen);
     await press("Escape");
@@ -86,14 +89,14 @@ try {
       assert.match(await page.$eval(".panetitle", (e) => e.textContent), new RegExp(title));
     }
   });
-  await step("요약을 실행하면 점검까지 이어지고 요약·점검 탭에 결과가 나온다", async () => {
+  await step("AI 재요약을 실행하면 점검까지 이어지고 요약·점검 탭에 결과가 나온다", async () => {
     const started = await page.evaluate(async () => {
       const { works } = await fetch("/api/state").then((r) => r.json());
       const w = await fetch("/api/work/" + works[0].id).then((r) => r.json());
       return (await fetch("/api/summarize", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: w.id, rev: w.rev }) })).status;
     });
     assert.equal(started, 202);
-    await until("요약·점검", async () => (await state()).works.some((w) => w.hasLogic), 60);
+    await until("요약·점검", async () => (await state()).works.some((w) => w.hasLogic) && (await state()).tasks.length === 0, 60);
     await press("2");
     await until("요약 내용", async () => !!(await page.$(".reading-content")));
     await press("3");
