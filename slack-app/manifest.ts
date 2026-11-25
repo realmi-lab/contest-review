@@ -8,14 +8,15 @@ import Reviews from "./datastores/reviews.ts";
 import Tickets from "./datastores/tickets.ts";
 import AskReviewWorkflow from "./workflows/ask_review.ts";
 import HtmlReviewWorkflow from "./workflows/html_review.ts";
+import ReplyFormWorkflow from "./workflows/reply_form.ts";
 import SyncPeopleWorkflow from "./workflows/sync_people.ts";
 
 export default Manifest({
   name: "idea-review",
   description: "아이디어 리뷰 평가 의견 받기",
   icon: "assets/icon.png",
-  workflows: [AskReviewWorkflow, SyncPeopleWorkflow, HtmlReviewWorkflow],
+  workflows: [AskReviewWorkflow, SyncPeopleWorkflow, HtmlReviewWorkflow, ReplyFormWorkflow],
   datastores: [Reviews, People, Tickets],
   outgoingDomains: ["files.slack.com"], // 파일 올리기 주소
-  botScopes: ["chat:write", "files:write", "im:write", "users:read", "datastore:read", "datastore:write"],
+  botScopes: ["chat:write", "files:write", "im:write", "users:read", "datastore:read", "datastore:write", "triggers:write"], // triggers:write: 건마다 [평가 답장하기] 링크
 });

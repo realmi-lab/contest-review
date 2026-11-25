@@ -100,7 +100,7 @@ export default {
   // Slack 담당자 검색(이름·표시 이름·직함)
   "GET /api/slack-people": async ({ query, json }) => json(await slackPeople(query.get("q"))),
 
-  // Slack 보내기: 내보내기 HTML과 [평가 답장하기] 단추를 고른 담당자에게 보내고(그룹 DM), 누구에게 언제 보냈는지 작품에 남긴다.
+  // Slack 보내기: 내보내기 HTML과 [평가 답장하기] 링크를 고른 담당자에게 보내고(그룹 DM), 누구에게 언제 보냈는지 작품에 남긴다.
   "POST /api/slack-send": async ({ b, json }) => {
     const w = current(b);
     const user = /^[UW][A-Z0-9]+$/.test(b.user) ? b.user : err("담당자를 고르세요.");
@@ -113,7 +113,7 @@ export default {
       filename: `${w.name.slice(0, 60)}_AI요약_${today()}.html`,
       html: await shareHtml(w, { reply: htmlReply(ticket) }), // 받는 사람이 HTML 안에서 의견을 써 보낼 수 있게
       ticket,
-      comment: `*[${w.name}]*${gist ? "\n" + gist : ""}\n아이디어 리뷰에서 보낸 AI 요약${features().logic ? "·논리점검" : ""}입니다. 첨부한 HTML 파일을 내려받아 브라우저로 여세요.${htmlReply("") ? " 파일 맨 아래에서 바로 의견을 보낼 수도 있습니다(Slack 미리보기에서는 보내지지 않습니다)." : ""}`,
+      comment: `--------\n*[${w.name}]*${gist ? "\n" + gist : ""}\n아이디어 리뷰에서 보낸 AI 요약${features().logic ? "·논리점검" : ""}입니다. 첨부한 HTML 파일을 내려받아 브라우저로 여세요.${htmlReply("") ? " 파일 맨 아래에서 바로 의견을 보낼 수도 있습니다(Slack 미리보기에서는 보내지지 않습니다)." : ""}`,
     });
     const latest = load(w.id);
     latest.slackSent = [...(latest.slackSent || []), { user, name: bounded(b.name, 80), at: new Date().toISOString(), ...sent }];
