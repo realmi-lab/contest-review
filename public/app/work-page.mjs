@@ -173,6 +173,17 @@ function blockedReason(job, needsEngine) {
   return "";
 }
 
+// AI 요약·점검이 도는 동안 진행 막대 위 문구를 2.4초마다 바꿔 배너처럼 돌린다(진행 단계 글은 그 옆에 작게 그대로).
+// 새 요소로 바꿔 끼우면 들어오는 애니메이션(work.css .job-ticker)이 다시 돈다.
+const TICKER = ["생각하는 중", "원문을 살피는 중", "확인하는 중", "정리하는 중"];
+let tick = 0;
+setInterval(() => {
+  const shown = document.querySelector(".job-ticker i");
+  if (!shown) return;
+  tick = (tick + 1) % TICKER.length;
+  shown.replaceWith(Object.assign(document.createElement("i"), { textContent: TICKER[tick] }));
+}, 2400);
+
 export function showJob() {
   for (const group of document.querySelectorAll("[data-summary-work]")) {
     const id = group.dataset.summaryWork;
@@ -216,12 +227,13 @@ export function showJob() {
   // 요약·점검은 진행률 막대(0~100%)를 함께 보여 준다.
   const percent = job?.running ? job.percent : null;
   const bar = box.querySelector(".job-bar i");
-  if (percent != null && bar) { // 막대가 이미 있으면 너비만 바꿔 부드럽게 늘어나게 한다
-    box.querySelector(".job-line span").textContent = text;
+  const ticker = job?.running && job.ai ? `<span class="job-ticker"><i>${TICKER[tick]}</i></span>` : "";
+  if (percent != null && bar && !box.querySelector(".job-ticker") === !ticker) { // 막대가 이미 있으면 글과 너비만 바꿔 부드럽게 늘어나게 한다
+    box.querySelector(".job-label").textContent = text;
     box.querySelector(".job-line b").textContent = percent + "%";
     bar.style.width = percent + "%";
   } else box.innerHTML = percent == null ? esc(text)
-    : `<span class="job-line"><span>${esc(text)}</span><b>${percent}%</b></span><span class="job-bar"><i style="width:${percent}%"></i></span>`;
+    : `<span class="job-line">${ticker}<span class="job-label">${esc(text)}</span><b>${percent}%</b></span><span class="job-bar"><i style="width:${percent}%"></i></span>`;
   box.className = failed ? "job error" : job ? "job" : "job muted";
   if (run) {
     run.disabled = !!reason;

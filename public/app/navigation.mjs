@@ -124,7 +124,7 @@ export async function sync(force = false) {
   for (const task of next.tasks) {
     const running = !task.label.startsWith("대기 · ");
     if (running || !state.jobsByWork.has(task.work))
-      state.jobsByWork.set(task.work, { label: task.label, running, percent: task.percent });
+      state.jobsByWork.set(task.work, { label: task.label, running, percent: task.percent, ai: task.ai });
   }
   state.work = nextWork;
   showHealth();

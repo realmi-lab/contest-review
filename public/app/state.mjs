@@ -17,7 +17,7 @@ export const POLL_IDLE_MS = 4000;
 
 export const state = {
   app: null, // /api/state: 작품 목록, 진행 작업, 글자 인식 준비 상태
-  jobsByWork: new Map(), // 작품 id → { label, running }
+  jobsByWork: new Map(), // 작품 id → { label, running, percent, ai }
   work: null, // 선택한 작품의 전체 데이터
   selected: "", // 선택한 작품 id (처음 값은 navigation.mjs가 주소·지난번 선택에서 읽는다)
   tab: "자료", // 작품 화면의 단계
