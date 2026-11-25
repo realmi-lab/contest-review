@@ -92,24 +92,9 @@
   font-size: var(--fs-meta);
   color: var(--text-2);
 }
-.completebar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 16px;
-  padding: 16px 18px;
-  border-radius: var(--radius-sm);
-  background: var(--fill);
-  cursor: pointer;
-}
-.completebar span {
-  display: grid;
-}
-.completebar small {
+.capture-note {
+  margin: 16px 0 0;
   font-size: var(--fs-meta);
-}
-.completebar.on {
-  background: var(--accent-soft);
 }
 
 

@@ -564,7 +564,6 @@ export async function summarize(work, imageFor, progress) {
     if (c.ocrInfo?.detailFailed)
       limits.push(c.label + " · 정밀 재판독 실패, 기본 판독 사용");
   }
-  if (!work.complete) limits.push("전체 제출물 캡처 여부 미확인");
   const metadata = {
     title: work.name, inputKey, sourceAlerts: checkSubtractionDefinitions(evidence),
     extractVersion: 2, id: randomUUID(), limits, evidence, model: haiku,

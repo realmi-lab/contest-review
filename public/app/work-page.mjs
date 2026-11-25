@@ -16,7 +16,6 @@ const opinions = () => state.work.slackReplies?.length || 0;
 // 채점표 탭은 이 버튼 없이 내보내기만 둔다.
 function nextAction() {
   if (!state.work.captures.length) return autoCaptured() ? [] : ["upload", "캡처 올리기"]; // Forms 첨부는 서버가 캡처한다
-  if (!state.work.complete) return ["confirm-complete", "빠짐없음 확인"];
   if (state.tab === "자료") return ["reread-captures", "다시 읽어오기"];
   if (state.tab === "결과") return [];
   if (state.tab === "요약") return currentReading() ? ["remake-summary", "AI 재요약"] : [];
@@ -31,14 +30,10 @@ function stepStates() {
   const missing = pageCoverage()?.missing.length;
   return {
     자료: {
-      done: state.work.captures.length > 0 && !!state.work.complete,
+      done: state.work.captures.length > 0,
       note: !state.work.captures.length
         ? autoCaptured() ? "첨부 캡처 중" : "캡처 전"
-        : state.work.complete
-          ? `${state.work.captures.length}장 · 확인됨`
-          : missing
-            ? `${state.work.captures.length}장 · 빠진 쪽 ${missing}`
-            : `${state.work.captures.length}장 · 확인 전`,
+        : `${state.work.captures.length}장${missing ? ` · 빠진 쪽 ${missing}` : ""}`,
     },
     요약: {
       done: !!reading,
@@ -215,12 +210,7 @@ export function showJob() {
   const job = state.jobsByWork.get(state.work.id);
   const run = $("run");
   const runNeedsEngine = ["check-logic", "remake-summary"].includes(run?.dataset.action);
-  const ocrPending =
-    run?.dataset.action === "confirm-complete" &&
-    state.work.captures.some((c) => c.status === "queued");
-  const reason = ocrPending
-    ? "글자 인식이 끝나면 확인할 수 있습니다."
-    : blockedReason(job, runNeedsEngine);
+  const reason = blockedReason(job, runNeedsEngine);
   const failed = state.work.error && !job;
   const text = job
     ? (job.running ? job.label : "처리 대기 · 앞선 작업이 끝나면 시작합니다.")

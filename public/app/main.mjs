@@ -1,5 +1,5 @@
 // 화면 시작점: 이벤트를 연결하고 첫 화면을 그린 뒤 주기적으로 서버 상태를 읽는다.
-import { onClick, setComplete, stepWork, switchTab } from "./actions.mjs";
+import { onClick, stepWork, switchTab } from "./actions.mjs";
 import { upload } from "./captures.mjs";
 import { onSubmit } from "./forms.mjs";
 import { tiltPages } from "./interactions.mjs";
@@ -18,7 +18,6 @@ async function onChange(e) {
     state.listQuery.sort = e.target.value;
     return render();
   }
-  if (e.target.id === "complete") return setComplete(e.target.checked);
   if (e.target.id === "logic-on") return toggleLogic(e.target); // 설정 톱니바퀴의 AI 논리점검
 }
 

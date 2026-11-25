@@ -75,11 +75,7 @@ export function intakePane() {
     <section class="panel">
       ${suggested.length ? `<div class="diagram-note"><span><b>도식 검토 추천 ${suggested.length}쪽</b> · 그래프 값이 글자로 적혀 있지 않아 이미지로만 읽을 수 있습니다.</span>${button("mark-visual", "추천 쪽 도식 검토로 지정")}</div>` : ""}
       <div class="capgrid">${join(captures, captureCard)}</div>
-      <label class="completebar ${state.work.complete ? "on" : ""}">
-        <input id="complete" type="checkbox" ${state.work.complete ? "checked" : ""}>
-        <span><b>제출물이 빠짐없이 캡처되었음을 확인했습니다.</b>
-        ${note ? `<small class="warn-text">${esc(note)}</small>` : ""}</span>
-      </label>
+      ${note ? `<p class="capture-note warn-text">${esc(note)}</p>` : ""}
       <details class="capture-tools">
         <summary>빠진 쪽 추가 · 자료 교체</summary>
         <div class="actions">
@@ -95,7 +91,7 @@ export function intakePane() {
 // 다시 캡처: 원본 문서에서 그 쪽만 다시 받아 바꿔 끼운다. 삭제: 그 캡처만 지운다.
 export async function changeCapture(captureId, change) {
   if (change === "remove" && !confirm("선택한 캡처를 삭제할까요?")) return;
-  if (change === "recapture" && !confirm("이 쪽만 원본 문서에서 다시 캡처할까요?\n지금의 요약·점검·확정 채점표는 다시 만들어야 합니다.")) return;
+  if (change === "recapture" && !confirm("이 쪽만 원본 문서에서 다시 캡처할까요?\n다시 읽고 나면 AI 요약을 새로 만듭니다.")) return;
   await api("capture", {
     id: state.work.id,
     rev: state.work.rev,

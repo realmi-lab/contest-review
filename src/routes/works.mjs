@@ -207,18 +207,6 @@ export default {
     json({ ok: true });
   },
 
-  // 심사 기준이나 빠짐없음 표시가 바뀌면 확정 점수만 지운다.
-  // 캡처는 그대로이므로 rev를 올리지 않아 내용 요약(유료)은 남는다.
-  "POST /api/settings": ({ b, json }) => {
-    const w = current(b);
-    w.rubric = rubric(b.rubric);
-    w.complete = b.complete === true;
-    w.final = null;
-    w.error = "";
-    save(w);
-    json({ ok: true });
-  },
-
   // 도식 검토로 지정(캡처 여러 장 한 번에). 다음 요약부터 그 쪽은 그림도 함께 읽는다.
   "POST /api/visual": ({ b, json }) => {
     const w = current(b);
@@ -250,7 +238,7 @@ export default {
       });
     } else if (b.action === "remove") {
       w.captures = w.captures.filter((x) => x.id !== c.id);
-      changed(w, true);
+      changed(w);
       atomic(() => {
         save(w);
         deleteImage(c.id);
@@ -290,7 +278,7 @@ export default {
     if (busy(w.id)) err("진행 중인 작업이 끝난 뒤 지우세요.", 409);
     w.captures = [];
     if (w.source?.files) w.source.read = Object.fromEntries(w.source.files.map((n) => [n, { manual: true }]));
-    changed(w, true);
+    changed(w);
     atomic(() => {
       deleteImagesOf(w.id);
       save(w);

@@ -127,7 +127,8 @@ try {
     assert.ok(await shared.$eval("#viewer", (v) => v.hidden));
     await shared.close();
   });
-  await step("다시 읽어오기: 원본이 없는 캡처는 글자를 다시 읽는다", async () => {
+  await step("다시 읽어오기: 원본이 없는 캡처는 글자를 다시 읽고, 끝나면 AI 요약이 저절로 시작돼 AI 요약 탭으로 옮긴다", async () => {
+    await click('.steptabs [data-tab="자료"]');
     const status = await page.evaluate(async () => {
       const { works } = await fetch("/api/state").then((r) => r.json());
       const w = await fetch("/api/work/" + works[0].id).then((r) => r.json());
@@ -140,6 +141,8 @@ try {
       return fetch("/api/work/" + works[0].id).then((r) => r.json());
     });
     assert.ok(w.captures.length && w.captures.every((c) => c.status !== "queued"));
+    await until("자동 요약 → AI 요약 탭", async () => !!(await page.$('.steptabs .stepitem.active[data-tab="요약"]')), 60);
+    await until("자동 요약 끝", async () => (await state()).tasks.length === 0, 120);
   });
   await step("설정(톱니바퀴)에서 요약 설정·공모 연동 설정·운영 맥 점검 대화상자를 열고 닫는다", async () => {
     for (const action of ["summary-settings", "forms-settings", "self-check"]) {
@@ -193,13 +196,15 @@ try {
     };
     assert.ok((await steps()).includes("AI 논리점검"));
     await toggle(false);
-    assert.deepEqual(await steps(), ["캡처 자료", "AI 요약", "채점표"]);
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const tabs = () => page.$$eval(".stagetab", (tabs) => tabs.map((t) => t.firstChild.textContent));
+    await until("단계에서 빠짐", async () => same(await steps(), ["캡처 자료", "AI 요약", "채점표"]));
     assert.equal(await shared(), false);
     await click("#home");
     await until("목록", async () => !!(await page.$(".stagetab")));
-    assert.deepEqual(await page.$$eval(".stagetab", (tabs) => tabs.map((t) => t.firstChild.textContent)), ["전체", "AI 요약", "채점표"]);
+    await until("목록 탭에서 빠짐", async () => same(await tabs(), ["전체", "AI 요약", "채점표"]));
     await toggle(true);
-    assert.deepEqual(await page.$$eval(".stagetab", (tabs) => tabs.map((t) => t.firstChild.textContent)), ["전체", "AI 요약", "AI 논리점검", "채점표"]);
+    await until("목록 탭에 돌아옴", async () => same(await tabs(), ["전체", "AI 요약", "AI 논리점검", "채점표"]));
     assert.equal(await shared(), true);
   });
   await step("브라우저 오류가 없다", () => assert.deepEqual(errors, []));

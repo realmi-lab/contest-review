@@ -133,7 +133,7 @@ export async function addImage(wid, b, bytes) {
     height: info.height,
   };
   w.captures.push(c);
-  changed(w, true);
+  changed(w);
   atomic(() => {
     insertImage(c.id, w.id, data);
     save(w);
@@ -150,7 +150,7 @@ export async function replaceImage(wid, cid, bytes) {
   if (!c) return;
   delete c.ocrInfo;
   Object.assign(c, { id: randomUUID(), hash: sha256(data), lines: [], status: "queued", issue: "", width: info.width, height: info.height });
-  changed(w, true);
+  changed(w);
   atomic(() => {
     deleteImage(cid);
     insertImage(c.id, w.id, data);

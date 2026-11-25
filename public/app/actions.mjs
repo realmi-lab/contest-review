@@ -45,11 +45,6 @@ async function runSummaryCommand(id) {
   }
 }
 
-export async function setComplete(complete) {
-  await api("settings", { ...workRef(), rubric: state.work.rubric, complete });
-  await sync(true);
-}
-
 const actions = {
   "summary-settings": openSummarySettings,
   create: openCreate,
@@ -84,20 +79,9 @@ const actions = {
     await sync(true);
     notify("캡처를 모두 지웠습니다. 새 파일을 올려 주세요.");
   },
-  "confirm-complete": async () => {
-    const missing = pageCoverage()?.missing || [];
-    if (
-      missing.length &&
-      !confirm(
-        `빠진 쪽(${missing.slice(0, 8).join(", ")})이 있습니다. 그래도 빠짐없음으로 표시할까요?`,
-      )
-    )
-      return;
-    await setComplete(true);
-  },
   "open-summary": () => switchTab("요약"),
   "reread-captures": async () => {
-    if (!confirm(`캡처 ${state.work.captures.length}장을 원본 문서에서 다시 읽어 옵니다(원본이 없는 화면 캡처는 글자만 다시 읽습니다).\n지금의 요약·점검은 다시 만들어야 합니다.`)) return;
+    if (!confirm(`캡처 ${state.work.captures.length}장을 원본 문서에서 다시 읽어 옵니다(원본이 없는 화면 캡처는 글자만 다시 읽습니다).\n다 읽으면 AI 요약을 새로 만듭니다.`)) return;
     await api("reread-captures", workRef());
     await sync(true);
   },

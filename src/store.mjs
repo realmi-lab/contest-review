@@ -121,9 +121,8 @@ export function removeWork(wid) {
 }
 
 // 캡처가 바뀌면 자료 번호(rev)를 올린다. 지난 요약·확정 점수는 이 번호로 '지난 것'이 된다.
-export function changed(w, reset = false) {
+export function changed(w) {
   w.rev++;
-  if (reset) w.complete = false;
   w.final = null;
   w.error = "";
 }
@@ -144,7 +143,6 @@ export function newWork(name, spec = defaults, values = {}) {
     intakeVersion: 0,
     rev: 0,
     rubric: rubric(spec),
-    complete: false,
     captures: [],
     final: null,
     error: "",

@@ -126,6 +126,12 @@ export async function sync(force = false) {
     if (running || !state.jobsByWork.has(task.work))
       state.jobsByWork.set(task.work, { label: task.label, running, percent: task.percent, ai: task.ai });
   }
+  // 캡처 → 글자 인식 → AI 요약이 저절로 이어진다: 캡처 자료 탭을 보던 중 자동 요약이 시작되면(autoRev) AI 요약 탭으로 옮긴다.
+  const autoStarted = state.work?.id === id && nextWork.autoRev === nextWork.rev && state.work.autoRev !== nextWork.autoRev;
+  if (autoStarted && state.tab === "자료") {
+    state.tab = "요약";
+    force = true;
+  }
   state.work = nextWork;
   showHealth();
   renderSidebar();
