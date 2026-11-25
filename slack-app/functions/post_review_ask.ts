@@ -37,16 +37,7 @@ const workflowButton = (link: string) => ({
   elements: [{ type: "workflow_button", action_id: "reply_workflow", style: "primary", text: { type: "plain_text", text: "평가 작성하기" }, workflow: { trigger: { url: link } } }],
 });
 
-// Slack은 파일을 조금 뒤에 DM에 붙인다. 붙은 걸 확인하고 다음 글을 보내야 순서가 바뀌지 않는다(최대 15초).
-async function waitShared(client: any, file: string, channel: string) {
-  for (let i = 0; i < 15; i++) {
-    const shares = (await client.apiCall("files.info", { file })).file?.shares;
-    if (shares?.private?.[channel] || shares?.public?.[channel]) return;
-    await new Promise((r) => setTimeout(r, 1000));
-  }
-}
-
-// 파일 올리기 3단계: 올릴 주소 받기 → 올리기 → 채널에 안내 글과 함께 붙이기(붙을 때까지 기다림)
+// 파일 올리기 3단계: 올릴 주소 받기 → 올리기 → 채널에 안내 글과 함께 붙이기
 async function uploadHtml(client: any, channel: string, filename: string, html: string, comment: string) {
   const bytes = new TextEncoder().encode(html);
   const slot = await client.apiCall("files.getUploadURLExternal", { filename, length: bytes.length });
@@ -59,7 +50,7 @@ async function uploadHtml(client: any, channel: string, filename: string, html: 
     initial_comment: comment,
   });
   if (!done.ok) return done.error;
-  await waitShared(client, slot.file_id, channel);
+  await new Promise((r) => setTimeout(r, 3000)); // Slack은 파일을 몇 초 뒤에 붙인다: 다음 글(맨 아래 구분선)이 파일보다 먼저 보이지 않게 기다린다
   return "";
 }
 
